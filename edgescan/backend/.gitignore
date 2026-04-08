@@ -1,0 +1,13 @@
+# SQLite local dev database
+*.db
+*.db-shm
+*.db-wal
+
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
