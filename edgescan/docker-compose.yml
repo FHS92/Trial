@@ -1,0 +1,86 @@
+version: "3.9"
+
+# ─── One-command local dev ────────────────────────────────────────────────────
+#
+#   cp backend/.env.example backend/.env   # fill in ANTHROPIC_API_KEY
+#   docker compose up --build
+#
+#   Frontend → http://localhost:3000
+#   Backend  → http://localhost:8000
+#   API docs → http://localhost:8000/docs
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: edgescan
+      POSTGRES_PASSWORD: edgescan
+      POSTGRES_DB: edgescan
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edgescan"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── FastAPI backend ───────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://edgescan:edgescan@db:5432/edgescan
+      SCAN_SECRET: ${SCAN_SECRET:-edgescan-local-secret}
+      SCAN_BATCH_SIZE: "50"
+      BATCH_DELAY_SECONDS: "2.0"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ── Next.js frontend ──────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+
+  # ── Scheduler (separate process — 3x daily S&P 500 scan) ─────────────────
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://edgescan:edgescan@db:5432/edgescan
+      SCAN_BATCH_SIZE: "50"
+      BATCH_DELAY_SECONDS: "2.0"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: python scheduler.py
+
+volumes:
+  pgdata:
