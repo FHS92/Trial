@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import DetailPanel from '@/components/DetailPanel'
 import type { OHLCVBar } from '@/lib/types'
 
-export const revalidate = 240
+export const dynamic = 'force-dynamic'
 
 interface Props {
   params: { ticker: string }
