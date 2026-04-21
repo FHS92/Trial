@@ -1,28 +1,20 @@
 #!/bin/bash
-# start.sh — used by Railway on first boot
-# Seeds the DB if empty, then starts the API server
+# start.sh — Render / Railway startup script
+# Always seeds the DB on boot (Render free tier has no persistent disk)
 
 set -e
 
-echo "EdgeScan startup..."
+echo "EdgeScan startup — initialising DB..."
 python -c "
 import os, sys
 sys.path.insert(0, '.')
-os.environ.setdefault('DATABASE_URL', 'sqlite:///./edgescan.db')
-from database import init_db, SessionLocal
-from models import ScanResult
+from database import init_db
 init_db()
-db = SessionLocal()
-count = db.query(ScanResult).count()
-db.close()
-print(f'DB has {count} scan results.')
-if count == 0:
-    print('DB empty — running initial seed (top 30 tickers)...')
-    import subprocess
-    subprocess.run(['python', 'seed_live.py', '--n', '30'], check=True)
-else:
-    print('DB already seeded — skipping.')
+print('Tables ready.')
 "
 
-echo "Starting uvicorn..."
+echo "Seeding live data (top 30 tickers)..."
+python seed_live.py --n 30
+
+echo "Starting API server..."
 exec uvicorn main:app --host 0.0.0.0 --port "${PORT:-8000}"

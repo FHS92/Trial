@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: edgescan-backend
+    runtime: python
+    rootDir: edgescan/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    healthCheckPath: /health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # set manually in Render dashboard
+      - key: SCAN_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false          # leave blank to use SQLite
+    autoDeploy: true
