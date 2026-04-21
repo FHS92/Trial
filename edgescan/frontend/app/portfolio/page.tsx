@@ -333,6 +333,72 @@ export default function PortfolioPage() {
         <p className="text-xs mt-4 text-center" style={{ color: '#3a4259' }}>
           Prices & scores from last EdgeScan · 15-min delayed
         </p>
+
+        {/* Risk view */}
+        {holdings.length > 0 && (
+          <div className="mt-8 space-y-5">
+            <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: '#6b7a99' }}>Risk View</h2>
+
+            {/* Score alerts */}
+            {(() => {
+              const alerts = holdings.filter(h => h.score !== null && h.score_at_buy !== null && h.score_delta !== null && h.score_delta <= -10)
+              return alerts.length > 0 ? (
+                <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#ef4444' }}>⚠ Score Drop Alerts</p>
+                  {alerts.map(h => (
+                    <div key={h.ticker} className="flex items-center justify-between">
+                      <Link href={`/stock/${h.ticker}`} className="text-sm font-bold hover:underline" style={{ color: '#e2e8f8' }}>{h.ticker}</Link>
+                      <span className="text-xs" style={{ color: '#ef4444' }}>
+                        Score dropped {h.score_delta} pts ({h.score_at_buy} → {h.score})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null
+            })()}
+
+            {/* Sector concentration */}
+            {(() => {
+              const sectorMap: Record<string, number> = {}
+              const total = holdings.reduce((sum, h) => sum + (h.current_value ?? h.cost_basis), 0)
+              holdings.forEach(h => {
+                const s = h.sector || 'Unknown'
+                sectorMap[s] = (sectorMap[s] || 0) + (h.current_value ?? h.cost_basis)
+              })
+              const sectors = Object.entries(sectorMap).map(([s, v]) => ({ sector: s, pct: (v / total) * 100 })).sort((a, b) => b.pct - a.pct)
+              return sectors.length > 1 ? (
+                <div className="rounded-xl p-4" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#6b7a99' }}>Sector Concentration</p>
+                  {sectors.map(({ sector, pct }) => (
+                    <div key={sector} className="flex items-center gap-3 mb-2">
+                      <span className="text-xs w-32 truncate" style={{ color: '#a0aec0' }}>{sector}</span>
+                      <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#4f8ef7' }} />
+                      </div>
+                      <span className="text-xs w-10 text-right" style={{ color: '#6b7a99' }}>{pct.toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null
+            })()}
+
+            {/* Avg portfolio score */}
+            {(() => {
+              const scored = holdings.filter(h => h.score !== null)
+              if (scored.length === 0) return null
+              const avg = scored.reduce((sum, h) => sum + h.score!, 0) / scored.length
+              return (
+                <div className="rounded-xl p-4 flex items-center justify-between" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div>
+                    <p className="text-xs" style={{ color: '#6b7a99' }}>Portfolio Avg Score</p>
+                    <p className="text-2xl font-black mt-0.5" style={{ color: scoreColor(avg) }}>{avg.toFixed(1)}</p>
+                  </div>
+                  <p className="text-xs text-right" style={{ color: '#6b7a99' }}>Based on {scored.length} position{scored.length > 1 ? 's' : ''}<br />with EdgeScan data</p>
+                </div>
+              )
+            })()}
+          </div>
+        )}
       </main>
     </div>
   )

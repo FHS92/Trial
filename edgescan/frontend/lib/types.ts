@@ -106,6 +106,7 @@ export interface SearchResponse {
 export interface PortfolioHolding {
   ticker: string
   name: string | null
+  sector: string | null
   shares: number
   buy_price: number
   buy_date: string | null
@@ -115,6 +116,78 @@ export interface PortfolioHolding {
   pnl: number | null
   pnl_pct: number | null
   score: number | null
+  score_at_buy: number | null
+  score_delta: number | null
+}
+
+// ─── Score history ────────────────────────────────────────────────────────────
+
+export interface ScoreHistoryPoint {
+  date: string
+  score: number
+  fundamental_score: number
+  technical_score: number
+}
+
+export interface ScoreHistoryResponse {
+  ticker: string
+  history: ScoreHistoryPoint[]
+}
+
+// ─── Earnings ─────────────────────────────────────────────────────────────────
+
+export interface EarningsItem {
+  ticker: string
+  name: string | null
+  sector: string | null
+  score: number
+  earnings_date: string
+  current_price: number | null
+  upside_pct: number | null
+}
+
+export interface EarningsCalendarResponse {
+  earnings: EarningsItem[]
+}
+
+// ─── News ─────────────────────────────────────────────────────────────────────
+
+export interface NewsItem {
+  title: string
+  url: string
+  publisher: string
+  published_at: string
+}
+
+export interface NewsResponse {
+  ticker: string
+  news: NewsItem[]
+}
+
+// ─── Weekly snapshot ──────────────────────────────────────────────────────────
+
+export interface ScoreMover {
+  ticker: string
+  name: string | null
+  sector: string | null
+  score: number
+  score_delta: number | null
+  current_price: number | null
+}
+
+export interface SectorSnapshot {
+  sector: string
+  avg_score: number
+  count: number
+}
+
+export interface WeeklySnapshotResponse {
+  generated_at: string
+  top_stocks: ScoreMover[]
+  gainers: ScoreMover[]
+  losers: ScoreMover[]
+  sectors: SectorSnapshot[]
+  total_scanned: number
 }
 
 export interface PortfolioSummary {

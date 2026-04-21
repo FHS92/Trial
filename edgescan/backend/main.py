@@ -22,7 +22,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Header, Query
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from database import get_db, init_db
@@ -425,6 +425,180 @@ def trigger_scan(
 
 
 # ---------------------------------------------------------------------------
+# Score history
+# ---------------------------------------------------------------------------
+
+@app.get("/api/stock/{ticker}/score-history")
+def score_history(ticker: str, db: Session = Depends(get_db)):
+    ticker = ticker.upper().strip()
+    rows = (
+        db.query(ScanResult)
+        .filter(ScanResult.ticker == ticker)
+        .order_by(ScanResult.scanned_at.asc())
+        .limit(90)
+        .all()
+    )
+    return {
+        "ticker": ticker,
+        "history": [
+            {
+                "date": r.scanned_at.isoformat(),
+                "score": r.score,
+                "fundamental_score": r.fundamental_score,
+                "technical_score": r.technical_score,
+            }
+            for r in rows
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Earnings calendar
+# ---------------------------------------------------------------------------
+
+@app.get("/api/earnings-calendar")
+def earnings_calendar(db: Session = Depends(get_db)):
+    today = date.today()
+    cutoff = today + timedelta(days=45)
+
+    latest_subq = (
+        db.query(ScanResult.ticker, func.max(ScanResult.scanned_at).label("latest"))
+        .group_by(ScanResult.ticker)
+        .subquery()
+    )
+    rows = (
+        db.query(ScanResult)
+        .join(latest_subq, (ScanResult.ticker == latest_subq.c.ticker) & (ScanResult.scanned_at == latest_subq.c.latest))
+        .filter(
+            ScanResult.earnings_date.isnot(None),
+            ScanResult.earnings_date >= today,
+            ScanResult.earnings_date <= cutoff,
+        )
+        .order_by(ScanResult.earnings_date.asc())
+        .all()
+    )
+    return {
+        "earnings": [
+            {
+                "ticker": r.ticker,
+                "name": r.name,
+                "sector": r.sector,
+                "score": r.score,
+                "earnings_date": r.earnings_date.isoformat(),
+                "current_price": r.current_price,
+                "upside_pct": r.upside_pct,
+            }
+            for r in rows
+        ]
+    }
+
+
+# ---------------------------------------------------------------------------
+# Stock news
+# ---------------------------------------------------------------------------
+
+@app.get("/api/stock/{ticker}/news")
+def stock_news(ticker: str):
+    ticker = ticker.upper().strip()
+    try:
+        import yfinance as yf
+        raw = yf.Ticker(ticker).news or []
+        items = []
+        for n in raw[:8]:
+            # Handle both old and new yfinance news formats
+            content = n.get("content", {})
+            if content:
+                title = content.get("title", "")
+                url = (content.get("canonicalUrl") or {}).get("url", "")
+                publisher = (content.get("provider") or {}).get("displayName", "")
+                published_at = content.get("pubDate", "")
+            else:
+                title = n.get("title", "")
+                url = n.get("link", "")
+                publisher = n.get("publisher", "")
+                published_at = str(n.get("providerPublishTime", ""))
+            if title:
+                items.append({"title": title, "url": url, "publisher": publisher, "published_at": published_at})
+        return {"ticker": ticker, "news": items}
+    except Exception as e:
+        return {"ticker": ticker, "news": [], "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Weekly snapshot
+# ---------------------------------------------------------------------------
+
+@app.get("/api/weekly-snapshot")
+def weekly_snapshot(db: Session = Depends(get_db)):
+    # Latest score per ticker
+    latest_subq = (
+        db.query(ScanResult.ticker, func.max(ScanResult.scanned_at).label("latest"))
+        .group_by(ScanResult.ticker)
+        .subquery()
+    )
+    latest_rows = (
+        db.query(ScanResult)
+        .join(latest_subq, (ScanResult.ticker == latest_subq.c.ticker) & (ScanResult.scanned_at == latest_subq.c.latest))
+        .all()
+    )
+
+    # Score from 7 days ago per ticker
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    old_subq = (
+        db.query(ScanResult.ticker, func.max(ScanResult.scanned_at).label("latest"))
+        .filter(ScanResult.scanned_at <= week_ago)
+        .group_by(ScanResult.ticker)
+        .subquery()
+    )
+    old_rows = (
+        db.query(ScanResult)
+        .join(old_subq, (ScanResult.ticker == old_subq.c.ticker) & (ScanResult.scanned_at == old_subq.c.latest))
+        .all()
+    )
+    old_scores = {r.ticker: r.score for r in old_rows}
+
+    movers = []
+    for r in latest_rows:
+        old = old_scores.get(r.ticker)
+        movers.append({
+            "ticker": r.ticker,
+            "name": r.name,
+            "sector": r.sector,
+            "score": r.score,
+            "score_delta": (r.score - old) if old is not None else None,
+            "current_price": r.current_price,
+        })
+
+    with_delta = [m for m in movers if m["score_delta"] is not None]
+    gainers = sorted(with_delta, key=lambda x: x["score_delta"], reverse=True)[:5]
+    losers = sorted(with_delta, key=lambda x: x["score_delta"])[:5]
+    top_stocks = sorted(movers, key=lambda x: x["score"], reverse=True)[:10]
+
+    # Sector avg scores
+    sector_map: dict = {}
+    for r in latest_rows:
+        s = r.sector or "Other"
+        if s not in sector_map:
+            sector_map[s] = {"total": 0, "count": 0}
+        sector_map[s]["total"] += r.score
+        sector_map[s]["count"] += 1
+    sectors = sorted(
+        [{"sector": k, "avg_score": round(v["total"] / v["count"], 1), "count": v["count"]} for k, v in sector_map.items()],
+        key=lambda x: x["avg_score"],
+        reverse=True,
+    )
+
+    return {
+        "generated_at": datetime.utcnow().isoformat(),
+        "top_stocks": top_stocks,
+        "gainers": gainers,
+        "losers": losers,
+        "sectors": sectors,
+        "total_scanned": len(latest_rows),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Portfolio endpoints
 # ---------------------------------------------------------------------------
 
@@ -463,6 +637,7 @@ def get_portfolio(username: str, db: Session = Depends(get_db)):
         current_price = None
         score = None
         name = None
+        sector = None
 
         # Try to get current price + score from latest scan
         row = (
@@ -475,6 +650,7 @@ def get_portfolio(username: str, db: Session = Depends(get_db)):
             current_price = row.current_price
             score = row.score
             name = row.name
+            sector = row.sector
 
         # Fall back to live fetch if not in DB
         if current_price is None:
@@ -494,6 +670,8 @@ def get_portfolio(username: str, db: Session = Depends(get_db)):
         if current_val is not None:
             total_value += current_val
 
+        score_delta = (score - h.score_at_buy) if (score is not None and h.score_at_buy is not None) else None
+
         items.append({
             "ticker": ticker,
             "name": name,
@@ -506,6 +684,9 @@ def get_portfolio(username: str, db: Session = Depends(get_db)):
             "pnl": round(pnl, 2) if pnl is not None else None,
             "pnl_pct": round(pnl_pct, 2) if pnl_pct is not None else None,
             "score": score,
+            "score_at_buy": h.score_at_buy,
+            "score_delta": score_delta,
+            "sector": sector,
         })
 
     total_pnl = total_value - total_cost if total_value else None
@@ -533,6 +714,14 @@ def upsert_holding(username: str, holding: HoldingIn, db: Session = Depends(get_
     ticker = holding.ticker.upper().strip()
     buy_date = date.fromisoformat(holding.buy_date) if holding.buy_date else None
 
+    score_row = (
+        db.query(ScanResult)
+        .filter(ScanResult.ticker == ticker)
+        .order_by(ScanResult.scanned_at.desc())
+        .first()
+    )
+    score_now = score_row.score if score_row else None
+
     existing = (
         db.query(PortfolioHolding)
         .filter(PortfolioHolding.username == username, PortfolioHolding.ticker == ticker)
@@ -542,6 +731,8 @@ def upsert_holding(username: str, holding: HoldingIn, db: Session = Depends(get_
         existing.shares = holding.shares
         existing.buy_price = holding.buy_price
         existing.buy_date = buy_date
+        if existing.score_at_buy is None and score_now is not None:
+            existing.score_at_buy = score_now
     else:
         db.add(PortfolioHolding(
             username=username,
@@ -549,6 +740,7 @@ def upsert_holding(username: str, holding: HoldingIn, db: Session = Depends(get_
             shares=holding.shares,
             buy_price=holding.buy_price,
             buy_date=buy_date,
+            score_at_buy=score_now,
         ))
     db.commit()
     return {"status": "ok", "ticker": ticker}

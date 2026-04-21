@@ -6,6 +6,10 @@ import type {
   MarketPulse,
   SearchResponse,
   PortfolioResponse,
+  ScoreHistoryResponse,
+  EarningsCalendarResponse,
+  NewsResponse,
+  WeeklySnapshotResponse,
 } from './types'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -59,5 +63,21 @@ export const api = {
       method: 'DELETE',
       cache: 'no-store',
     }).then(r => r.json())
+  },
+
+  scoreHistory(ticker: string): Promise<ScoreHistoryResponse> {
+    return get<ScoreHistoryResponse>(`/api/stock/${ticker.toUpperCase()}/score-history`)
+  },
+
+  earningsCalendar(): Promise<EarningsCalendarResponse> {
+    return get<EarningsCalendarResponse>('/api/earnings-calendar')
+  },
+
+  stockNews(ticker: string): Promise<NewsResponse> {
+    return get<NewsResponse>(`/api/stock/${ticker.toUpperCase()}/news`)
+  },
+
+  weeklySnapshot(): Promise<WeeklySnapshotResponse> {
+    return get<WeeklySnapshotResponse>('/api/weekly-snapshot')
   },
 }

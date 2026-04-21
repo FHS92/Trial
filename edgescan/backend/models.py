@@ -98,6 +98,7 @@ class PortfolioHolding(Base):
     shares = Column(Float, nullable=False)
     buy_price = Column(Float, nullable=False)
     buy_date = Column(Date, nullable=True)
+    score_at_buy = Column(Integer, nullable=True)
     added_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     __table_args__ = (

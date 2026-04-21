@@ -1,12 +1,14 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import ScoreRing from './ScoreRing'
 import MetricsGrid from './MetricsGrid'
 import SignalRow from './SignalRow'
 import PriceChart from './PriceChart'
 import { loadWatchlist, toggleWatchlist } from '@/app/watchlist/WatchlistClient'
-import type { StockResult, OHLCVBar, SignalDisplay } from '@/lib/types'
+import { api } from '@/lib/api'
+import type { StockResult, OHLCVBar, SignalDisplay, ScoreHistoryPoint, NewsItem } from '@/lib/types'
 
 interface Props {
   stock: StockResult
@@ -65,8 +67,20 @@ export default function DetailPanel({ stock, history }: Props) {
   const upside = stock.upside_pct ?? 0
   const upsideColor = upside >= 0 ? '#22d47e' : '#f75f5f'
   const [watched, setWatched] = useState(false)
+  const [scoreHistory, setScoreHistory] = useState<ScoreHistoryPoint[]>([])
+  const [news, setNews] = useState<NewsItem[]>([])
+
   useEffect(() => { setWatched(loadWatchlist().includes(stock.ticker)) }, [stock.ticker])
+  useEffect(() => {
+    api.scoreHistory(stock.ticker).then(d => setScoreHistory(d.history)).catch(() => {})
+    api.stockNews(stock.ticker).then(d => setNews(d.news)).catch(() => {})
+  }, [stock.ticker])
+
   function handleWatch() { const added = toggleWatchlist(stock.ticker); setWatched(added) }
+
+  function fmtDate(iso: string) {
+    try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) } catch { return iso }
+  }
 
   const scoreColor =
     stock.score >= 80 ? '#22d47e' :
@@ -211,6 +225,57 @@ export default function DetailPanel({ stock, history }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Score history */}
+      {scoreHistory.length >= 2 && (
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#6b7a99' }}>
+            Score History
+          </h2>
+          <div className="rounded-card p-4" style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <ResponsiveContainer width="100%" height={120}>
+              <LineChart data={scoreHistory} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7a99', fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                <YAxis domain={['auto', 'auto']} tick={{ fill: '#6b7a99', fontSize: 10 }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{ background: '#131720', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8 }}
+                  labelStyle={{ color: '#6b7a99', fontSize: 11 }}
+                  itemStyle={{ color: '#4f8ef7', fontSize: 12 }}
+                  labelFormatter={fmtDate}
+                  formatter={(v: number) => [v, 'Score']}
+                />
+                <ReferenceLine y={70} stroke="rgba(34,212,126,0.2)" strokeDasharray="3 3" />
+                <ReferenceLine y={50} stroke="rgba(247,95,95,0.2)" strokeDasharray="3 3" />
+                <Line type="monotone" dataKey="score" stroke="#4f8ef7" strokeWidth={2} dot={{ r: 3, fill: '#4f8ef7' }} isAnimationActive={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* News */}
+      {news.length > 0 && (
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#6b7a99' }}>
+            Latest News
+          </h2>
+          <div className="space-y-2">
+            {news.map((item, i) => (
+              <a
+                key={i}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-card p-3 transition-colors hover:bg-white/[0.03]"
+                style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <p className="text-sm font-medium leading-snug" style={{ color: '#e2e8f8' }}>{item.title}</p>
+                <p className="text-xs mt-1" style={{ color: '#6b7a99' }}>{item.publisher}</p>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
