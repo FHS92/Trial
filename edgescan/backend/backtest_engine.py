@@ -93,13 +93,17 @@ def run_backtest(n_stocks: int = 100) -> dict:
         high_all   = raw["High"].ffill()
         low_all    = raw["Low"].ffill()
     else:
-        close_all = volume_all = high_all = low_all = raw.ffill()
+        # Single ticker — wrap in DataFrame so column access is consistent
+        close_all  = raw[["Close"]].ffill().rename(columns={"Close": tickers[0]})
+        volume_all = raw[["Volume"]].ffill().rename(columns={"Volume": tickers[0]})
+        high_all   = raw[["High"]].ffill().rename(columns={"High": tickers[0]})
+        low_all    = raw[["Low"]].ffill().rename(columns={"Low": tickers[0]})
 
     available = [t for t in tickers if t in close_all.columns]
 
     # SPY benchmark
     spy_raw   = yf.download("SPY", start=dl_start, auto_adjust=True, progress=False)
-    spy_close = spy_raw["Close"].ffill() if "Close" in spy_raw.columns else spy_raw.iloc[:, 0].ffill()
+    spy_close = spy_raw["Close"].ffill().squeeze() if "Close" in spy_raw.columns else spy_raw.iloc[:, 0].ffill().squeeze()
     spy_entry = _px_on_or_after(spy_close, START)
     spy_today = float(spy_close.iloc[-1])
     spy_total_ret = (spy_today - spy_entry) / spy_entry
