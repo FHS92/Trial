@@ -3,10 +3,13 @@ backtest_engine.py — Core backtest logic for EdgeScan.
 
 Strategy:
   - Universe : top N stocks from SP500_TICKERS
-  - Signal   : technical score only (RSI, MACD, 200MA, volume, 52W)
+  - Signal   : technical score (RSI, MACD, 200MA, OBV, 52W, ROC, ADX, RelStr)
   - Entry    : close of first trading day of each month
-  - Exit     : close of last trading day of same month
-  - Sizing   : month 1 = $6,000 ($2,000 × 3); subsequent months = portfolio / 3 each
+  - Exit     : close of last trading day of same month (unless carried)
+  - Carry    : if a stock is still in the top PICKS at the start of the next month,
+               do NOT sell — hold existing shares and buy only new entrants with
+               the remaining free capital
+  - Sizing   : month 1 = $6,000 ($2,000 × 3); subsequent = free capital / new picks
   - Benchmark: SPY buy-and-hold from Jan 2020
 """
 
@@ -144,82 +147,137 @@ def run_backtest(n_stocks: int = 100) -> dict:
     spy_total_ret = (spy_today - spy_entry) / spy_entry
     spy_final     = STARTING_CAPITAL * (1 + spy_total_ret)
 
-    # Monthly simulation
-    portfolio_value = STARTING_CAPITAL
-    monthly_results = []
+    # ── Pass 1: precompute technical scores for every month ──────────────────
+    # Storing scores upfront lets Pass 2 look ahead one month for carry decisions
+    # without re-scoring every stock.
+    all_monthly_scores: list[dict[str, float]] = []
 
     for m in months:
-        # Month end
-        next_m   = date(m.year + (m.month // 12), (m.month % 12) + 1, 1)
-        month_end = next_m - timedelta(days=1)
         cutoff    = pd.Timestamp(m)
+        spy_hist  = spy_close[spy_close.index < cutoff]
+        spy_3m    = float((float(spy_hist.iloc[-1]) / float(spy_hist.iloc[-63]) - 1) * 100) \
+                    if len(spy_hist) >= 63 else 0.0
 
-        # SPY 3-month return as of month start (for relative strength scoring)
-        spy_hist = spy_close[spy_close.index < cutoff]
-        if len(spy_hist) >= 63:
-            spy_return_3m = float((float(spy_hist.iloc[-1]) / float(spy_hist.iloc[-63]) - 1) * 100)
-        else:
-            spy_return_3m = 0.0
-
-        # Score each ticker using data strictly before month start
-        scores = {}
+        scores: dict[str, float] = {}
         for t in available:
             c  = close_all[t].loc[close_all.index < cutoff].dropna()
             v  = volume_all[t].loc[volume_all.index < cutoff].dropna()
             h  = high_all[t].loc[high_all.index < cutoff].dropna()
             lo = low_all[t].loc[low_all.index < cutoff].dropna()
-            s  = _tech_score(c, v, h, lo, spy_return_3m)
+            s  = _tech_score(c, v, h, lo, spy_3m)
             if s > 0:
                 scores[t] = s
+        all_monthly_scores.append(scores)
 
+    # ── Pass 2: simulate portfolio with carry-over logic ─────────────────────
+    portfolio_value = STARTING_CAPITAL
+    monthly_results: list[dict] = []
+    # held_positions: ticker → shares currently held (carried from previous month)
+    held_positions: dict[str, float] = {}
+
+    for i, m in enumerate(months):
+        scores = all_monthly_scores[i]
         if len(scores) < PICKS:
             continue
 
-        top3 = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:PICKS]
+        top3       = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:PICKS]
+        top3_set   = {t for t, _ in top3}
         top3_scores = {t: s for t, s in top3}
 
-        valid = []
-        for t, _ in top3:
+        next_m    = date(m.year + (m.month // 12), (m.month % 12) + 1, 1)
+        month_end = next_m - timedelta(days=1)
+
+        # Which top3 stocks also make the top PICKS next month? → carry those.
+        if i + 1 < len(months):
+            nxt = all_monthly_scores[i + 1]
+            if len(nxt) >= PICKS:
+                nxt_top3 = {t for t, _ in sorted(nxt.items(), key=lambda x: x[1], reverse=True)[:PICKS]}
+            else:
+                nxt_top3 = set()
+        else:
+            nxt_top3 = set()  # last month — sell everything
+
+        carry_set = top3_set & nxt_top3  # will NOT be sold at month-end
+
+        # Get entry/exit prices for all top3 tickers
+        start_px: dict[str, float] = {}
+        end_px:   dict[str, float] = {}
+        for t in top3_set:
             ep = _px_on_or_after(close_all[t], m)
             xp = _px_on_or_before(close_all[t], month_end)
             if ep and xp and ep > 0:
-                valid.append((t, ep, xp))
+                start_px[t] = ep
+                end_px[t]   = xp
 
-        if not valid:
+        # Drop held positions whose prices are unavailable this month
+        held_positions = {t: sh for t, sh in held_positions.items() if t in start_px}
+        held_set = set(held_positions)
+
+        valid_tickers = [t for t, _ in top3 if t in start_px and t in end_px]
+        if not valid_tickers:
             continue
 
-        alloc    = portfolio_value / len(valid)
-        month_pnl = 0.0
-        holdings = []
+        # Capital committed to carried positions (at this month's start price)
+        carry_value   = sum(held_positions[t] * start_px[t] for t in held_set)
+        avail_capital = max(0.0, portfolio_value - carry_value)
 
-        for t, ep, xp in valid:
-            shares = alloc / ep
-            pnl    = shares * (xp - ep)
-            ret    = (xp - ep) / ep * 100
+        # New entries: top3 tickers not already held
+        new_entries = [t for t in valid_tickers if t not in held_set]
+        per_new     = avail_capital / len(new_entries) if new_entries else 0.0
+
+        month_pnl = 0.0
+        holdings  = []
+        new_held: dict[str, float] = {}
+
+        for t in valid_tickers:
+            ep = start_px[t]
+            xp = end_px[t]
+
+            if t in held_set:
+                shares     = held_positions[t]
+                was_carried = True
+            else:
+                shares     = per_new / ep if per_new > 0 else 0.0
+                was_carried = False
+
+            if shares <= 0:
+                continue
+
+            pnl = shares * (xp - ep)
+            ret = (xp - ep) / ep * 100
             month_pnl += pnl
+
             holdings.append({
-                "ticker": t,
-                "score": round(top3_scores[t], 0),
-                "entry": round(ep, 2),
-                "exit": round(xp, 2),
+                "ticker":     t,
+                "score":      round(top3_scores[t], 0),
+                "entry":      round(ep, 2),
+                "exit":       round(xp, 2),
                 "return_pct": round(ret, 2),
-                "pnl": round(pnl, 2),
+                "pnl":        round(pnl, 2),
+                "carried":    was_carried,
             })
 
-        port_ret = month_pnl / portfolio_value * 100
-        portfolio_value += month_pnl
+            if t in carry_set:
+                new_held[t] = shares  # keep these shares into next month
 
-        spy_ep = _px_on_or_after(spy_close, m)
-        spy_xp = _px_on_or_before(spy_close, month_end)
+        if not holdings:
+            continue
+
+        port_ret        = month_pnl / portfolio_value * 100
+        portfolio_value += month_pnl
+        held_positions  = new_held
+
+        spy_ep  = _px_on_or_after(spy_close, m)
+        spy_xp  = _px_on_or_before(spy_close, month_end)
         spy_ret = ((spy_xp - spy_ep) / spy_ep * 100) if (spy_ep and spy_xp) else None
 
         monthly_results.append({
-            "month": m.strftime("%Y-%m"),
-            "holdings": holdings,
-            "port_return_pct": round(port_ret, 2),
-            "portfolio_value": round(portfolio_value, 2),
-            "spy_return_pct": round(spy_ret, 2) if spy_ret is not None else None,
-            "vs_spy_pct": round(port_ret - spy_ret, 2) if spy_ret is not None else None,
+            "month":            m.strftime("%Y-%m"),
+            "holdings":         holdings,
+            "port_return_pct":  round(port_ret, 2),
+            "portfolio_value":  round(portfolio_value, 2),
+            "spy_return_pct":   round(spy_ret, 2) if spy_ret is not None else None,
+            "vs_spy_pct":       round(port_ret - spy_ret, 2) if spy_ret is not None else None,
         })
 
     if not monthly_results:
