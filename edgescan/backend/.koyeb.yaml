@@ -1,0 +1,8 @@
+[build]
+builder = "buildpack"
+
+[run]
+command = "bash start.sh"
+
+[[services]]
+name = "edgescan-backend"
