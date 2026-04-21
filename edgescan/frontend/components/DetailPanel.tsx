@@ -241,7 +241,7 @@ export default function DetailPanel({ stock, history }: Props) {
                   contentStyle={{ background: '#131720', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8 }}
                   labelStyle={{ color: '#6b7a99', fontSize: 11 }}
                   itemStyle={{ color: '#4f8ef7', fontSize: 12 }}
-                  labelFormatter={fmtDate}
+                  labelFormatter={(label: string | number) => fmtDate(String(label))}
                   formatter={(v: number) => [v, 'Score']}
                 />
                 <ReferenceLine y={70} stroke="rgba(34,212,126,0.2)" strokeDasharray="3 3" />
