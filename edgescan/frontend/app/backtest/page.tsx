@@ -21,6 +21,7 @@ interface Summary {
   spy_final_value: number; spy_total_return_pct: number; outperformance_pct: number
   winning_months: number; winning_months_pct: number
   beat_spy_months: number; beat_spy_months_pct: number
+  hold_months?: number
 }
 interface BacktestData { monthly: MonthResult[]; yearly: YearResult[]; summary: Summary; run_at?: string }
 
@@ -31,30 +32,38 @@ function pct(n: number | null) {
 function usd(n: number) { return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
 function pctColor(n: number | null) { if (n === null) return '#6b7a99'; return n >= 0 ? '#22c55e' : '#ef4444' }
 
+const HOLD_OPTIONS = [
+  { months: 1, label: '1-Month Hold', short: '1M' },
+  { months: 2, label: '2-Month Hold', short: '2M' },
+  { months: 3, label: '3-Month Hold', short: '3M' },
+]
+
 export default function BacktestPage() {
   const [data, setData] = useState<BacktestData | null>(null)
   const [running, setRunning] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [elapsed, setElapsed] = useState(0)
+  const [holdMonths, setHoldMonths] = useState(1)
 
-  async function loadLatest() {
+  async function loadLatest(hm: number) {
     setLoading(true); setError('')
     try {
-      const r = await fetch(`${BASE}/api/backtest/latest`, { cache: 'no-store' })
-      if (!r.ok) throw new Error(r.status === 404 ? 'No backtest run yet — click Run to start one.' : 'Failed to load')
+      const r = await fetch(`${BASE}/api/backtest/latest?hold_months=${hm}`, { cache: 'no-store' })
+      if (!r.ok) throw new Error(r.status === 404 ? `No ${hm}-month backtest run yet — click Run to start one.` : 'Failed to load')
       setData(await r.json())
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error loading results')
     } finally { setLoading(false) }
   }
 
-  async function runBacktest() {
+  async function runBacktest(hm: number) {
+    setHoldMonths(hm)
     setRunning(true); setError(''); setElapsed(0)
     const start = Date.now()
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
     try {
-      const r = await fetch(`${BASE}/api/backtest/run?n_stocks=100`, { method: 'POST', cache: 'no-store' })
+      const r = await fetch(`${BASE}/api/backtest/run?n_stocks=100&hold_months=${hm}`, { method: 'POST', cache: 'no-store' })
       if (!r.ok) {
         const body = await r.json().catch(() => ({}))
         throw new Error(body.detail ?? `Server error ${r.status}`)
@@ -66,46 +75,68 @@ export default function BacktestPage() {
   }
 
   const s = data?.summary
+  const activeHold = s?.hold_months ?? holdMonths
 
   return (
     <div className="min-h-screen" style={{ background: '#080b12' }}>
       <header className="sticky top-0 z-40 flex items-center gap-3 px-4 sm:px-6 h-14"
         style={{ background: 'rgba(8,11,18,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <Link href="/" className="flex items-center gap-1 text-sm hover:opacity-80" style={{ color: '#6b7a99' }}>
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Scanner
-        </Link>
-        <span style={{ color: 'rgba(255,255,255,0.12)' }}>/</span>
         <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>Backtest</span>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-        <div className="mb-6">
+        <div className="mb-5">
           <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>Technical Score Backtest</h1>
           <p className="text-sm" style={{ color: '#6b7a99' }}>
-            Jan 2020 → today · Top 3 technical picks · Monthly rotation · $6,000 start · vs SPY buy-and-hold
+            Jan 2020 → today · Top 3 picks · $6,000 start · Carry logic active · vs SPY buy-and-hold
           </p>
         </div>
 
-        {/* Controls */}
-        <div className="flex gap-3 mb-6 flex-wrap">
-          <button onClick={runBacktest} disabled={running || loading}
-            className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
-            style={{ background: '#4f8ef7', color: '#fff' }}>
-            {running ? <>
-              <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-              </svg>
-              Running… {elapsed}s
-            </> : 'Run Backtest (~3 min)'}
-          </button>
-          <button onClick={loadLatest} disabled={running || loading}
-            className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-            style={{ background: 'rgba(255,255,255,0.06)', color: '#e2e8f8' }}>
-            {loading ? 'Loading…' : 'Load Last Results'}
-          </button>
+        {/* Hold period selector + run/load controls */}
+        <div className="flex flex-col gap-3 mb-6">
+          <div className="flex gap-2">
+            {HOLD_OPTIONS.map(opt => (
+              <button
+                key={opt.months}
+                onClick={() => setHoldMonths(opt.months)}
+                disabled={running || loading}
+                className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors"
+                style={{
+                  background: holdMonths === opt.months ? '#4f8ef7' : 'rgba(255,255,255,0.06)',
+                  color: holdMonths === opt.months ? '#fff' : '#a0aec0',
+                  border: '1px solid',
+                  borderColor: holdMonths === opt.months ? '#4f8ef7' : 'rgba(255,255,255,0.08)',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => runBacktest(holdMonths)}
+              disabled={running || loading}
+              className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+              style={{ background: '#4f8ef7', color: '#fff' }}
+            >
+              {running ? (
+                <>
+                  <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                  </svg>
+                  Running… {elapsed}s
+                </>
+              ) : `Run ${holdMonths}M Backtest (~3 min)`}
+            </button>
+            <button
+              onClick={() => loadLatest(holdMonths)}
+              disabled={running || loading}
+              className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+              style={{ background: 'rgba(255,255,255,0.06)', color: '#e2e8f8' }}
+            >
+              {loading ? 'Loading…' : `Load Last ${holdMonths}M Results`}
+            </button>
+          </div>
         </div>
 
         {running && (
@@ -141,7 +172,7 @@ export default function BacktestPage() {
 
             <p className="text-xs" style={{ color: '#3a4259' }}>
               {data.run_at && `Run ${new Date(data.run_at).toLocaleString()} · `}
-              Universe: {s.n_stocks} stocks · {s.months_traded} months · Beat SPY {s.beat_spy_months}/{s.months_traded} months ({s.beat_spy_months_pct}%)
+              {activeHold}-month hold · Universe: {s.n_stocks} stocks · {s.months_traded} months · Beat SPY {s.beat_spy_months}/{s.months_traded} ({s.beat_spy_months_pct}%)
             </p>
 
             {/* Yearly summary */}

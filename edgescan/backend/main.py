@@ -791,15 +791,18 @@ def delete_holding(username: str, ticker: str, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/backtest/run")
-def run_backtest(n_stocks: int = 100, db: Session = Depends(get_db)):
+def run_backtest(n_stocks: int = 100, hold_months: int = 1, db: Session = Depends(get_db)):
     """
     Run the technical backtest (Jan 2020 → today).
+    hold_months: 1 | 2 | 3 — rebalancing period; carry logic active in all cases.
     Takes 2-4 minutes. Stores results in DB so /latest is instant next time.
     """
+    if hold_months not in (1, 2, 3):
+        raise HTTPException(status_code=400, detail="hold_months must be 1, 2, or 3")
     import traceback
     try:
         from backtest_engine import run_backtest as _run
-        result = _run(n_stocks=n_stocks)
+        result = _run(n_stocks=n_stocks, hold_months=hold_months)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Backtest failed: {traceback.format_exc()}")
 
@@ -807,6 +810,7 @@ def run_backtest(n_stocks: int = 100, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=result["error"])
 
     s = result["summary"]
+    # yearly_json stores {"hold_months": N, "data": [...]} so we can filter without a migration
     row = BacktestRun(
         n_stocks=s["n_stocks"],
         months_traded=s["months_traded"],
@@ -819,7 +823,7 @@ def run_backtest(n_stocks: int = 100, db: Session = Depends(get_db)):
         winning_months=s["winning_months"],
         beat_spy_months=s["beat_spy_months"],
         monthly_json=json.dumps(result["monthly"]),
-        yearly_json=json.dumps(result["yearly"]),
+        yearly_json=json.dumps({"hold_months": hold_months, "data": result["yearly"]}),
     )
     db.add(row)
     db.commit()
@@ -829,30 +833,48 @@ def run_backtest(n_stocks: int = 100, db: Session = Depends(get_db)):
     return result
 
 
-@app.get("/api/backtest/latest")
-def latest_backtest(db: Session = Depends(get_db)):
-    """Return the most recently stored backtest results instantly."""
-    row = db.query(BacktestRun).order_by(BacktestRun.run_at.desc()).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="No backtest run yet. POST /api/backtest/run first.")
+def _parse_backtest_row(row) -> dict:
+    """Decode a BacktestRun row into the standard API response shape."""
+    yearly_raw = json.loads(row.yearly_json)
+    if isinstance(yearly_raw, dict):
+        hold_months = yearly_raw.get("hold_months", 1)
+        yearly      = yearly_raw["data"]
+    else:
+        hold_months = 1
+        yearly      = yearly_raw
     return {
-        "run_id": row.id,
-        "run_at": row.run_at.isoformat(),
+        "run_id":  row.id,
+        "run_at":  row.run_at.isoformat(),
         "monthly": json.loads(row.monthly_json),
-        "yearly": json.loads(row.yearly_json),
+        "yearly":  yearly,
         "summary": {
-            "n_stocks": row.n_stocks,
-            "months_traded": row.months_traded,
-            "starting_capital": row.starting_capital,
-            "final_value": row.final_value,
-            "total_return_pct": row.total_return_pct,
-            "spy_final_value": row.spy_final_value,
+            "n_stocks":             row.n_stocks,
+            "months_traded":        row.months_traded,
+            "starting_capital":     row.starting_capital,
+            "final_value":          row.final_value,
+            "total_return_pct":     row.total_return_pct,
+            "spy_final_value":      row.spy_final_value,
             "spy_total_return_pct": row.spy_total_return_pct,
-            "outperformance_pct": row.outperformance_pct,
-            "winning_months": row.winning_months,
-            "beat_spy_months": row.beat_spy_months,
+            "outperformance_pct":   row.outperformance_pct,
+            "winning_months":       row.winning_months,
+            "beat_spy_months":      row.beat_spy_months,
+            "hold_months":          hold_months,
         },
     }
+
+
+@app.get("/api/backtest/latest")
+def latest_backtest(hold_months: int = 1, db: Session = Depends(get_db)):
+    """Return the most recently stored backtest for the given hold period."""
+    rows = db.query(BacktestRun).order_by(BacktestRun.run_at.desc()).limit(20).all()
+    for row in rows:
+        parsed = _parse_backtest_row(row)
+        if parsed["summary"]["hold_months"] == hold_months:
+            return parsed
+    raise HTTPException(
+        status_code=404,
+        detail=f"No {hold_months}-month hold backtest run yet. POST /api/backtest/run?hold_months={hold_months} first.",
+    )
 
 
 # ---------------------------------------------------------------------------

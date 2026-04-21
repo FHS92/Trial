@@ -61,26 +61,7 @@ export default async function DashboardPage({
           <MarketStrip />
         </div>
 
-        <nav className="flex items-center gap-1 flex-shrink-0">
-          <Link href="/search" className="px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
-            Search
-          </Link>
-          <Link href="/earnings" className="hidden sm:block px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
-            Earnings
-          </Link>
-          <Link href="/compare" className="hidden sm:block px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
-            Compare
-          </Link>
-          <Link href="/weekly" className="hidden sm:block px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
-            Weekly
-          </Link>
-          <Link href="/backtest" className="hidden sm:block px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
-            Backtest
-          </Link>
-          <Link href="/portfolio" className="px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
-            Portfolio
-          </Link>
-        </nav>
+        {/* Nav links handled by persistent BottomNav */}
       </header>
 
       {/* Mobile market strip — shown below header on small screens */}

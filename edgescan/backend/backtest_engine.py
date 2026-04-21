@@ -117,7 +117,7 @@ def _px_on_or_before(s, d: date):
     return float(val.iloc[0]) if isinstance(val, pd.Series) else float(val)
 
 
-def run_backtest(n_stocks: int = 100) -> dict:
+def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
     tickers = SP500_TICKERS[:n_stocks]
     months  = _month_list()
 
@@ -148,15 +148,13 @@ def run_backtest(n_stocks: int = 100) -> dict:
     spy_final     = STARTING_CAPITAL * (1 + spy_total_ret)
 
     # ── Pass 1: precompute technical scores for every month ──────────────────
-    # Storing scores upfront lets Pass 2 look ahead one month for carry decisions
-    # without re-scoring every stock.
     all_monthly_scores: list[dict[str, float]] = []
 
     for m in months:
-        cutoff    = pd.Timestamp(m)
-        spy_hist  = spy_close[spy_close.index < cutoff]
-        spy_3m    = float((float(spy_hist.iloc[-1]) / float(spy_hist.iloc[-63]) - 1) * 100) \
-                    if len(spy_hist) >= 63 else 0.0
+        cutoff   = pd.Timestamp(m)
+        spy_hist = spy_close[spy_close.index < cutoff]
+        spy_3m   = float((float(spy_hist.iloc[-1]) / float(spy_hist.iloc[-63]) - 1) * 100) \
+                   if len(spy_hist) >= 63 else 0.0
 
         scores: dict[str, float] = {}
         for t in available:
@@ -169,78 +167,69 @@ def run_backtest(n_stocks: int = 100) -> dict:
                 scores[t] = s
         all_monthly_scores.append(scores)
 
-    # ── Pass 2: simulate portfolio with carry-over logic ─────────────────────
+    # ── Pass 2: simulate with N-month hold + carry logic ─────────────────────
+    # Rebalancing happens every hold_months months (i=0, hold_months, 2*hold_months, ...).
+    # At each rebalancing point the new top-PICKS are selected.  Positions already held
+    # that are still in the new top picks are carried (no trade); only the fresh entrants
+    # are bought with the freed capital.  Between rebalancing months the same shares are
+    # held and marked to market each calendar month.
     portfolio_value = STARTING_CAPITAL
     monthly_results: list[dict] = []
-    # held_positions: ticker → shares currently held (carried from previous month)
-    held_positions: dict[str, float] = {}
+    held_positions: dict[str, float] = {}   # ticker → shares
+    current_scores_display: dict[str, float] = {}
 
     for i, m in enumerate(months):
-        scores = all_monthly_scores[i]
-        if len(scores) < PICKS:
-            continue
-
-        top3       = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:PICKS]
-        top3_set   = {t for t, _ in top3}
-        top3_scores = {t: s for t, s in top3}
-
+        is_rebal  = (i % hold_months == 0)
         next_m    = date(m.year + (m.month // 12), (m.month % 12) + 1, 1)
         month_end = next_m - timedelta(days=1)
 
-        # Which top3 stocks also make the top PICKS next month? → carry those.
-        if i + 1 < len(months):
-            nxt = all_monthly_scores[i + 1]
-            if len(nxt) >= PICKS:
-                nxt_top3 = {t for t, _ in sorted(nxt.items(), key=lambda x: x[1], reverse=True)[:PICKS]}
-            else:
-                nxt_top3 = set()
-        else:
-            nxt_top3 = set()  # last month — sell everything
+        new_entries_this_month: set[str] = set()
 
-        carry_set = top3_set & nxt_top3  # will NOT be sold at month-end
+        if is_rebal:
+            scores = all_monthly_scores[i]
+            if len(scores) >= PICKS:
+                top3 = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:PICKS]
+                top3_set = {t for t, _ in top3}
+                current_scores_display = {t: s for t, s in top3}
 
-        # Get entry/exit prices for all top3 tickers
-        start_px: dict[str, float] = {}
-        end_px:   dict[str, float] = {}
-        for t in top3_set:
-            ep = _px_on_or_after(close_all[t], m)
-            xp = _px_on_or_before(close_all[t], month_end)
-            if ep and xp and ep > 0:
-                start_px[t] = ep
-                end_px[t]   = xp
+                # Fetch start prices for the new top-PICKS
+                start_px_rebal: dict[str, float] = {}
+                for t in top3_set:
+                    ep = _px_on_or_after(close_all[t], m)
+                    if ep and ep > 0:
+                        start_px_rebal[t] = ep
 
-        # Drop held positions whose prices are unavailable this month
-        held_positions = {t: sh for t, sh in held_positions.items() if t in start_px}
-        held_set = set(held_positions)
+                # Carry logic: keep held positions that are still in the new top picks;
+                # everything else exits at the end of the previous period (already MtM'd).
+                held_positions = {
+                    t: sh for t, sh in held_positions.items()
+                    if t in top3_set and t in start_px_rebal
+                }
+                held_set = set(held_positions)
 
-        valid_tickers = [t for t, _ in top3 if t in start_px and t in end_px]
-        if not valid_tickers:
+                carry_value = sum(held_positions[t] * start_px_rebal[t] for t in held_set)
+                avail       = max(0.0, portfolio_value - carry_value)
+
+                new_entries_list = [t for t in top3_set if t not in held_set and t in start_px_rebal]
+                per_new          = avail / len(new_entries_list) if new_entries_list else 0.0
+
+                for t in new_entries_list:
+                    held_positions[t] = per_new / start_px_rebal[t] if per_new > 0 else 0.0
+                    new_entries_this_month.add(t)
+
+        if not held_positions:
             continue
 
-        # Capital committed to carried positions (at this month's start price)
-        carry_value   = sum(held_positions[t] * start_px[t] for t in held_set)
-        avail_capital = max(0.0, portfolio_value - carry_value)
-
-        # New entries: top3 tickers not already held
-        new_entries = [t for t in valid_tickers if t not in held_set]
-        per_new     = avail_capital / len(new_entries) if new_entries else 0.0
-
+        # Mark every held position to market for this calendar month
         month_pnl = 0.0
-        holdings  = []
-        new_held: dict[str, float] = {}
+        holdings: list[dict] = []
 
-        for t in valid_tickers:
-            ep = start_px[t]
-            xp = end_px[t]
-
-            if t in held_set:
-                shares     = held_positions[t]
-                was_carried = True
-            else:
-                shares     = per_new / ep if per_new > 0 else 0.0
-                was_carried = False
-
-            if shares <= 0:
+        for t, shares in list(held_positions.items()):
+            if t not in close_all.columns:
+                continue
+            ep = _px_on_or_after(close_all[t], m)
+            xp = _px_on_or_before(close_all[t], month_end)
+            if not ep or not xp or ep <= 0 or shares <= 0:
                 continue
 
             pnl = shares * (xp - ep)
@@ -249,35 +238,31 @@ def run_backtest(n_stocks: int = 100) -> dict:
 
             holdings.append({
                 "ticker":     t,
-                "score":      round(top3_scores[t], 0),
+                "score":      round(current_scores_display.get(t, 0), 0),
                 "entry":      round(ep, 2),
                 "exit":       round(xp, 2),
                 "return_pct": round(ret, 2),
                 "pnl":        round(pnl, 2),
-                "carried":    was_carried,
+                "carried":    t not in new_entries_this_month,
             })
-
-            if t in carry_set:
-                new_held[t] = shares  # keep these shares into next month
 
         if not holdings:
             continue
 
         port_ret        = month_pnl / portfolio_value * 100
         portfolio_value += month_pnl
-        held_positions  = new_held
 
         spy_ep  = _px_on_or_after(spy_close, m)
         spy_xp  = _px_on_or_before(spy_close, month_end)
         spy_ret = ((spy_xp - spy_ep) / spy_ep * 100) if (spy_ep and spy_xp) else None
 
         monthly_results.append({
-            "month":            m.strftime("%Y-%m"),
-            "holdings":         holdings,
-            "port_return_pct":  round(port_ret, 2),
-            "portfolio_value":  round(portfolio_value, 2),
-            "spy_return_pct":   round(spy_ret, 2) if spy_ret is not None else None,
-            "vs_spy_pct":       round(port_ret - spy_ret, 2) if spy_ret is not None else None,
+            "month":           m.strftime("%Y-%m"),
+            "holdings":        holdings,
+            "port_return_pct": round(port_ret, 2),
+            "portfolio_value": round(portfolio_value, 2),
+            "spy_return_pct":  round(spy_ret, 2) if spy_ret is not None else None,
+            "vs_spy_pct":      round(port_ret - spy_ret, 2) if spy_ret is not None else None,
         })
 
     if not monthly_results:
@@ -326,5 +311,6 @@ def run_backtest(n_stocks: int = 100) -> dict:
             "winning_months_pct": round(winners / n * 100, 1),
             "beat_spy_months": beat_spy,
             "beat_spy_months_pct": round(beat_spy / n * 100, 1),
+            "hold_months": hold_months,
         },
     }
