@@ -101,6 +101,36 @@ export interface SearchResponse {
   results: string[]
 }
 
+// ─── Portfolio ────────────────────────────────────────────────────────────────
+
+export interface PortfolioHolding {
+  ticker: string
+  name: string | null
+  shares: number
+  buy_price: number
+  buy_date: string | null
+  current_price: number | null
+  cost_basis: number
+  current_value: number | null
+  pnl: number | null
+  pnl_pct: number | null
+  score: number | null
+}
+
+export interface PortfolioSummary {
+  total_cost: number
+  total_value: number
+  total_pnl: number | null
+  total_pnl_pct: number | null
+  positions: number
+}
+
+export interface PortfolioResponse {
+  username: string
+  holdings: PortfolioHolding[]
+  summary: PortfolioSummary
+}
+
 // ─── Signal display helpers ───────────────────────────────────────────────────
 
 export type SignalStatus = 'green' | 'amber' | 'red'

@@ -87,3 +87,20 @@ class ThesisCache(Base):
 
     def __repr__(self):
         return f"<ThesisCache ticker={self.ticker} generated_at={self.generated_at}>"
+
+
+class PortfolioHolding(Base):
+    __tablename__ = "portfolio_holdings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(60), nullable=False, index=True)
+    ticker = Column(String(10), nullable=False)
+    shares = Column(Float, nullable=False)
+    buy_price = Column(Float, nullable=False)
+    buy_date = Column(Date, nullable=True)
+    added_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("username", "ticker", name="uq_portfolio_username_ticker"),
+        Index("ix_portfolio_username", "username"),
+    )

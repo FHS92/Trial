@@ -65,8 +65,8 @@ export default async function DashboardPage({
           <Link href="/search" className="px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
             Search
           </Link>
-          <Link href="/watchlist" className="px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
-            Watchlist
+          <Link href="/portfolio" className="px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
+            Portfolio
           </Link>
         </nav>
       </header>

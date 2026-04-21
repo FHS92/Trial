@@ -20,13 +20,14 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Header, Query
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from database import get_db, init_db
 from data_fetcher import SP500_TICKERS, fetch_fundamentals, fetch_price_history
-from models import PriceHistory, ScanResult, ThesisCache
+from models import PriceHistory, PortfolioHolding, ScanResult, ThesisCache
 from scanner import scan_tickers, score_stock
 from thesis_generator import generate_thesis
 
@@ -421,6 +422,152 @@ def trigger_scan(
         "scanned_at": datetime.utcnow().isoformat(),
         "top_5": top5,
     }
+
+
+# ---------------------------------------------------------------------------
+# Portfolio endpoints
+# ---------------------------------------------------------------------------
+
+import re as _re
+
+def _slugify(name: str) -> str:
+    return _re.sub(r"[^a-z0-9_-]", "", name.lower().replace(" ", "-"))[:40]
+
+
+class HoldingIn(BaseModel):
+    ticker: str
+    shares: float
+    buy_price: float
+    buy_date: Optional[str] = None  # ISO date string
+
+
+@app.get("/api/portfolio/{username}")
+def get_portfolio(username: str, db: Session = Depends(get_db)):
+    username = _slugify(username)
+    if not username:
+        raise HTTPException(status_code=400, detail="Invalid username")
+
+    holdings = (
+        db.query(PortfolioHolding)
+        .filter(PortfolioHolding.username == username)
+        .order_by(PortfolioHolding.added_at.asc())
+        .all()
+    )
+
+    items = []
+    total_cost = 0.0
+    total_value = 0.0
+
+    for h in holdings:
+        ticker = h.ticker.upper()
+        current_price = None
+        score = None
+        name = None
+
+        # Try to get current price + score from latest scan
+        row = (
+            db.query(ScanResult)
+            .filter(ScanResult.ticker == ticker)
+            .order_by(ScanResult.scanned_at.desc())
+            .first()
+        )
+        if row:
+            current_price = row.current_price
+            score = row.score
+            name = row.name
+
+        # Fall back to live fetch if not in DB
+        if current_price is None:
+            try:
+                import yfinance as yf
+                info = yf.Ticker(ticker).fast_info
+                current_price = round(float(info.last_price), 2)
+            except Exception:
+                current_price = None
+
+        cost_basis = h.shares * h.buy_price
+        current_val = (h.shares * current_price) if current_price else None
+        pnl = (current_val - cost_basis) if current_val is not None else None
+        pnl_pct = ((pnl / cost_basis) * 100) if (pnl is not None and cost_basis) else None
+
+        total_cost += cost_basis
+        if current_val is not None:
+            total_value += current_val
+
+        items.append({
+            "ticker": ticker,
+            "name": name,
+            "shares": h.shares,
+            "buy_price": h.buy_price,
+            "buy_date": h.buy_date.isoformat() if h.buy_date else None,
+            "current_price": current_price,
+            "cost_basis": round(cost_basis, 2),
+            "current_value": round(current_val, 2) if current_val is not None else None,
+            "pnl": round(pnl, 2) if pnl is not None else None,
+            "pnl_pct": round(pnl_pct, 2) if pnl_pct is not None else None,
+            "score": score,
+        })
+
+    total_pnl = total_value - total_cost if total_value else None
+    total_pnl_pct = ((total_pnl / total_cost) * 100) if (total_pnl is not None and total_cost) else None
+
+    return {
+        "username": username,
+        "holdings": items,
+        "summary": {
+            "total_cost": round(total_cost, 2),
+            "total_value": round(total_value, 2),
+            "total_pnl": round(total_pnl, 2) if total_pnl is not None else None,
+            "total_pnl_pct": round(total_pnl_pct, 2) if total_pnl_pct is not None else None,
+            "positions": len(items),
+        },
+    }
+
+
+@app.post("/api/portfolio/{username}")
+def upsert_holding(username: str, holding: HoldingIn, db: Session = Depends(get_db)):
+    username = _slugify(username)
+    if not username:
+        raise HTTPException(status_code=400, detail="Invalid username")
+
+    ticker = holding.ticker.upper().strip()
+    buy_date = date.fromisoformat(holding.buy_date) if holding.buy_date else None
+
+    existing = (
+        db.query(PortfolioHolding)
+        .filter(PortfolioHolding.username == username, PortfolioHolding.ticker == ticker)
+        .first()
+    )
+    if existing:
+        existing.shares = holding.shares
+        existing.buy_price = holding.buy_price
+        existing.buy_date = buy_date
+    else:
+        db.add(PortfolioHolding(
+            username=username,
+            ticker=ticker,
+            shares=holding.shares,
+            buy_price=holding.buy_price,
+            buy_date=buy_date,
+        ))
+    db.commit()
+    return {"status": "ok", "ticker": ticker}
+
+
+@app.delete("/api/portfolio/{username}/{ticker}")
+def delete_holding(username: str, ticker: str, db: Session = Depends(get_db)):
+    username = _slugify(username)
+    ticker = ticker.upper().strip()
+    row = (
+        db.query(PortfolioHolding)
+        .filter(PortfolioHolding.username == username, PortfolioHolding.ticker == ticker)
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Holding not found")
+    db.delete(row)
+    db.commit()
+    return {"status": "deleted", "ticker": ticker}
 
 
 # ---------------------------------------------------------------------------

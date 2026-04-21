@@ -5,6 +5,7 @@ import type {
   Period,
   MarketPulse,
   SearchResponse,
+  PortfolioResponse,
 } from './types'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -38,5 +39,25 @@ export const api = {
 
   marketPulse(): Promise<MarketPulse> {
     return get<MarketPulse>('/api/market-pulse')
+  },
+
+  portfolio(username: string): Promise<PortfolioResponse> {
+    return get<PortfolioResponse>(`/api/portfolio/${encodeURIComponent(username)}`)
+  },
+
+  addHolding(username: string, ticker: string, shares: number, buyPrice: number, buyDate?: string): Promise<{ status: string; ticker: string }> {
+    return fetch(`${BASE}/api/portfolio/${encodeURIComponent(username)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker, shares, buy_price: buyPrice, buy_date: buyDate ?? null }),
+      cache: 'no-store',
+    }).then(r => r.json())
+  },
+
+  deleteHolding(username: string, ticker: string): Promise<{ status: string; ticker: string }> {
+    return fetch(`${BASE}/api/portfolio/${encodeURIComponent(username)}/${encodeURIComponent(ticker)}`, {
+      method: 'DELETE',
+      cache: 'no-store',
+    }).then(r => r.json())
   },
 }
