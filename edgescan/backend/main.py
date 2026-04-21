@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db, init_db
 from data_fetcher import SP500_TICKERS, fetch_fundamentals, fetch_price_history
-from models import PriceHistory, PortfolioHolding, ScanResult, ThesisCache
+from models import BacktestRun, PriceHistory, PortfolioHolding, ScanResult, ThesisCache
 from scanner import scan_tickers, score_stock
 from thesis_generator import generate_thesis
 
@@ -760,6 +760,70 @@ def delete_holding(username: str, ticker: str, db: Session = Depends(get_db)):
     db.delete(row)
     db.commit()
     return {"status": "deleted", "ticker": ticker}
+
+
+# ---------------------------------------------------------------------------
+# Backtest endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/backtest/run")
+def run_backtest(n_stocks: int = 100, db: Session = Depends(get_db)):
+    """
+    Run the technical backtest (Jan 2020 → today).
+    Takes 2-4 minutes. Stores results in DB so /latest is instant next time.
+    """
+    from backtest_engine import run_backtest as _run
+    result = _run(n_stocks=n_stocks)
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    s = result["summary"]
+    row = BacktestRun(
+        n_stocks=s["n_stocks"],
+        months_traded=s["months_traded"],
+        starting_capital=s["starting_capital"],
+        final_value=s["final_value"],
+        total_return_pct=s["total_return_pct"],
+        spy_final_value=s["spy_final_value"],
+        spy_total_return_pct=s["spy_total_return_pct"],
+        outperformance_pct=s["outperformance_pct"],
+        winning_months=s["winning_months"],
+        beat_spy_months=s["beat_spy_months"],
+        monthly_json=json.dumps(result["monthly"]),
+        yearly_json=json.dumps(result["yearly"]),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    result["run_id"] = row.id
+    result["run_at"] = row.run_at.isoformat()
+    return result
+
+
+@app.get("/api/backtest/latest")
+def latest_backtest(db: Session = Depends(get_db)):
+    """Return the most recently stored backtest results instantly."""
+    row = db.query(BacktestRun).order_by(BacktestRun.run_at.desc()).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="No backtest run yet. POST /api/backtest/run first.")
+    return {
+        "run_id": row.id,
+        "run_at": row.run_at.isoformat(),
+        "monthly": json.loads(row.monthly_json),
+        "yearly": json.loads(row.yearly_json),
+        "summary": {
+            "n_stocks": row.n_stocks,
+            "months_traded": row.months_traded,
+            "starting_capital": row.starting_capital,
+            "final_value": row.final_value,
+            "total_return_pct": row.total_return_pct,
+            "spy_final_value": row.spy_final_value,
+            "spy_total_return_pct": row.spy_total_return_pct,
+            "outperformance_pct": row.outperformance_pct,
+            "winning_months": row.winning_months,
+            "beat_spy_months": row.beat_spy_months,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------

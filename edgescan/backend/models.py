@@ -105,3 +105,22 @@ class PortfolioHolding(Base):
         UniqueConstraint("username", "ticker", name="uq_portfolio_username_ticker"),
         Index("ix_portfolio_username", "username"),
     )
+
+
+class BacktestRun(Base):
+    __tablename__ = "backtest_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    n_stocks = Column(Integer, nullable=False)
+    months_traded = Column(Integer)
+    starting_capital = Column(Float)
+    final_value = Column(Float)
+    total_return_pct = Column(Float)
+    spy_final_value = Column(Float)
+    spy_total_return_pct = Column(Float)
+    outperformance_pct = Column(Float)
+    winning_months = Column(Integer)
+    beat_spy_months = Column(Integer)
+    monthly_json = Column(Text)   # JSON array of monthly results
+    yearly_json = Column(Text)    # JSON array of yearly summaries
