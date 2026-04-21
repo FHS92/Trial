@@ -55,7 +55,10 @@ export default function BacktestPage() {
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
     try {
       const r = await fetch(`${BASE}/api/backtest/run?n_stocks=100`, { method: 'POST', cache: 'no-store' })
-      if (!r.ok) throw new Error('Backtest failed — check Cloud Run logs')
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        throw new Error(body.detail ?? `Server error ${r.status}`)
+      }
       setData(await r.json())
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Run failed')

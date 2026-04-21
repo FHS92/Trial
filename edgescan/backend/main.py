@@ -772,8 +772,13 @@ def run_backtest(n_stocks: int = 100, db: Session = Depends(get_db)):
     Run the technical backtest (Jan 2020 → today).
     Takes 2-4 minutes. Stores results in DB so /latest is instant next time.
     """
-    from backtest_engine import run_backtest as _run
-    result = _run(n_stocks=n_stocks)
+    import traceback
+    try:
+        from backtest_engine import run_backtest as _run
+        result = _run(n_stocks=n_stocks)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Backtest failed: {traceback.format_exc()}")
+
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
 
