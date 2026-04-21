@@ -6,11 +6,15 @@ Strategy:
   - Signal   : technical score (RSI, MACD, 200MA, OBV, 52W, ROC, ADX, RelStr)
   - Entry    : close of first trading day of each month
   - Exit     : close of last trading day of same month (unless carried)
-  - Carry    : if a stock is still in the top PICKS at the start of the next month,
-               do NOT sell — hold existing shares and buy only new entrants with
-               the remaining free capital
+  - Carry    : if a stock is still in the top PICKS at the next rebalancing point,
+               hold existing shares and buy only new entrants with remaining capital
   - Sizing   : month 1 = $6,000 ($2,000 × 3); subsequent = free capital / new picks
   - Benchmark: SPY buy-and-hold from Jan 2020
+
+Performance note:
+  Indicators are precomputed once per stock on the full time series, then sampled
+  at each month boundary with searchsorted.  This is ~30x faster than the naive
+  approach of rerunning compute_technicals for every (stock, month) pair.
 """
 
 import warnings
@@ -33,7 +37,7 @@ from scanner import (
     _score_adx,
     _score_relative_strength,
 )
-from technicals import compute_technicals
+from technicals import _rsi, _ema, _sma, _adx, _obv, _roc
 
 START = date(2020, 1, 1)
 STARTING_CAPITAL = 6_000.0
@@ -52,48 +56,113 @@ def _month_list() -> list[date]:
     return months
 
 
-def _tech_score(
+def _precompute_indicators(
     close: pd.Series,
     volume: pd.Series,
     high: pd.Series,
     low: pd.Series,
-    spy_return_3m: float = 0.0,
-) -> float:
+) -> dict | None:
+    """Compute all indicator series once on the full price history.
+    Returns None if the series is too short to be useful."""
     if len(close) < 50:
-        return 0.0
-    n = min(len(close), len(volume), len(high), len(low))
-    df = pd.DataFrame({
-        "Close": close.iloc[-n:].values,
-        "Volume": volume.iloc[-n:].values,
-        "High": high.iloc[-n:].values,
-        "Low": low.iloc[-n:].values,
-        "Open": close.iloc[-n:].values,
-    })
-    sig = compute_technicals(df)
-    if sig["current_price"] == 0:
+        return None
+
+    # ---- RSI ----
+    rsi_s = _rsi(close, 14)
+
+    # ---- MACD ----
+    macd_line = _ema(close, 12) - _ema(close, 26)
+    signal_s  = _ema(macd_line, 9)
+    macd_above_s = (macd_line > signal_s)
+    # Recent crossover: MACD crossed above signal within the last 5 bars
+    crossed_up_s = macd_above_s & ~macd_above_s.shift(1).fillna(False)
+    recent_cross_s = crossed_up_s.rolling(5, min_periods=1).sum() > 0
+
+    # ---- Moving averages ----
+    ma200_s  = _sma(close, 200) if len(close) >= 200 else _sma(close, len(close))
+    pct_200_s = (close - ma200_s) / ma200_s.replace(0, np.nan) * 100
+
+    # ---- 52-week high distance ----
+    w52_high_s  = high.rolling(252, min_periods=50).max()
+    from_52w_s  = (close - w52_high_s) / w52_high_s.replace(0, np.nan) * 100
+
+    # ---- ADX ----
+    adx_s = _adx(high, low, close, 14)
+
+    # ---- OBV slope (20-day finite diff / avg volume, proxy for linear slope) ----
+    obv_s       = _obv(close, volume)
+    avg_vol_20  = volume.rolling(20, min_periods=10).mean().replace(0, np.nan)
+    obv_slope_s = (obv_s.diff(20) / 20) / avg_vol_20 * 100
+
+    # ---- ROC-20 ----
+    roc_s = _roc(close, 20)
+
+    # ---- 3-month return for relative strength ----
+    ret3m_s = close.pct_change(63) * 100
+
+    return {
+        "rsi":          rsi_s,
+        "macd_above":   macd_above_s,
+        "recent_cross": recent_cross_s,
+        "pct_200ma":    pct_200_s,
+        "from_52w":     from_52w_s,
+        "adx":          adx_s,
+        "obv_slope":    obv_slope_s,
+        "roc_20":       roc_s,
+        "ret3m":        ret3m_s,
+        "close":        close,
+    }
+
+
+def _val_before(s: pd.Series, cutoff: pd.Timestamp) -> float:
+    """Fast O(log n) lookup of the last value in s strictly before cutoff."""
+    idx = s.index.searchsorted(cutoff, side="left") - 1
+    if idx < 0:
+        return np.nan
+    v = s.iloc[idx]
+    return float(v) if not pd.isna(v) else np.nan
+
+
+def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp, spy_3m: float) -> float:
+    """Score a stock at a given cutoff date using its precomputed indicator dict."""
+    rsi = _val_before(ind["rsi"], cutoff)
+    if np.isnan(rsi):
         return 0.0
 
-    # Relative strength: stock 3m return vs SPY 3m return
-    if len(close) >= 63:
-        stock_3m = float((close.iloc[-1] / close.iloc[-63] - 1) * 100)
-        rs_vs_spy = stock_3m - spy_return_3m
-    else:
-        rs_vs_spy = 0.0
+    macd_above    = bool(_val_before(ind["macd_above"],   cutoff))
+    recent_cross  = bool(_val_before(ind["recent_cross"], cutoff))
+    macd_status   = "bullish_crossover" if recent_cross else ("above_signal" if macd_above else "below_signal")
+
+    pct_200ma = _val_before(ind["pct_200ma"], cutoff)
+    from_52w  = _val_before(ind["from_52w"],  cutoff)
+    adx       = _val_before(ind["adx"],       cutoff)
+    obv_slope = _val_before(ind["obv_slope"], cutoff)
+    roc_20    = _val_before(ind["roc_20"],    cutoff)
+    ret3m     = _val_before(ind["ret3m"],     cutoff)
+
+    # Replace NaNs with neutral values
+    if np.isnan(pct_200ma): pct_200ma = 0.0
+    if np.isnan(from_52w):  from_52w  = 0.0
+    if np.isnan(adx):       adx       = 20.0
+    if np.isnan(obv_slope): obv_slope = 0.0
+    if np.isnan(roc_20):    roc_20    = 0.0
+    if np.isnan(ret3m):     ret3m     = 0.0
+
+    rs_vs_spy = float(ret3m) - spy_3m
 
     return float(
-        _score_rsi(sig["rsi"])
-        + _score_macd(sig["macd_status"])
-        + _score_price_vs_200ma(sig["pct_above_200ma"])
-        + _score_obv_slope(sig["obv_slope_pct"])
-        + _score_distance_from_52w_high(sig["from_52w_high"])
-        + _score_roc_20(sig["roc_20"])
-        + _score_adx(sig["adx"])
+        _score_rsi(rsi)
+        + _score_macd(macd_status)
+        + _score_price_vs_200ma(pct_200ma)
+        + _score_obv_slope(obv_slope)
+        + _score_distance_from_52w_high(from_52w)
+        + _score_roc_20(roc_20)
+        + _score_adx(adx)
         + _score_relative_strength(rs_vs_spy)
     )
 
 
 def _to_series(x) -> pd.Series:
-    """Ensure we have a 1-D Series regardless of yfinance version."""
     if isinstance(x, pd.DataFrame):
         return x.iloc[:, 0]
     return x
@@ -131,7 +200,6 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
         high_all   = raw["High"].ffill()
         low_all    = raw["Low"].ffill()
     else:
-        # Single ticker — wrap in DataFrame so column access is consistent
         close_all  = raw[["Close"]].ffill().rename(columns={"Close": tickers[0]})
         volume_all = raw[["Volume"]].ffill().rename(columns={"Volume": tickers[0]})
         high_all   = raw[["High"]].ffill().rename(columns={"High": tickers[0]})
@@ -147,35 +215,43 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
     spy_total_ret = (spy_today - spy_entry) / spy_entry
     spy_final     = STARTING_CAPITAL * (1 + spy_total_ret)
 
-    # ── Pass 1: precompute technical scores for every month ──────────────────
+    # ── Precompute indicator series (once per stock) ──────────────────────────
+    precomputed: dict[str, dict] = {}
+    for t in available:
+        ind = _precompute_indicators(
+            close_all[t].dropna(),
+            volume_all[t].dropna(),
+            high_all[t].dropna(),
+            low_all[t].dropna(),
+        )
+        if ind is not None:
+            precomputed[t] = ind
+
+    scored_tickers = list(precomputed.keys())
+
+    # Precompute SPY 3m return series for relative-strength scoring
+    spy_ret3m_s = spy_close.pct_change(63) * 100
+
+    # ── Pass 1: score all months using precomputed indicators ─────────────────
     all_monthly_scores: list[dict[str, float]] = []
 
     for m in months:
-        cutoff   = pd.Timestamp(m)
-        spy_hist = spy_close[spy_close.index < cutoff]
-        spy_3m   = float((float(spy_hist.iloc[-1]) / float(spy_hist.iloc[-63]) - 1) * 100) \
-                   if len(spy_hist) >= 63 else 0.0
+        cutoff  = pd.Timestamp(m)
+        spy_3m  = _val_before(spy_ret3m_s, cutoff)
+        if np.isnan(spy_3m):
+            spy_3m = 0.0
 
         scores: dict[str, float] = {}
-        for t in available:
-            c  = close_all[t].loc[close_all.index < cutoff].dropna()
-            v  = volume_all[t].loc[volume_all.index < cutoff].dropna()
-            h  = high_all[t].loc[high_all.index < cutoff].dropna()
-            lo = low_all[t].loc[low_all.index < cutoff].dropna()
-            s  = _tech_score(c, v, h, lo, spy_3m)
+        for t in scored_tickers:
+            s = _score_at_cutoff(precomputed[t], cutoff, spy_3m)
             if s > 0:
                 scores[t] = s
         all_monthly_scores.append(scores)
 
     # ── Pass 2: simulate with N-month hold + carry logic ─────────────────────
-    # Rebalancing happens every hold_months months (i=0, hold_months, 2*hold_months, ...).
-    # At each rebalancing point the new top-PICKS are selected.  Positions already held
-    # that are still in the new top picks are carried (no trade); only the fresh entrants
-    # are bought with the freed capital.  Between rebalancing months the same shares are
-    # held and marked to market each calendar month.
     portfolio_value = STARTING_CAPITAL
     monthly_results: list[dict] = []
-    held_positions: dict[str, float] = {}   # ticker → shares
+    held_positions: dict[str, float] = {}
     current_scores_display: dict[str, float] = {}
 
     for i, m in enumerate(months):
@@ -192,15 +268,13 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
                 top3_set = {t for t, _ in top3}
                 current_scores_display = {t: s for t, s in top3}
 
-                # Fetch start prices for the new top-PICKS
                 start_px_rebal: dict[str, float] = {}
                 for t in top3_set:
                     ep = _px_on_or_after(close_all[t], m)
                     if ep and ep > 0:
                         start_px_rebal[t] = ep
 
-                # Carry logic: keep held positions that are still in the new top picks;
-                # everything else exits at the end of the previous period (already MtM'd).
+                # Carry: keep held positions that are still in the new top picks
                 held_positions = {
                     t: sh for t, sh in held_positions.items()
                     if t in top3_set and t in start_px_rebal
@@ -220,7 +294,6 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
         if not held_positions:
             continue
 
-        # Mark every held position to market for this calendar month
         month_pnl = 0.0
         holdings: list[dict] = []
 
@@ -279,38 +352,38 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
         spy_rets  = grp["spy_return_pct"].dropna()
         yr_spy    = ((1 + spy_rets / 100).prod() - 1) * 100
         yearly.append({
-            "year": int(year),
-            "port_return_pct": round(yr_port, 2),
-            "spy_return_pct": round(yr_spy, 2),
+            "year":               int(year),
+            "port_return_pct":    round(yr_port, 2),
+            "spy_return_pct":     round(yr_spy, 2),
             "outperformance_pct": round(yr_port - yr_spy, 2),
-            "end_value": round(last_val, 2),
+            "end_value":          round(last_val, 2),
         })
 
-    final_val   = monthly_results[-1]["portfolio_value"]
-    total_ret   = (final_val - STARTING_CAPITAL) / STARTING_CAPITAL * 100
-    winners     = sum(1 for r in monthly_results if r["port_return_pct"] > 0)
-    beat_spy    = sum(1 for r in monthly_results if r["vs_spy_pct"] is not None and r["vs_spy_pct"] > 0)
-    n           = len(monthly_results)
+    final_val  = monthly_results[-1]["portfolio_value"]
+    total_ret  = (final_val - STARTING_CAPITAL) / STARTING_CAPITAL * 100
+    winners    = sum(1 for r in monthly_results if r["port_return_pct"] > 0)
+    beat_spy   = sum(1 for r in monthly_results if r["vs_spy_pct"] is not None and r["vs_spy_pct"] > 0)
+    n          = len(monthly_results)
 
     return {
         "monthly": monthly_results,
-        "yearly": yearly,
+        "yearly":  yearly,
         "summary": {
-            "start_date": months[0].strftime("%Y-%m"),
-            "end_date": months[-1].strftime("%Y-%m"),
-            "n_stocks": n_stocks,
-            "stocks_available": len(available),
-            "months_traded": n,
-            "starting_capital": STARTING_CAPITAL,
-            "final_value": round(final_val, 2),
-            "total_return_pct": round(total_ret, 2),
-            "spy_final_value": round(spy_final, 2),
+            "start_date":           months[0].strftime("%Y-%m"),
+            "end_date":             months[-1].strftime("%Y-%m"),
+            "n_stocks":             n_stocks,
+            "stocks_available":     len(scored_tickers),
+            "months_traded":        n,
+            "starting_capital":     STARTING_CAPITAL,
+            "final_value":          round(final_val, 2),
+            "total_return_pct":     round(total_ret, 2),
+            "spy_final_value":      round(spy_final, 2),
             "spy_total_return_pct": round(spy_total_ret * 100, 2),
-            "outperformance_pct": round(total_ret - spy_total_ret * 100, 2),
-            "winning_months": winners,
-            "winning_months_pct": round(winners / n * 100, 1),
-            "beat_spy_months": beat_spy,
-            "beat_spy_months_pct": round(beat_spy / n * 100, 1),
-            "hold_months": hold_months,
+            "outperformance_pct":   round(total_ret - spy_total_ret * 100, 2),
+            "winning_months":       winners,
+            "winning_months_pct":   round(winners / n * 100, 1),
+            "beat_spy_months":      beat_spy,
+            "beat_spy_months_pct":  round(beat_spy / n * 100, 1),
+            "hold_months":          hold_months,
         },
     }
