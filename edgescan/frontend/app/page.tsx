@@ -57,7 +57,7 @@ export default async function DashboardPage({
           <span className="text-base font-bold tracking-tight" style={{ color: '#e2e8f8' }}>Scan</span>
         </Link>
 
-        <div className="flex-1 flex justify-center">
+        <div className="hidden sm:flex flex-1 justify-center">
           <MarketStrip />
         </div>
 
@@ -70,6 +70,12 @@ export default async function DashboardPage({
           </Link>
         </nav>
       </header>
+
+      {/* Mobile market strip — shown below header on small screens */}
+      <div className="sm:hidden flex justify-center gap-2 px-4 py-2 overflow-x-auto"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#080b12' }}>
+        <MarketStrip />
+      </div>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
 {/* Hero */}
@@ -152,7 +158,7 @@ export default async function DashboardPage({
         )}
 
         {/* Score legend */}
-        <div className="flex items-center gap-5 mt-4 justify-end">
+        <div className="flex items-center gap-5 mt-4 justify-center sm:justify-end">
           {[
             { label: '≥ 80 Strong', color: '#22d47e' },
             { label: '60–79 Moderate', color: '#f5a623' },
