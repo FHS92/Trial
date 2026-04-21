@@ -72,8 +72,7 @@ export default async function DashboardPage({
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
-        <p className="text-sm mb-4" style={{ color: '#4f8ef7' }}>Hello El Tigre</p>
-        {/* Hero */}
+{/* Hero */}
         <div className="mb-6">
           <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>
             Top Opportunities
