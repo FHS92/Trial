@@ -114,6 +114,6 @@ def seed_live(n: int = 50):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed EdgeScan with live yfinance data")
-    parser.add_argument("--n", type=int, default=50, help="Number of tickers to scan (default: 50)")
+    parser.add_argument("--n", type=int, default=30, help="Number of tickers to scan (default: 30)")
     args = parser.parse_args()
     seed_live(args.n)
