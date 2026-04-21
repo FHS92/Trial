@@ -69,14 +69,29 @@ def _tech_score(close: pd.Series, volume: pd.Series, high: pd.Series, low: pd.Se
     )
 
 
-def _px_on_or_after(s: pd.Series, d: date):
+def _to_series(x) -> pd.Series:
+    """Ensure we have a 1-D Series regardless of yfinance version."""
+    if isinstance(x, pd.DataFrame):
+        return x.iloc[:, 0]
+    return x
+
+
+def _px_on_or_after(s, d: date):
+    s = _to_series(s)
     sub = s[s.index >= pd.Timestamp(d)]
-    return float(sub.iloc[0]) if len(sub) else None
+    if not len(sub):
+        return None
+    val = sub.iloc[0]
+    return float(val.iloc[0]) if isinstance(val, pd.Series) else float(val)
 
 
-def _px_on_or_before(s: pd.Series, d: date):
+def _px_on_or_before(s, d: date):
+    s = _to_series(s)
     sub = s[s.index <= pd.Timestamp(d)]
-    return float(sub.iloc[-1]) if len(sub) else None
+    if not len(sub):
+        return None
+    val = sub.iloc[-1]
+    return float(val.iloc[0]) if isinstance(val, pd.Series) else float(val)
 
 
 def run_backtest(n_stocks: int = 100) -> dict:
@@ -103,7 +118,7 @@ def run_backtest(n_stocks: int = 100) -> dict:
 
     # SPY benchmark
     spy_raw   = yf.download("SPY", start=dl_start, auto_adjust=True, progress=False)
-    spy_close = spy_raw["Close"].ffill().squeeze() if "Close" in spy_raw.columns else spy_raw.iloc[:, 0].ffill().squeeze()
+    spy_close = _to_series(spy_raw["Close"].ffill() if "Close" in spy_raw.columns else spy_raw.iloc[:, 0].ffill())
     spy_entry = _px_on_or_after(spy_close, START)
     spy_today = float(spy_close.iloc[-1])
     spy_total_ret = (spy_today - spy_entry) / spy_entry
