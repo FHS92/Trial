@@ -10,7 +10,7 @@ import type {
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { next: { revalidate: 60 } })
+  const res = await fetch(`${BASE}${path}`, { cache: 'no-store' })
   if (!res.ok) {
     throw new Error(`API ${path} → ${res.status} ${res.statusText}`)
   }

@@ -4,7 +4,8 @@ import StockRow from '@/components/StockRow'
 import MarketStrip from '@/components/MarketStrip'
 import type { StockResult } from '@/lib/types'
 
-export const revalidate = 300
+// Always render fresh — never serve a stale cached version
+export const dynamic = 'force-dynamic'
 
 const SECTORS = ['All', 'Technology', 'Financials', 'Healthcare', 'Energy', 'Industrials', 'Consumer']
 
