@@ -1,7 +1,7 @@
 """
 technicals.py — Technical indicator calculations for EdgeScan.
-Implements RSI, MACD, SMA, volume signals, and 52W position
-using only pandas and numpy (no pandas-ta dependency).
+Implements RSI, MACD, SMA, volume signals, 52W position,
+ADX, OBV slope, and ROC using only pandas and numpy.
 """
 
 import pandas as pd
@@ -33,6 +33,39 @@ def _macd(series: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9):
     macd_line = ema_fast - ema_slow
     signal_line = _ema(macd_line, signal)
     return macd_line, signal_line
+
+
+def _adx(high: pd.Series, low: pd.Series, close: pd.Series, length: int = 14) -> pd.Series:
+    up_move = high.diff()
+    down_move = -low.diff()
+    plus_dm = pd.Series(
+        np.where((up_move > down_move) & (up_move > 0), up_move, 0.0),
+        index=high.index,
+    )
+    minus_dm = pd.Series(
+        np.where((down_move > up_move) & (down_move > 0), down_move, 0.0),
+        index=high.index,
+    )
+    tr = pd.concat([
+        high - low,
+        (high - close.shift(1)).abs(),
+        (low - close.shift(1)).abs(),
+    ], axis=1).max(axis=1)
+    atr = tr.ewm(com=length - 1, adjust=False).mean()
+    plus_di = 100 * plus_dm.ewm(com=length - 1, adjust=False).mean() / atr
+    minus_di = 100 * minus_dm.ewm(com=length - 1, adjust=False).mean() / atr
+    dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan)
+    return dx.ewm(com=length - 1, adjust=False).mean()
+
+
+def _obv(close: pd.Series, volume: pd.Series) -> pd.Series:
+    direction = np.sign(close.diff())
+    direction.iloc[0] = 0
+    return (direction * volume).cumsum()
+
+
+def _roc(series: pd.Series, length: int = 20) -> pd.Series:
+    return ((series - series.shift(length)) / series.shift(length).replace(0, np.nan)) * 100
 
 
 def compute_technicals(df: Optional[pd.DataFrame]) -> dict:
@@ -123,6 +156,33 @@ def compute_technicals(df: Optional[pd.DataFrame]) -> dict:
     else:
         volume_status = "neutral"
 
+    # ---- ADX (trend strength) ----
+    if len(close) >= 30:
+        adx_series = _adx(high, low, close, 14)
+        adx = float(adx_series.iloc[-1])
+        if np.isnan(adx):
+            adx = 20.0
+    else:
+        adx = 20.0
+
+    # ---- OBV slope (20-day, normalised by avg daily volume) ----
+    obv_series = _obv(close, volume)
+    if len(obv_series) >= 20:
+        y = obv_series.iloc[-20:].values.astype(float)
+        slope = float(np.polyfit(np.arange(20, dtype=float), y, 1)[0])
+        avg_vol_20 = float(volume.iloc[-20:].mean())
+        obv_slope_pct = (slope / avg_vol_20 * 100) if avg_vol_20 > 0 else 0.0
+        if np.isnan(obv_slope_pct):
+            obv_slope_pct = 0.0
+    else:
+        obv_slope_pct = 0.0
+
+    # ---- ROC-20 ----
+    roc_series = _roc(close, 20)
+    roc_20 = float(roc_series.iloc[-1]) if len(roc_series) > 20 else 0.0
+    if np.isnan(roc_20):
+        roc_20 = 0.0
+
     return {
         "rsi": round(rsi, 1),
         "macd_status": macd_status,
@@ -137,6 +197,9 @@ def compute_technicals(df: Optional[pd.DataFrame]) -> dict:
         "volume_status": volume_status,
         "avg_volume": int(avg_volume),
         "current_price": round(current_price, 2),
+        "adx": round(adx, 1),
+        "obv_slope_pct": round(obv_slope_pct, 3),
+        "roc_20": round(roc_20, 2),
     }
 
 
@@ -155,4 +218,7 @@ def _empty_technicals() -> dict:
         "volume_status": "neutral",
         "avg_volume": 0,
         "current_price": 0.0,
+        "adx": 20.0,
+        "obv_slope_pct": 0.0,
+        "roc_20": 0.0,
     }

@@ -11,6 +11,7 @@ Also computes a 2-month price target as a weighted blend of:
   (c) FCF-based intrinsic value — 30%
 """
 
+import functools
 from datetime import date, datetime
 from typing import Optional
 
@@ -119,12 +120,53 @@ def _score_volume(volume_status: str) -> int:
 
 
 def _score_distance_from_52w_high(from_high_pct: float) -> int:
-    # from_high_pct is negative (e.g., -25 means 25% below the high)
+    # Reward momentum: stocks near/at 52W high are in strong uptrends
     below = abs(from_high_pct)
-    if 15 <= below <= 35:  return 6
-    if 5 <= below < 15:    return 4
-    if below < 5:          return 2  # near the high — potentially extended
-    return 0  # >35% below — may be in trouble
+    if below <= 3:    return 8   # near/at 52W high — breakout zone
+    if below <= 10:   return 6   # strong trend, healthy pullback
+    if below <= 20:   return 4   # moderate pullback
+    if below <= 35:   return 2   # deeper correction
+    return 0                     # >35% down — avoid
+
+
+def _score_obv_slope(obv_slope_pct: float) -> int:
+    if obv_slope_pct > 3:   return 6
+    if obv_slope_pct > 0:   return 3
+    return 0
+
+
+def _score_roc_20(roc: float) -> int:
+    if roc > 15:    return 6
+    if roc > 5:     return 4
+    if roc > 0:     return 2
+    return 0
+
+
+def _score_adx(adx: float) -> int:
+    if adx > 30:    return 6
+    if adx > 20:    return 3
+    return 0
+
+
+def _score_relative_strength(rs_vs_spy: float) -> int:
+    # rs_vs_spy = stock_3m_return − spy_3m_return (percentage points)
+    if rs_vs_spy > 10:  return 8
+    if rs_vs_spy > 3:   return 5
+    if rs_vs_spy > 0:   return 2
+    return 0
+
+
+@functools.lru_cache(maxsize=1)
+def _spy_3m_return_cached(today_str: str) -> float:
+    """SPY 3-month return, cached once per day to avoid repeated downloads."""
+    try:
+        spy_df = fetch_price_history("SPY", period="6mo")
+        if spy_df is None or len(spy_df) < 63:
+            return 0.0
+        c = spy_df["Close"].squeeze().astype(float)
+        return float((c.iloc[-1] / c.iloc[-63] - 1) * 100)
+    except Exception:
+        return 0.0
 
 
 def _earnings_penalty(earnings_date) -> int:
@@ -224,15 +266,27 @@ def score_stock(ticker: str) -> dict:
 
     f_score = rev_pts + eps_pts + fcf_pts + roe_pts + margin_pts + de_pts + rev_est_pts + pe_pts
 
-    # ---- Technical score (40 pts max before penalty) ----
+    # ---- Relative strength vs SPY (3-month) ----
+    spy_3m = _spy_3m_return_cached(str(date.today()))
+    if len(price_df) >= 63:
+        stock_close_s = price_df["Close"].squeeze().astype(float)
+        stock_3m = float((stock_close_s.iloc[-1] / stock_close_s.iloc[-63] - 1) * 100)
+    else:
+        stock_3m = 0.0
+    rs_vs_spy = stock_3m - spy_3m
+
+    # ---- Technical score ----
     rsi_pts    = _score_rsi(signals["rsi"])
     macd_pts   = _score_macd(signals["macd_status"])
     ma_pts     = _score_price_vs_200ma(signals["pct_above_200ma"])
-    vol_pts    = _score_volume(signals["volume_status"])
+    obv_pts    = _score_obv_slope(signals["obv_slope_pct"])
     hi_pts     = _score_distance_from_52w_high(signals["from_52w_high"])
+    roc_pts    = _score_roc_20(signals["roc_20"])
+    adx_pts    = _score_adx(signals["adx"])
+    rs_pts     = _score_relative_strength(rs_vs_spy)
     penalty    = _earnings_penalty(fundamentals["earnings_date"])
 
-    t_score_raw = rsi_pts + macd_pts + ma_pts + vol_pts + hi_pts
+    t_score_raw = rsi_pts + macd_pts + ma_pts + obv_pts + hi_pts + roc_pts + adx_pts + rs_pts
     t_score = max(0, t_score_raw + penalty)
 
     composite = min(100, f_score + t_score)
@@ -268,6 +322,10 @@ def score_stock(ticker: str) -> dict:
             "volume_status": signals["volume_status"],
             "ma50": signals["ma50"],
             "ma200": signals["ma200"],
+            "adx": signals["adx"],
+            "obv_slope_pct": signals["obv_slope_pct"],
+            "roc_20": signals["roc_20"],
+            "rs_vs_spy": round(rs_vs_spy, 2),
         },
         "metrics": {
             "rev_growth": fundamentals["rev_growth"],
@@ -293,8 +351,11 @@ def score_stock(ticker: str) -> dict:
             "rsi_pts": rsi_pts,
             "macd_pts": macd_pts,
             "ma200_pts": ma_pts,
-            "volume_pts": vol_pts,
+            "obv_slope_pts": obv_pts,
             "high52w_pts": hi_pts,
+            "roc20_pts": roc_pts,
+            "adx_pts": adx_pts,
+            "rel_strength_pts": rs_pts,
             "earnings_penalty": penalty,
         },
         "earnings_date": str(fundamentals["earnings_date"]) if fundamentals["earnings_date"] else None,

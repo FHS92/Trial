@@ -25,7 +25,10 @@ from scanner import (
     _score_macd,
     _score_price_vs_200ma,
     _score_rsi,
-    _score_volume,
+    _score_obv_slope,
+    _score_roc_20,
+    _score_adx,
+    _score_relative_strength,
 )
 from technicals import compute_technicals
 
@@ -46,7 +49,13 @@ def _month_list() -> list[date]:
     return months
 
 
-def _tech_score(close: pd.Series, volume: pd.Series, high: pd.Series, low: pd.Series) -> float:
+def _tech_score(
+    close: pd.Series,
+    volume: pd.Series,
+    high: pd.Series,
+    low: pd.Series,
+    spy_return_3m: float = 0.0,
+) -> float:
     if len(close) < 50:
         return 0.0
     n = min(len(close), len(volume), len(high), len(low))
@@ -60,12 +69,23 @@ def _tech_score(close: pd.Series, volume: pd.Series, high: pd.Series, low: pd.Se
     sig = compute_technicals(df)
     if sig["current_price"] == 0:
         return 0.0
+
+    # Relative strength: stock 3m return vs SPY 3m return
+    if len(close) >= 63:
+        stock_3m = float((close.iloc[-1] / close.iloc[-63] - 1) * 100)
+        rs_vs_spy = stock_3m - spy_return_3m
+    else:
+        rs_vs_spy = 0.0
+
     return float(
         _score_rsi(sig["rsi"])
         + _score_macd(sig["macd_status"])
         + _score_price_vs_200ma(sig["pct_above_200ma"])
-        + _score_volume(sig["volume_status"])
+        + _score_obv_slope(sig["obv_slope_pct"])
         + _score_distance_from_52w_high(sig["from_52w_high"])
+        + _score_roc_20(sig["roc_20"])
+        + _score_adx(sig["adx"])
+        + _score_relative_strength(rs_vs_spy)
     )
 
 
@@ -134,6 +154,13 @@ def run_backtest(n_stocks: int = 100) -> dict:
         month_end = next_m - timedelta(days=1)
         cutoff    = pd.Timestamp(m)
 
+        # SPY 3-month return as of month start (for relative strength scoring)
+        spy_hist = spy_close[spy_close.index < cutoff]
+        if len(spy_hist) >= 63:
+            spy_return_3m = float((float(spy_hist.iloc[-1]) / float(spy_hist.iloc[-63]) - 1) * 100)
+        else:
+            spy_return_3m = 0.0
+
         # Score each ticker using data strictly before month start
         scores = {}
         for t in available:
@@ -141,7 +168,7 @@ def run_backtest(n_stocks: int = 100) -> dict:
             v  = volume_all[t].loc[volume_all.index < cutoff].dropna()
             h  = high_all[t].loc[high_all.index < cutoff].dropna()
             lo = low_all[t].loc[low_all.index < cutoff].dropna()
-            s  = _tech_score(c, v, h, lo)
+            s  = _tech_score(c, v, h, lo, spy_return_3m)
             if s > 0:
                 scores[t] = s
 
