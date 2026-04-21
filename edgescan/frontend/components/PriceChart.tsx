@@ -83,6 +83,11 @@ export default function PriceChart({ allHistory, onPeriodChange }: Props) {
   const pad  = (maxP - minP) * 0.05
   const domain: [number, number] = [minP - pad, maxP + pad]
 
+  // Only show MAs when there's enough history to be meaningful
+  // MA50 needs at least 50 bars in allHistory; MA200 needs 200
+  const showMA50  = allHistory.length >= 50  && period !== '1w'
+  const showMA200 = allHistory.length >= 200 && (period === '6m' || period === '1y')
+
   function handlePeriod(p: Period) {
     setPeriod(p)
     onPeriodChange?.(p)
@@ -105,16 +110,23 @@ export default function PriceChart({ allHistory, onPeriodChange }: Props) {
             {p.toUpperCase()}
           </button>
         ))}
-        {/* MA legend */}
+        {/* MA legend — only show lines that are active for this period */}
         <div className="ml-auto flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 rounded" style={{ background: '#4f8ef7' }} />
-            <span className="text-xs" style={{ color: '#6b7a99' }}>50MA</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 rounded" style={{ background: '#f5a623' }} />
-            <span className="text-xs" style={{ color: '#6b7a99' }}>200MA</span>
-          </div>
+          {showMA50 && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-0.5 rounded" style={{ background: '#4f8ef7' }} />
+              <span className="text-xs" style={{ color: '#6b7a99' }}>50MA</span>
+            </div>
+          )}
+          {showMA200 && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-0.5 rounded" style={{ background: '#f5a623' }} />
+              <span className="text-xs" style={{ color: '#6b7a99' }}>200MA</span>
+            </div>
+          )}
+          {!showMA50 && !showMA200 && (
+            <span className="text-xs" style={{ color: 'rgba(107,122,153,0.5)' }}>MAs need more data</span>
+          )}
         </div>
       </div>
 
@@ -146,24 +158,28 @@ export default function PriceChart({ allHistory, onPeriodChange }: Props) {
             dot={false}
             isAnimationActive={false}
           />
-          <Line
-            type="monotone"
-            dataKey="ma50"
-            stroke="#4f8ef7"
-            strokeWidth={1}
-            dot={false}
-            isAnimationActive={false}
-            connectNulls
-          />
-          <Line
-            type="monotone"
-            dataKey="ma200"
-            stroke="#f5a623"
-            strokeWidth={1}
-            dot={false}
-            isAnimationActive={false}
-            connectNulls
-          />
+          {showMA50 && (
+            <Line
+              type="monotone"
+              dataKey="ma50"
+              stroke="#4f8ef7"
+              strokeWidth={1}
+              dot={false}
+              isAnimationActive={false}
+              connectNulls
+            />
+          )}
+          {showMA200 && (
+            <Line
+              type="monotone"
+              dataKey="ma200"
+              stroke="#f5a623"
+              strokeWidth={1}
+              dot={false}
+              isAnimationActive={false}
+              connectNulls
+            />
+          )}
         </ComposedChart>
       </ResponsiveContainer>
     </div>

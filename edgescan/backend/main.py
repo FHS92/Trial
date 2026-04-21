@@ -171,13 +171,13 @@ def top_opportunities(db: Session = Depends(get_db)):
             db.query(ScanResult)
             .filter(ScanResult.scanned_at >= cutoff)
             .order_by(ScanResult.score.desc())
-            .limit(10)
+            .limit(100)
             .all()
         )
 
     if not rows:
-        # DB is empty — seed with a quick 10-ticker scan
-        sample = SP500_TICKERS[:10]
+        # DB is empty — seed with a quick 30-ticker scan
+        sample = SP500_TICKERS[:30]
         results = scan_tickers(sample)
         for r in results:
             _store_scan_result(r, db)
@@ -188,7 +188,7 @@ def top_opportunities(db: Session = Depends(get_db)):
             db.query(ScanResult)
             .filter(ScanResult.scanned_at >= cutoff)
             .order_by(ScanResult.score.desc())
-            .limit(10)
+            .limit(100)
             .all()
         )
 

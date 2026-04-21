@@ -4,7 +4,7 @@ import StockRow from '@/components/StockRow'
 import MarketStrip from '@/components/MarketStrip'
 import type { StockResult } from '@/lib/types'
 
-export const revalidate = 300 // ISR — revalidate every 5 min
+export const revalidate = 300
 
 const SECTORS = ['All', 'Technology', 'Financials', 'Healthcare', 'Energy', 'Industrials', 'Consumer']
 
@@ -18,24 +18,27 @@ async function getTopStocks(): Promise<{ results: StockResult[]; meta: string }>
         : `${data.total_scanned} stocks scanned`
     return { results: data.results, meta }
   } catch {
-    return { results: [], meta: 'Scanner unavailable' }
+    return { results: [], meta: 'Scanner unavailable — is the backend running?' }
   }
 }
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { sector?: string }
+  searchParams: { sector?: string; show?: string }
 }) {
   const { results, meta } = await getTopStocks()
   const activeSector = searchParams?.sector ?? 'All'
+  const showAll = searchParams?.show === 'all'
 
-  const filtered =
+  const bySector =
     activeSector === 'All'
       ? results
-      : results.filter(s =>
-          s.sector?.toLowerCase().includes(activeSector.toLowerCase()),
-        )
+      : results.filter(s => s.sector?.toLowerCase().includes(activeSector.toLowerCase()))
+
+  // Default: top 10. "Show all" reveals everything from the scan.
+  const displayed = showAll ? bySector : bySector.slice(0, 10)
+  const hasMore = bySector.length > 10
 
   return (
     <div className="min-h-screen" style={{ background: '#080b12' }}>
@@ -48,38 +51,20 @@ export default async function DashboardPage({
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        {/* Logo */}
         <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-          <span
-            className="text-base font-bold tracking-tight"
-            style={{ color: '#4f8ef7' }}
-          >
-            Edge
-          </span>
-          <span className="text-base font-bold tracking-tight" style={{ color: '#e2e8f8' }}>
-            Scan
-          </span>
+          <span className="text-base font-bold tracking-tight" style={{ color: '#4f8ef7' }}>Edge</span>
+          <span className="text-base font-bold tracking-tight" style={{ color: '#e2e8f8' }}>Scan</span>
         </Link>
 
-        {/* Market strip */}
         <div className="flex-1 flex justify-center">
           <MarketStrip />
         </div>
 
-        {/* Nav */}
         <nav className="flex items-center gap-1 flex-shrink-0">
-          <Link
-            href="/search"
-            className="px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]"
-            style={{ color: '#6b7a99' }}
-          >
+          <Link href="/search" className="px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
             Search
           </Link>
-          <Link
-            href="/watchlist"
-            className="px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]"
-            style={{ color: '#6b7a99' }}
-          >
+          <Link href="/watchlist" className="px-3 py-1.5 rounded-cell text-xs transition-colors hover:bg-white/[0.06]" style={{ color: '#6b7a99' }}>
             Watchlist
           </Link>
         </nav>
@@ -98,6 +83,10 @@ export default async function DashboardPage({
         <div className="flex gap-2 flex-wrap mb-5">
           {SECTORS.map(s => {
             const active = s === activeSector
+            // Count how many stocks are in this sector
+            const count = s === 'All'
+              ? results.length
+              : results.filter(r => r.sector?.toLowerCase().includes(s.toLowerCase())).length
             return (
               <Link
                 key={s}
@@ -105,12 +94,13 @@ export default async function DashboardPage({
                 className="px-3 py-1 rounded-pill text-xs font-medium transition-colors"
                 style={{
                   background: active ? '#4f8ef7' : 'rgba(255,255,255,0.05)',
-                  color: active ? '#fff' : '#6b7a99',
+                  color: active ? '#fff' : count === 0 ? 'rgba(107,122,153,0.4)' : '#6b7a99',
                   border: '1px solid',
                   borderColor: active ? '#4f8ef7' : 'rgba(255,255,255,0.08)',
+                  pointerEvents: count === 0 && !active ? 'none' : 'auto',
                 }}
               >
-                {s}
+                {s}{count > 0 && s !== 'All' ? ` ${count}` : ''}
               </Link>
             )
           })}
@@ -121,18 +111,44 @@ export default async function DashboardPage({
           className="rounded-card overflow-hidden"
           style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}
         >
-          {filtered.length === 0 ? (
-            <div className="py-16 text-center" style={{ color: '#6b7a99' }}>
-              {results.length === 0
-                ? 'Start the backend to see live scores.'
-                : `No stocks in the "${activeSector}" sector right now.`}
+          {results.length === 0 ? (
+            <div className="py-16 text-center space-y-2">
+              <p className="text-sm font-medium" style={{ color: '#e2e8f8' }}>No data yet</p>
+              <p className="text-xs" style={{ color: '#6b7a99' }}>
+                Run <code className="px-1 py-0.5 rounded" style={{ background: '#1e2540' }}>python seed_live.py --n 30</code> then restart the backend.
+              </p>
+            </div>
+          ) : bySector.length === 0 ? (
+            <div className="py-16 text-center">
+              <p className="text-sm" style={{ color: '#6b7a99' }}>
+                No <strong>{activeSector}</strong> stocks in the current scan.
+              </p>
+              <p className="text-xs mt-1" style={{ color: '#6b7a99' }}>
+                Run a larger scan with <code className="px-1 py-0.5 rounded" style={{ background: '#1e2540' }}>--n 100</code> for more sector coverage.
+              </p>
             </div>
           ) : (
-            filtered.map((stock, i) => (
+            displayed.map((stock, i) => (
               <StockRow key={stock.ticker} stock={stock} rank={i + 1} />
             ))
           )}
         </div>
+
+        {/* Show all / show less toggle */}
+        {hasMore && (
+          <div className="mt-3 text-center">
+            <Link
+              href={showAll
+                ? (activeSector === 'All' ? '/' : `/?sector=${activeSector}`)
+                : (activeSector === 'All' ? '/?show=all' : `/?sector=${activeSector}&show=all`)
+              }
+              className="text-xs px-4 py-2 rounded-pill transition-colors hover:bg-white/[0.06]"
+              style={{ color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.3)' }}
+            >
+              {showAll ? `Show top 10 ↑` : `Show all ${bySector.length} stocks ↓`}
+            </Link>
+          </div>
+        )}
 
         {/* Score legend */}
         <div className="flex items-center gap-5 mt-4 justify-end">
