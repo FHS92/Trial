@@ -27,7 +27,7 @@ import yfinance as yf
 
 warnings.filterwarnings("ignore")
 
-from data_fetcher import SP500_TICKERS
+from data_fetcher import SP500_TICKERS, get_universe_tickers
 from scanner import (
     _score_debt_equity,
     _score_distance_from_52w_high,
@@ -388,8 +388,8 @@ def _fundamental_score(metrics: dict, sector_median_pe: Optional[float]) -> int:
 # Main backtest entry point
 # ---------------------------------------------------------------------------
 
-def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
-    tickers = SP500_TICKERS[:n_stocks]
+def run_backtest(n_stocks: int = 100, hold_months: int = 1, universe: str = "sp500") -> dict:
+    tickers = get_universe_tickers(universe)[:n_stocks]
     months  = _month_list()
 
     dl_start = f"{START.year - 1}-01-01"
