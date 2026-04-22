@@ -107,10 +107,15 @@ export default async function ScannerPage({
           style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}
         >
           {results.length === 0 ? (
-            <div className="py-16 text-center space-y-2">
-              <p className="text-sm font-medium" style={{ color: '#e2e8f8' }}>No data yet</p>
+            <div className="py-16 text-center space-y-3">
+              <div className="flex justify-center mb-2">
+                <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" strokeWidth={2}>
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium" style={{ color: '#e2e8f8' }}>Initial scan in progress…</p>
               <p className="text-xs" style={{ color: '#6b7a99' }}>
-                Run <code className="px-1 py-0.5 rounded" style={{ background: '#1e2540' }}>python seed_live.py --n 30</code> then restart the backend.
+                Scoring stocks for the first time. This takes 2–4 minutes — refresh shortly.
               </p>
             </div>
           ) : bySector.length === 0 ? (
