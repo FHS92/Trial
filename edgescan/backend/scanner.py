@@ -202,44 +202,54 @@ def _compute_price_target(
     sector_pe: float,
     fcf_yield: float,
 ) -> Optional[float]:
+    """
+    1-month price target — three components, all scaled to a 1-month horizon.
+
+    (a) Analyst 12-month consensus: scale to 1 month by taking 1/12 of the gap.
+    (b) Sector P/E re-rating: momentum stocks re-rate faster; use 1/6 of gap.
+    (c) FCF yield fair-value: same fast-reversion assumption, 1/6 of gap.
+
+    Upside capped at 12% (aggressive but realistic for a single month).
+    """
     if current_price is None or current_price <= 0:
         return None
 
-    targets = []
+    targets_1m = []
     weights = []
 
-    # (a) Analyst consensus — 40%
+    # (a) Analyst consensus (12-month) → scale to 1 month
     if analyst_target and analyst_target > 0:
-        targets.append(analyst_target)
+        gap = analyst_target - current_price
+        t1m = current_price + gap / 12.0
+        targets_1m.append(t1m)
         weights.append(0.40)
 
-    # (b) Sector P/E re-rating — 30%
-    # If stock is trading below sector median P/E, target is re-rating to median
+    # (b) Sector P/E re-rating → 1/6 of gap (momentum re-rates faster than mean)
     if fwd_pe and fwd_pe > 0 and sector_pe > 0:
-        pe_target = current_price * (sector_pe / fwd_pe)
-        targets.append(pe_target)
+        pe_fair = current_price * (sector_pe / fwd_pe)
+        t1m = current_price + (pe_fair - current_price) / 6.0
+        targets_1m.append(t1m)
         weights.append(0.30)
 
-    # (c) FCF yield implied value — 30%
-    # If FCF yield > 0, normalize to a "fair" yield of 4%
+    # (c) FCF yield implied value → 1/6 of gap to a 4% fair-yield price
     if fcf_yield > 0:
-        fcf_target = current_price * (fcf_yield / 4.0)
-        # Cap at 2x current price to avoid extreme outliers
-        fcf_target = min(fcf_target, current_price * 2.0)
-        targets.append(fcf_target)
+        fcf_fair = current_price * (fcf_yield / 4.0)
+        fcf_fair = min(fcf_fair, current_price * 2.0)
+        t1m = current_price + (fcf_fair - current_price) / 6.0
+        targets_1m.append(t1m)
         weights.append(0.30)
 
-    if not targets:
+    if not targets_1m:
         return None
 
-    # Re-normalize weights
     total_weight = sum(weights)
     normalized = [w / total_weight for w in weights]
-    blended = sum(t * w for t, w in zip(targets, normalized))
+    blended = sum(t * w for t, w in zip(targets_1m, normalized))
 
-    # Cap upside at 35%
-    max_target = current_price * 1.35
-    return round(min(blended, max_target), 2)
+    # Cap at ±12% for a 1-month horizon
+    blended = max(blended, current_price * 0.88)
+    blended = min(blended, current_price * 1.12)
+    return round(blended, 2)
 
 
 # ---------------------------------------------------------------------------
