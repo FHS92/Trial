@@ -126,6 +126,20 @@ class BacktestRun(Base):
     yearly_json = Column(Text)    # JSON array of yearly summaries
 
 
+class BacktestJob(Base):
+    """
+    Persistent job store for async backtest runs.
+    Survives across Cloud Run instances — status polls always hit DB.
+    """
+    __tablename__ = "backtest_jobs"
+
+    id         = Column(String(12), primary_key=True)   # short hex job_id
+    status     = Column(String(10), default="running")  # running | done | error
+    result_json = Column(Text, nullable=True)
+    error      = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class FundamentalSnapshot(Base):
     """
     Point-in-time fundamental filing data extracted from SEC EDGAR.

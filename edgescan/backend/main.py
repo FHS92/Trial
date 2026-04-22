@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db, init_db, SessionLocal
 from data_fetcher import SP500_TICKERS, fetch_fundamentals, fetch_price_history
-from models import BacktestRun, PriceHistory, PortfolioHolding, ScanResult, ThesisCache
+from models import BacktestJob, BacktestRun, PriceHistory, PortfolioHolding, ScanResult, ThesisCache
 from scanner import scan_tickers, score_stock
 from thesis_generator import generate_thesis
 from analytics import get_sector_heatmap, get_rebalance_suggestions
@@ -852,16 +852,25 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1, universe: str = "sp5
         raise HTTPException(status_code=400, detail="hold_months must be 1, 2, or 3")
 
     job_id = uuid.uuid4().hex[:12]
+
+    # Persist job record in DB so any Cloud Run instance can serve the status poll
+    db_init = SessionLocal()
+    try:
+        db_init.add(BacktestJob(id=job_id, status="running"))
+        db_init.commit()
+    finally:
+        db_init.close()
+
+    # Also cache in-memory for fast same-instance lookups
     _backtest_jobs[job_id] = {"status": "running", "result": None, "error": None}
 
     def _worker():
         import traceback as tb
         try:
             from backtest_engine import run_backtest as _run
-            hm = hold_months
-            result = _run(n_stocks=n_stocks, hold_months=hm, universe=universe)
+            result = _run(n_stocks=n_stocks, hold_months=hold_months, universe=universe)
             if "error" in result:
-                _backtest_jobs[job_id].update({"status": "error", "error": result["error"]})
+                _update_job(job_id, status="error", error=result["error"])
                 return
 
             s = result["summary"]
@@ -889,21 +898,45 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1, universe: str = "sp5
             finally:
                 db.close()
 
-            _backtest_jobs[job_id].update({"status": "done", "result": result})
-        except Exception as exc:
-            _backtest_jobs[job_id].update({"status": "error", "error": tb.format_exc()})
+            _update_job(job_id, status="done", result_json=json.dumps(result))
+        except Exception:
+            _update_job(job_id, status="error", error=tb.format_exc())
 
     threading.Thread(target=_worker, daemon=True).start()
     return {"job_id": job_id, "status": "running"}
 
 
+def _update_job(job_id: str, status: str, result_json: Optional[str] = None, error: Optional[str] = None) -> None:
+    """Update BacktestJob row in DB and in-memory cache."""
+    db = SessionLocal()
+    try:
+        row = db.query(BacktestJob).filter(BacktestJob.id == job_id).first()
+        if row:
+            row.status = status
+            row.result_json = result_json
+            row.error = error
+            db.commit()
+    finally:
+        db.close()
+
+    _backtest_jobs[job_id] = {"status": status, "result": json.loads(result_json) if result_json else None, "error": error}
+
+
 @app.get("/api/backtest/status/{job_id}")
-def backtest_status(job_id: str):
+def backtest_status(job_id: str, db: Session = Depends(get_db)):
     """Poll this endpoint after POST /api/backtest/run."""
+    # Fast path: same instance already has the result in memory
     job = _backtest_jobs.get(job_id)
-    if not job:
+    if job:
+        return job
+
+    # Slow path: different Cloud Run instance — read from DB
+    row = db.query(BacktestJob).filter(BacktestJob.id == job_id).first()
+    if not row:
         raise HTTPException(status_code=404, detail="Job not found or expired")
-    return job
+
+    result = json.loads(row.result_json) if row.result_json else None
+    return {"status": row.status, "result": result, "error": row.error}
 
 
 def _parse_backtest_row(row) -> dict:
