@@ -1,20 +1,9 @@
 #!/bin/bash
-# start.sh — Render / Railway startup script
-# Always seeds the DB on boot (Render free tier has no persistent disk)
+# start.sh — Cloud Run / Render startup script
+# DB init and initial data scan happen inside main.py on startup (non-blocking).
+# Start the server immediately so Cloud Run health checks pass.
 
 set -e
 
-echo "EdgeScan startup — initialising DB..."
-python -c "
-import os, sys
-sys.path.insert(0, '.')
-from database import init_db
-init_db()
-print('Tables ready.')
-"
-
-echo "Seeding live data (top 30 tickers)..."
-python seed_live.py --n 30
-
-echo "Starting API server..."
+echo "EdgeScan startup — starting API server on port ${PORT:-8000}..."
 exec uvicorn main:app --host 0.0.0.0 --port "${PORT:-8000}"
