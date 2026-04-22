@@ -90,6 +90,7 @@ _backtest_jobs: dict[str, dict] = {}
 @app.on_event("startup")
 def startup():
     init_db()
+    _market_pulse_cache["expires_at"] = 0  # force fresh fetch on first request
     print("[main] EdgeScan API ready.")
 
 
@@ -394,19 +395,28 @@ def _fetch_market_pulse() -> dict:
         import yfinance as yf
 
         spx = yf.Ticker("^GSPC")
-        rut = yf.Ticker("^RUT")
+        rui = yf.Ticker("^RUI")   # Russell 1000 Index
         vix = yf.Ticker("^VIX")
         tnx = yf.Ticker("^TNX")  # 10-year yield (x10 = %)
 
         def _last_price(ticker_obj) -> Optional[float]:
             try:
-                info = ticker_obj.fast_info
-                return round(float(info.last_price), 2)
+                price = float(ticker_obj.fast_info.last_price)
+                if price > 0:
+                    return round(price, 2)
             except Exception:
-                return None
+                pass
+            # fast_info returned 0 or failed — fall back to recent history
+            try:
+                hist = ticker_obj.history(period="5d", interval="1d")
+                if not hist.empty:
+                    return round(float(hist["Close"].iloc[-1]), 2)
+            except Exception:
+                pass
+            return None
 
         spx_price = _last_price(spx)
-        rut_price = _last_price(rut)
+        rut_price = _last_price(rui)
         vix_price = _last_price(vix)
         tnx_price = _last_price(tnx)
 
