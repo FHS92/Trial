@@ -48,18 +48,21 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 def init_db() -> None:
     """Create all tables (idempotent — safe to call on every startup)."""
     Base.metadata.create_all(bind=engine)
+    _run_migrations()
+    print(f"[database] Tables ready. Using: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL}")
 
-    # Column rename migration: price_target_2m → price_target_1m
-    with engine.connect() as conn:
-        try:
+
+def _run_migrations() -> None:
+    """Idempotent schema migrations — runs in a separate connection with full error isolation."""
+    try:
+        with engine.connect() as conn:
             if _IS_SQLITE:
-                # SQLite doesn't support RENAME COLUMN before 3.25; skip if column already exists
                 cols = [r[1] for r in conn.execute(text("PRAGMA table_info(scan_results)")).fetchall()]
                 if "price_target_2m" in cols and "price_target_1m" not in cols:
                     conn.execute(text("ALTER TABLE scan_results RENAME COLUMN price_target_2m TO price_target_1m"))
                     conn.commit()
+                    print("[database] Migrated price_target_2m → price_target_1m (SQLite)")
             else:
-                # PostgreSQL
                 conn.execute(text("""
                     DO $$
                     BEGIN
@@ -67,14 +70,13 @@ def init_db() -> None:
                                    WHERE table_name='scan_results' AND column_name='price_target_2m')
                         THEN
                             ALTER TABLE scan_results RENAME COLUMN price_target_2m TO price_target_1m;
+                            RAISE NOTICE 'Migrated price_target_2m -> price_target_1m';
                         END IF;
                     END $$;
                 """))
                 conn.commit()
-        except Exception as e:
-            print(f"[database] Column migration skipped: {e}")
-
-    print(f"[database] Tables ready. Using: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL}")
+    except Exception as e:
+        print(f"[database] Migration skipped (non-fatal): {e}")
 
 
 def get_db() -> Session:
