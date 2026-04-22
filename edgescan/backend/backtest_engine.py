@@ -186,6 +186,17 @@ def _px_on_or_before(s, d: date):
     return float(val.iloc[0]) if isinstance(val, pd.Series) else float(val)
 
 
+def _stop_triggered(close_col, month_start: date, month_end: date, entry_px: float) -> bool:
+    """Return True if any daily close after entry falls ≥10% below entry_px."""
+    s = _to_series(close_col)
+    stop = entry_px * 0.90
+    mask = (s.index > pd.Timestamp(month_start)) & (s.index <= pd.Timestamp(month_end))
+    for px in s[mask]:
+        if float(px) <= stop:
+            return True
+    return False
+
+
 def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
     tickers = SP500_TICKERS[:n_stocks]
     months  = _month_list()
@@ -296,17 +307,27 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
 
         month_pnl = 0.0
         holdings: list[dict] = []
+        stopped_out: set[str] = set()
 
         for t, shares in list(held_positions.items()):
             if t not in close_all.columns:
                 continue
             ep = _px_on_or_after(close_all[t], m)
-            xp = _px_on_or_before(close_all[t], month_end)
-            if not ep or not xp or ep <= 0 or shares <= 0:
+            if not ep or ep <= 0 or shares <= 0:
                 continue
 
+            # Stop-loss: sell at entry × 0.90 if any intra-month close hits it
+            if _stop_triggered(close_all[t], m, month_end, ep):
+                xp  = ep * 0.90
+                ret = -10.0
+                stopped_out.add(t)
+            else:
+                xp = _px_on_or_before(close_all[t], month_end)
+                if not xp:
+                    continue
+                ret = (xp - ep) / ep * 100
+
             pnl = shares * (xp - ep)
-            ret = (xp - ep) / ep * 100
             month_pnl += pnl
 
             holdings.append({
@@ -317,7 +338,12 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
                 "return_pct": round(ret, 2),
                 "pnl":        round(pnl, 2),
                 "carried":    t not in new_entries_this_month,
+                "stopped":    t in stopped_out,
             })
+
+        # Evict stopped-out positions — cash stays in portfolio_value via month_pnl
+        for t in stopped_out:
+            held_positions.pop(t, None)
 
         if not holdings:
             continue

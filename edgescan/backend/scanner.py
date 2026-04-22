@@ -108,9 +108,11 @@ def _score_macd(macd_status: str) -> int:
 
 
 def _score_price_vs_200ma(pct_above: float) -> int:
-    if 0 <= pct_above <= 10:    return 8
-    if 10 < pct_above <= 20:   return 4
-    return 0  # below 200MA or very extended
+    if pct_above < 0:         return 0  # below 200MA — bearish trend
+    if pct_above <= 10:       return 8  # tight above — healthy uptrend
+    if pct_above <= 20:       return 6  # moderately extended
+    if pct_above <= 40:       return 4  # significantly extended but uptrend intact
+    return 2                            # very extended — still gets partial credit
 
 
 def _score_volume(volume_status: str) -> int:
@@ -120,13 +122,13 @@ def _score_volume(volume_status: str) -> int:
 
 
 def _score_distance_from_52w_high(from_high_pct: float) -> int:
-    # Reward momentum: stocks near/at 52W high are in strong uptrends
+    # Recovery-zone logic: reward stocks pulling back from highs (momentum intact)
     below = abs(from_high_pct)
-    if below <= 3:    return 8   # near/at 52W high — breakout zone
-    if below <= 10:   return 6   # strong trend, healthy pullback
-    if below <= 20:   return 4   # moderate pullback
-    if below <= 35:   return 2   # deeper correction
-    return 0                     # >35% down — avoid
+    if 3 < below <= 10:  return 8  # healthy pullback — sweet spot for recovery plays
+    if below <= 3:       return 4  # at/near 52W high — may be extended or topping
+    if below <= 20:      return 6  # moderate pullback, upside potential
+    if below <= 35:      return 2  # deeper correction
+    return 0                       # >35% down — avoid
 
 
 def _score_obv_slope(obv_slope_pct: float) -> int:

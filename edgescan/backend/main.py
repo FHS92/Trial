@@ -842,23 +842,26 @@ def _parse_backtest_row(row) -> dict:
     else:
         hold_months = 1
         yearly      = yearly_raw
+    n = row.months_traded or 1
     return {
         "run_id":  row.id,
         "run_at":  row.run_at.isoformat(),
         "monthly": json.loads(row.monthly_json),
         "yearly":  yearly,
         "summary": {
-            "n_stocks":             row.n_stocks,
-            "months_traded":        row.months_traded,
-            "starting_capital":     row.starting_capital,
-            "final_value":          row.final_value,
-            "total_return_pct":     row.total_return_pct,
-            "spy_final_value":      row.spy_final_value,
-            "spy_total_return_pct": row.spy_total_return_pct,
-            "outperformance_pct":   row.outperformance_pct,
-            "winning_months":       row.winning_months,
-            "beat_spy_months":      row.beat_spy_months,
-            "hold_months":          hold_months,
+            "n_stocks":              row.n_stocks,
+            "months_traded":         row.months_traded,
+            "starting_capital":      row.starting_capital,
+            "final_value":           row.final_value,
+            "total_return_pct":      row.total_return_pct,
+            "spy_final_value":       row.spy_final_value,
+            "spy_total_return_pct":  row.spy_total_return_pct,
+            "outperformance_pct":    row.outperformance_pct,
+            "winning_months":        row.winning_months,
+            "winning_months_pct":    round(row.winning_months / n * 100, 1),
+            "beat_spy_months":       row.beat_spy_months,
+            "beat_spy_months_pct":   round(row.beat_spy_months / n * 100, 1),
+            "hold_months":           hold_months,
         },
     }
 
