@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 
 const NAV = [
   {
-    href: '/',
+    href: '/scanner',
     label: 'Scanner',
     icon: (
       <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>

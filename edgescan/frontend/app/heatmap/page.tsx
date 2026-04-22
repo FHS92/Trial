@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import UniverseBadge from '@/components/UniverseBadge'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -75,7 +76,7 @@ export default function HeatmapPage() {
     <div className="min-h-screen" style={{ background: '#080b12' }}>
       {/* Sticky header */}
       <header
-        className="sticky top-0 z-40 flex items-center gap-3 px-4 sm:px-6 h-14"
+        className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 sm:px-6 h-14"
         style={{
           background: 'rgba(8,11,18,0.92)',
           backdropFilter: 'blur(12px)',
@@ -85,6 +86,7 @@ export default function HeatmapPage() {
         <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>
           Sector Heatmap
         </span>
+        <UniverseBadge />
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">

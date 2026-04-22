@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, KeyboardEvent } from 'react'
+import UniverseBadge from '@/components/UniverseBadge'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -219,8 +220,9 @@ export default function ChatPage() {
               </p>
             </div>
 
-            {/* Ticker filter */}
+            {/* Ticker filter + universe badge */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <UniverseBadge />
               <input
                 type="text"
                 value={ticker}

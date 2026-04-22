@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import UniverseBadge from '@/components/UniverseBadge'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -51,6 +52,11 @@ export default function BacktestPage() {
   const [holdMonths, setHoldMonths] = useState(1)
   const [universe, setUniverse] = useState<'sp500' | 'russell'>('sp500')
 
+  useEffect(() => {
+    const stored = localStorage.getItem('edgescan_universe')
+    if (stored === 'sp500' || stored === 'russell') setUniverse(stored)
+  }, [])
+
   async function loadLatest(hm: number) {
     setLoading(true); setError('')
     try {
@@ -95,9 +101,10 @@ export default function BacktestPage() {
 
   return (
     <div className="min-h-screen" style={{ background: '#080b12' }}>
-      <header className="sticky top-0 z-40 flex items-center gap-3 px-4 sm:px-6 h-14"
+      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 sm:px-6 h-14"
         style={{ background: 'rgba(8,11,18,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>Backtest</span>
+        <UniverseBadge />
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">

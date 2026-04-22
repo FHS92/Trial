@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import UniverseBadge from '@/components/UniverseBadge'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -108,6 +109,11 @@ export default function PaperTradingPage() {
   }
 
   useEffect(() => {
+    const stored = localStorage.getItem('edgescan_universe') as Universe | null
+    if (stored === 'sp500' || stored === 'russell') setUniverse(stored)
+  }, [])
+
+  useEffect(() => {
     loadPortfolio(universe)
   }, [universe])
 
@@ -120,7 +126,7 @@ export default function PaperTradingPage() {
     <div className="min-h-screen" style={{ background: '#080b12' }}>
       {/* Sticky header */}
       <header
-        className="sticky top-0 z-40 flex items-center gap-3 px-4 sm:px-6 h-14"
+        className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 sm:px-6 h-14"
         style={{
           background: 'rgba(8,11,18,0.92)',
           backdropFilter: 'blur(12px)',
@@ -130,6 +136,7 @@ export default function PaperTradingPage() {
         <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>
           Paper Trading
         </span>
+        <UniverseBadge />
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">

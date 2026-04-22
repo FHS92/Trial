@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import UniverseBadge from '@/components/UniverseBadge'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -170,6 +171,11 @@ export default function RebalancePage() {
   const [error, setError] = useState<string | null>(null)
   const [noData, setNoData] = useState(false)
 
+  useEffect(() => {
+    const stored = localStorage.getItem('edgescan_universe')
+    if (stored === 'sp500' || stored === 'russell') setUniverse(stored)
+  }, [])
+
   async function loadSuggestions(uni: string) {
     setLoading(true)
     setError(null)
@@ -261,20 +267,7 @@ export default function RebalancePage() {
             </span>
           </div>
 
-          <nav style={{ display: 'flex', gap: 4 }}>
-            <a
-              href="/"
-              style={{
-                padding: '5px 12px',
-                borderRadius: 8,
-                fontSize: 12,
-                color: '#6b7a99',
-                textDecoration: 'none',
-              }}
-            >
-              Home
-            </a>
-          </nav>
+          <UniverseBadge />
         </div>
       </header>
 
