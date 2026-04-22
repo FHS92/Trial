@@ -17,7 +17,6 @@ import json
 import os
 import threading
 import time
-import uuid
 from datetime import date, datetime, timedelta
 from typing import Optional
 
@@ -30,7 +29,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db, init_db, SessionLocal
 from data_fetcher import SP500_TICKERS, fetch_fundamentals, fetch_price_history
-from models import BacktestJob, BacktestRun, PriceHistory, PortfolioHolding, ScanResult, ThesisCache
+from models import BacktestRun, PriceHistory, PortfolioHolding, ScanResult, ThesisCache
 from scanner import scan_tickers, score_stock
 from thesis_generator import generate_thesis
 from analytics import get_sector_heatmap, get_rebalance_suggestions
@@ -82,9 +81,6 @@ SCAN_SECRET = os.getenv("SCAN_SECRET", "edgescan-local-secret")
 
 # Simple in-memory cache for market-pulse endpoint
 _market_pulse_cache: dict = {"data": None, "expires_at": 0}
-
-# In-memory job store for async backtest runs
-_backtest_jobs: dict[str, dict] = {}
 
 
 @app.on_event("startup")
@@ -843,100 +839,41 @@ def delete_holding(username: str, ticker: str, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/backtest/run")
-def run_backtest(n_stocks: int = 100, hold_months: int = 1, universe: str = "sp500"):
+def run_backtest(n_stocks: int = 100, hold_months: int = 1, universe: str = "sp500", db: Session = Depends(get_db)):
     """
-    Start a backtest job in the background. Returns immediately with a job_id.
-    Poll GET /api/backtest/status/{job_id} for completion.
+    Run a backtest synchronously and return the result.
+    Blocks until complete (2-4 minutes for 100 stocks).
     """
     if hold_months not in (1, 2, 3):
         raise HTTPException(status_code=400, detail="hold_months must be 1, 2, or 3")
 
-    job_id = uuid.uuid4().hex[:12]
+    from backtest_engine import run_backtest as _run
+    result = _run(n_stocks=n_stocks, hold_months=hold_months, universe=universe)
 
-    # Persist job record in DB so any Cloud Run instance can serve the status poll
-    db_init = SessionLocal()
-    try:
-        db_init.add(BacktestJob(id=job_id, status="running"))
-        db_init.commit()
-    finally:
-        db_init.close()
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
 
-    # Also cache in-memory for fast same-instance lookups
-    _backtest_jobs[job_id] = {"status": "running", "result": None, "error": None}
-
-    def _worker():
-        import traceback as tb
-        try:
-            from backtest_engine import run_backtest as _run
-            result = _run(n_stocks=n_stocks, hold_months=hold_months, universe=universe)
-            if "error" in result:
-                _update_job(job_id, status="error", error=result["error"])
-                return
-
-            s = result["summary"]
-            db = SessionLocal()
-            try:
-                row = BacktestRun(
-                    n_stocks=s["n_stocks"],
-                    months_traded=s["months_traded"],
-                    starting_capital=s["starting_capital"],
-                    final_value=s["final_value"],
-                    total_return_pct=s["total_return_pct"],
-                    spy_final_value=s["spy_final_value"],
-                    spy_total_return_pct=s["spy_total_return_pct"],
-                    outperformance_pct=s["outperformance_pct"],
-                    winning_months=s["winning_months"],
-                    beat_spy_months=s["beat_spy_months"],
-                    monthly_json=json.dumps(result["monthly"]),
-                    yearly_json=json.dumps({"hold_months": hold_months, "data": result["yearly"]}),
-                )
-                db.add(row)
-                db.commit()
-                db.refresh(row)
-                result["run_id"] = row.id
-                result["run_at"] = row.run_at.isoformat()
-            finally:
-                db.close()
-
-            _update_job(job_id, status="done", result_json=json.dumps(result))
-        except Exception:
-            _update_job(job_id, status="error", error=tb.format_exc())
-
-    threading.Thread(target=_worker, daemon=True).start()
-    return {"job_id": job_id, "status": "running"}
-
-
-def _update_job(job_id: str, status: str, result_json: Optional[str] = None, error: Optional[str] = None) -> None:
-    """Update BacktestJob row in DB and in-memory cache."""
-    db = SessionLocal()
-    try:
-        row = db.query(BacktestJob).filter(BacktestJob.id == job_id).first()
-        if row:
-            row.status = status
-            row.result_json = result_json
-            row.error = error
-            db.commit()
-    finally:
-        db.close()
-
-    _backtest_jobs[job_id] = {"status": status, "result": json.loads(result_json) if result_json else None, "error": error}
-
-
-@app.get("/api/backtest/status/{job_id}")
-def backtest_status(job_id: str, db: Session = Depends(get_db)):
-    """Poll this endpoint after POST /api/backtest/run."""
-    # Fast path: same instance already has the result in memory
-    job = _backtest_jobs.get(job_id)
-    if job:
-        return job
-
-    # Slow path: different Cloud Run instance — read from DB
-    row = db.query(BacktestJob).filter(BacktestJob.id == job_id).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Job not found or expired")
-
-    result = json.loads(row.result_json) if row.result_json else None
-    return {"status": row.status, "result": result, "error": row.error}
+    s = result["summary"]
+    row = BacktestRun(
+        n_stocks=s["n_stocks"],
+        months_traded=s["months_traded"],
+        starting_capital=s["starting_capital"],
+        final_value=s["final_value"],
+        total_return_pct=s["total_return_pct"],
+        spy_final_value=s["spy_final_value"],
+        spy_total_return_pct=s["spy_total_return_pct"],
+        outperformance_pct=s["outperformance_pct"],
+        winning_months=s["winning_months"],
+        beat_spy_months=s["beat_spy_months"],
+        monthly_json=json.dumps(result["monthly"]),
+        yearly_json=json.dumps({"hold_months": hold_months, "data": result["yearly"]}),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    result["run_id"] = row.id
+    result["run_at"] = row.run_at.isoformat()
+    return result
 
 
 def _parse_backtest_row(row) -> dict:
