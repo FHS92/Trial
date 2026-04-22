@@ -124,3 +124,43 @@ class BacktestRun(Base):
     beat_spy_months = Column(Integer)
     monthly_json = Column(Text)   # JSON array of monthly results
     yearly_json = Column(Text)    # JSON array of yearly summaries
+
+
+class FundamentalSnapshot(Base):
+    """
+    Point-in-time fundamental filing data extracted from SEC EDGAR.
+
+    One row per (ticker, period_end). 10-K rows have all metric fields
+    populated; 10-Q rows have only balance sheet fields (equity, debt,
+    shares) — flow fields are NULL because 10-Q P&L can be YTD cumulative.
+
+    filed_at is the exact SEC submission date — used as the look-ahead
+    boundary so the backtest never uses data before it was public.
+    """
+    __tablename__ = "fundamental_snapshots"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    ticker      = Column(String(10), nullable=False)
+    period_end  = Column(Date, nullable=False)   # fiscal year/quarter end
+    filed_at    = Column(Date, nullable=False)   # exact SEC filing date
+    form_type   = Column(String(10))             # "10-K" or "10-Q"
+    sector      = Column(String(60))
+
+    # Income statement — populated for 10-K only (USD)
+    revenue             = Column(Float)
+    gross_profit        = Column(Float)
+    net_income          = Column(Float)
+
+    # Cash flow — populated for 10-K only (USD)
+    operating_cash_flow = Column(Float)
+    capital_expenditure = Column(Float)   # stored as absolute outflow (positive)
+
+    # Balance sheet — populated for both 10-K and 10-Q (USD)
+    stockholders_equity = Column(Float)
+    total_debt          = Column(Float)
+    shares_outstanding  = Column(Float)
+
+    __table_args__ = (
+        UniqueConstraint("ticker", "period_end", name="uq_fund_snap_ticker_period"),
+        Index("ix_fund_snap_ticker_filed", "ticker", "filed_at"),
+    )

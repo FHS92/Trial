@@ -3,17 +3,23 @@ backtest_engine.py — Core backtest logic for EdgeScan.
 
 Strategy:
   - Universe  : top N stocks from SP500_TICKERS
-  - Signal    : 5-indicator technical score (RSI, MACD, 200MA, volume, 52W)
-                Indicators precomputed once per stock for speed (~30x vs inline)
+  - Signal    : composite score = technical (5 indicators) + fundamental (EDGAR)
+  - Technical : RSI, MACD, 200MA, directional volume, 52W-high distance
+  - Fundamental: revenue growth, EPS growth, FCF yield, ROE, gross margin,
+                 D/E ratio, trailing P/E vs dynamic sector median.
+                 All sourced from SEC EDGAR filings (point-in-time, no
+                 look-ahead bias). Cached in Neon after first fetch.
   - Entry     : close of first trading day of each month
   - Exit      : close of last trading day of same month
-  - Sizing    : portfolio_value / n_valid_picks (equal weight, full rebalance each period)
+  - Sizing    : portfolio_value / n_valid_picks (equal weight, full rebalance)
   - Hold      : 1 or 3 months between full rebalances
   - Benchmark : SPY buy-and-hold from Jan 2020
 """
 
 import warnings
+from collections import defaultdict
 from datetime import date, timedelta
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -23,18 +29,28 @@ warnings.filterwarnings("ignore")
 
 from data_fetcher import SP500_TICKERS
 from scanner import (
+    _score_debt_equity,
     _score_distance_from_52w_high,
+    _score_eps_growth,
+    _score_fcf_yield,
+    _score_gross_margin,
     _score_macd,
     _score_price_vs_200ma,
+    _score_rev_growth,
     _score_rsi,
+    _score_roe,
     _score_volume,
 )
-from technicals import _rsi, _ema, _sma
+from technicals import _ema, _rsi, _sma
 
 START = date(2020, 1, 1)
 STARTING_CAPITAL = 6_000.0
 PICKS = 3
 
+
+# ---------------------------------------------------------------------------
+# Price-series helpers
+# ---------------------------------------------------------------------------
 
 def _month_list() -> list[date]:
     today = date.today()
@@ -48,45 +64,73 @@ def _month_list() -> list[date]:
     return months
 
 
+def _to_series(x) -> pd.Series:
+    if isinstance(x, pd.DataFrame):
+        return x.iloc[:, 0]
+    return x
+
+
+def _px_on_or_after(s, d: date):
+    s = _to_series(s)
+    sub = s[s.index >= pd.Timestamp(d)]
+    if not len(sub):
+        return None
+    val = sub.iloc[0]
+    return float(val.iloc[0]) if isinstance(val, pd.Series) else float(val)
+
+
+def _px_on_or_before(s, d: date):
+    s = _to_series(s)
+    sub = s[s.index <= pd.Timestamp(d)]
+    if not len(sub):
+        return None
+    val = sub.iloc[-1]
+    return float(val.iloc[0]) if isinstance(val, pd.Series) else float(val)
+
+
+def _val_before(s: pd.Series, cutoff: pd.Timestamp) -> float:
+    idx = s.index.searchsorted(cutoff, side="left") - 1
+    if idx < 0:
+        return np.nan
+    v = s.iloc[idx]
+    return float(v) if not pd.isna(v) else np.nan
+
+
+# ---------------------------------------------------------------------------
+# Technical indicators — precomputed once per stock
+# ---------------------------------------------------------------------------
+
 def _precompute_indicators(
     close: pd.Series,
     volume: pd.Series,
     high: pd.Series,
     low: pd.Series,
 ) -> dict | None:
-    """Precompute all indicator series once on the full price history."""
     if len(close) < 50:
         return None
 
-    # RSI
     rsi_s = _rsi(close, 14)
 
-    # MACD — matches compute_technicals crossover logic exactly
     macd_line      = _ema(close, 12) - _ema(close, 26)
     signal_s       = _ema(macd_line, 9)
-    macd_above_s   = (macd_line >= signal_s)          # >= to match compute_technicals
+    macd_above_s   = (macd_line >= signal_s)
     crossed_up_s   = macd_above_s & ~macd_above_s.shift(1).fillna(False)
     recent_cross_s = crossed_up_s.rolling(5, min_periods=1).sum() > 0
 
-    # 200MA
     ma200_s   = _sma(close, 200) if len(close) >= 200 else _sma(close, len(close))
     pct_200_s = (close - ma200_s) / ma200_s.replace(0, np.nan) * 100
 
-    # 52-week high distance
     w52_high_s = high.rolling(252, min_periods=50).max()
     from_52w_s = (close - w52_high_s) / w52_high_s.replace(0, np.nan) * 100
 
-    # Directional volume — matches compute_technicals exactly:
-    # bullish = 2+ of last 5 days had price UP on above-avg volume
-    # bearish = 2+ of last 5 days had price DOWN on above-avg volume
     avg_vol_20    = volume.rolling(20, min_periods=10).mean()
     high_vol_day  = volume > avg_vol_20
     price_up      = close.diff() > 0
     up_hvol_s     = (price_up & high_vol_day).rolling(5, min_periods=1).sum()
     down_hvol_s   = (~price_up & high_vol_day).rolling(5, min_periods=1).sum()
     vol_status_s  = pd.Series(0.0, index=close.index)
-    vol_status_s[up_hvol_s >= 2]   = 1.0   # bullish
-    vol_status_s[down_hvol_s >= 2] = -1.0  # bearish
+    vol_status_s[up_hvol_s >= 2]   = 1.0
+    vol_status_s[down_hvol_s >= 2] = -1.0
 
     return {
         "rsi":          rsi_s,
@@ -97,14 +141,6 @@ def _precompute_indicators(
         "vol_status":   vol_status_s,
         "close":        close,
     }
-
-
-def _val_before(s: pd.Series, cutoff: pd.Timestamp) -> float:
-    idx = s.index.searchsorted(cutoff, side="left") - 1
-    if idx < 0:
-        return np.nan
-    v = s.iloc[idx]
-    return float(v) if not pd.isna(v) else np.nan
 
 
 def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp) -> float:
@@ -135,29 +171,222 @@ def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp) -> float:
     )
 
 
-def _to_series(x) -> pd.Series:
-    if isinstance(x, pd.DataFrame):
-        return x.iloc[:, 0]
-    return x
+# ---------------------------------------------------------------------------
+# Fundamental data — EDGAR snapshots + scoring
+# ---------------------------------------------------------------------------
+
+def _load_or_fetch_snapshots(tickers: list[str]) -> dict[str, list[dict]]:
+    """
+    Load fundamental snapshots from Neon; fetch from EDGAR for any ticker
+    not yet cached. Returns {ticker: [snapshot_dict, ...]}.
+    Converts ORM objects to plain dicts before returning to avoid
+    detached-state issues after the session closes.
+    """
+    from models import FundamentalSnapshot
+    from database import SessionLocal
+    from edgar_client import get_cik, fetch_company_facts, build_snapshots
+
+    db = SessionLocal()
+    try:
+        existing = {
+            row[0]
+            for row in db.query(FundamentalSnapshot.ticker).distinct().all()
+        }
+        missing = [t for t in tickers if t not in existing]
+
+        if missing:
+            print(f"[backtest] Fetching EDGAR data for {len(missing)} tickers…")
+            for ticker in missing:
+                cik = get_cik(ticker)
+                if not cik:
+                    print(f"[backtest]   {ticker}: no CIK, skipped")
+                    continue
+                try:
+                    sector = yf.Ticker(ticker).info.get("sector", "Unknown") or "Unknown"
+                except Exception:
+                    sector = "Unknown"
+
+                facts = fetch_company_facts(cik)
+                if not facts:
+                    print(f"[backtest]   {ticker}: EDGAR fetch failed, skipped")
+                    continue
+
+                snaps = build_snapshots(ticker, facts, sector)
+                inserted = 0
+                for s in snaps:
+                    try:
+                        db.add(FundamentalSnapshot(
+                            ticker=s["ticker"],
+                            period_end=date.fromisoformat(s["period_end"]),
+                            filed_at=date.fromisoformat(s["filed_at"]),
+                            form_type=s["form_type"],
+                            sector=s["sector"],
+                            revenue=s["revenue"],
+                            gross_profit=s["gross_profit"],
+                            net_income=s["net_income"],
+                            operating_cash_flow=s["operating_cash_flow"],
+                            capital_expenditure=s["capital_expenditure"],
+                            stockholders_equity=s["stockholders_equity"],
+                            total_debt=s["total_debt"],
+                            shares_outstanding=s["shares_outstanding"],
+                        ))
+                        inserted += 1
+                    except Exception:
+                        db.rollback()
+                try:
+                    db.commit()
+                    print(f"[backtest]   {ticker}: {inserted} snapshots stored")
+                except Exception as exc:
+                    db.rollback()
+                    print(f"[backtest]   {ticker}: commit failed — {exc}")
+
+        rows = (
+            db.query(FundamentalSnapshot)
+            .filter(FundamentalSnapshot.ticker.in_(tickers))
+            .all()
+        )
+
+        result: dict[str, list[dict]] = defaultdict(list)
+        for row in rows:
+            result[row.ticker].append({
+                "period_end":          row.period_end,
+                "filed_at":            row.filed_at,
+                "form_type":           row.form_type,
+                "sector":              row.sector,
+                "revenue":             row.revenue,
+                "gross_profit":        row.gross_profit,
+                "net_income":          row.net_income,
+                "operating_cash_flow": row.operating_cash_flow,
+                "capital_expenditure": row.capital_expenditure,
+                "stockholders_equity": row.stockholders_equity,
+                "total_debt":          row.total_debt,
+                "shares_outstanding":  row.shares_outstanding,
+            })
+        return dict(result)
+
+    finally:
+        db.close()
 
 
-def _px_on_or_after(s, d: date):
-    s = _to_series(s)
-    sub = s[s.index >= pd.Timestamp(d)]
-    if not len(sub):
-        return None
-    val = sub.iloc[0]
-    return float(val.iloc[0]) if isinstance(val, pd.Series) else float(val)
+def _fund_metrics_at(
+    snap_list: list[dict],
+    cutoff: pd.Timestamp,
+    close_s: pd.Series,
+) -> dict:
+    """
+    Compute point-in-time fundamental metrics using only filings
+    submitted at or before cutoff. Returns {} if no data is available.
+    """
+    cutoff_date = cutoff.date()
+    filed = [s for s in snap_list if s["filed_at"] <= cutoff_date]
+    if not filed:
+        return {}
+
+    # Annual 10-K rows sorted newest-first (flow metrics come from here)
+    annual = sorted(
+        [s for s in filed if s["form_type"] == "10-K" and s["revenue"] is not None],
+        key=lambda s: s["filed_at"],
+        reverse=True,
+    )
+    # All rows sorted newest-first (balance sheet uses most recent of any form)
+    by_date = sorted(filed, key=lambda s: s["filed_at"], reverse=True)
+
+    if not annual:
+        return {}
+
+    cur = annual[0]
+    bs  = by_date[0]   # most recent balance sheet snapshot
+
+    # Revenue growth (requires ≥2 annual filings)
+    rev_growth = 0.0
+    if len(annual) >= 2 and annual[1]["revenue"]:
+        r0, r1 = cur["revenue"], annual[1]["revenue"]
+        rev_growth = (r0 - r1) / abs(r1) * 100
+
+    # Net income / EPS growth
+    eps_growth = 0.0
+    if len(annual) >= 2 and annual[1]["net_income"]:
+        n1 = annual[1]["net_income"]
+        if n1 != 0:
+            eps_growth = ((cur["net_income"] or 0.0) - n1) / abs(n1) * 100
+
+    # Gross margin
+    gross_margin = 0.0
+    if cur["gross_profit"] and cur["revenue"]:
+        gross_margin = cur["gross_profit"] / cur["revenue"] * 100
+
+    # FCF yield = (OCF − CapEx) / market_cap_at_cutoff
+    fcf_yield = 0.0
+    if cur["operating_cash_flow"] is not None and cur["capital_expenditure"] is not None:
+        fcf    = cur["operating_cash_flow"] - cur["capital_expenditure"]
+        price  = _val_before(close_s, cutoff)
+        shares = bs["shares_outstanding"]
+        if price and shares and price > 0 and shares > 0:
+            fcf_yield = fcf / (price * shares) * 100
+
+    # ROE = net_income / equity (most recent balance sheet equity)
+    roe = 0.0
+    eq  = bs["stockholders_equity"]
+    if cur["net_income"] and eq and eq != 0:
+        roe = cur["net_income"] / abs(eq) * 100
+
+    # D/E = total_debt / equity
+    d_e  = 2.0
+    debt = bs["total_debt"]
+    if debt is not None and eq and eq != 0:
+        d_e = debt / abs(eq)
+
+    # Trailing P/E = market_cap_at_cutoff / annual_net_income
+    trailing_pe = None
+    price  = _val_before(close_s, cutoff)
+    shares = bs["shares_outstanding"]
+    ni     = cur["net_income"]
+    if price and shares and ni and price > 0 and shares > 0 and ni > 0:
+        pe = (price * shares) / ni
+        if 0 < pe <= 300:   # discard absurd values (negative or >300x)
+            trailing_pe = pe
+
+    return {
+        "sector":       cur["sector"] or "Unknown",
+        "rev_growth":   rev_growth,
+        "eps_growth":   eps_growth,
+        "gross_margin": gross_margin,
+        "fcf_yield":    fcf_yield,
+        "roe":          roe,
+        "d_e":          d_e,
+        "trailing_pe":  trailing_pe,
+    }
 
 
-def _px_on_or_before(s, d: date):
-    s = _to_series(s)
-    sub = s[s.index <= pd.Timestamp(d)]
-    if not len(sub):
-        return None
-    val = sub.iloc[-1]
-    return float(val.iloc[0]) if isinstance(val, pd.Series) else float(val)
+def _score_trailing_pe(stock_pe: Optional[float], sector_median: Optional[float]) -> int:
+    """Score P/E relative to dynamically-computed sector median for that month."""
+    if not stock_pe or stock_pe <= 0 or not sector_median or sector_median <= 0:
+        return 3  # neutral when data is absent
+    if stock_pe < sector_median * 0.90:    # >10% below sector median = cheap
+        return 6
+    if stock_pe <= sector_median * 1.10:   # within ±10% of sector median
+        return 3
+    return 0                               # >10% above = expensive vs peers
 
+
+def _fundamental_score(metrics: dict, sector_median_pe: Optional[float]) -> int:
+    if not metrics:
+        return 0
+    return (
+        _score_rev_growth(metrics["rev_growth"])
+        + _score_eps_growth(metrics["eps_growth"])
+        + _score_fcf_yield(metrics["fcf_yield"])
+        + _score_roe(metrics["roe"])
+        + _score_gross_margin(metrics["gross_margin"])
+        + _score_debt_equity(metrics["d_e"])
+        + 3   # neutral proxy for analyst rec (no free historical source)
+        + _score_trailing_pe(metrics["trailing_pe"], sector_median_pe)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Main backtest entry point
+# ---------------------------------------------------------------------------
 
 def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
     tickers = SP500_TICKERS[:n_stocks]
@@ -181,13 +410,15 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
 
     # SPY benchmark
     spy_raw   = yf.download("SPY", start=dl_start, auto_adjust=True, progress=False)
-    spy_close = _to_series(spy_raw["Close"].ffill() if "Close" in spy_raw.columns else spy_raw.iloc[:, 0].ffill())
-    spy_entry = _px_on_or_after(spy_close, START)
-    spy_today = float(spy_close.iloc[-1])
+    spy_close = _to_series(
+        spy_raw["Close"].ffill() if "Close" in spy_raw.columns else spy_raw.iloc[:, 0].ffill()
+    )
+    spy_entry     = _px_on_or_after(spy_close, START)
+    spy_today     = float(spy_close.iloc[-1])
     spy_total_ret = (spy_today - spy_entry) / spy_entry
     spy_final     = STARTING_CAPITAL * (1 + spy_total_ret)
 
-    # Precompute indicator series once per stock
+    # Precompute technical indicator series once per stock
     precomputed: dict[str, dict] = {}
     for t in available:
         ind = _precompute_indicators(
@@ -201,15 +432,47 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
 
     scored_tickers = list(precomputed.keys())
 
-    # Pass 1: score every month
+    # Load (or fetch from EDGAR) fundamental snapshots for all tickers
+    print("[backtest] Loading fundamental snapshots…")
+    fund_snaps: dict[str, list[dict]] = {}
+    try:
+        fund_snaps = _load_or_fetch_snapshots(scored_tickers)
+    except Exception as exc:
+        print(f"[backtest] Fundamental data unavailable, using technical-only: {exc}")
+
+    # Pass 1: score every month — technical + fundamental composite
     all_monthly_scores: list[dict[str, float]] = []
     for m in months:
         cutoff = pd.Timestamp(m)
+
+        # Phase A: compute per-stock metrics + trailing PE
+        month_metrics: dict[str, dict] = {}
+        for t in scored_tickers:
+            snaps = fund_snaps.get(t, [])
+            month_metrics[t] = _fund_metrics_at(snaps, cutoff, close_all[t]) if snaps else {}
+
+        # Phase B: sector median trailing PE from this month's universe
+        sector_pes: dict[str, list[float]] = defaultdict(list)
+        for t, m_data in month_metrics.items():
+            pe     = m_data.get("trailing_pe")
+            sector = m_data.get("sector", "Unknown")
+            if pe and pe > 0:
+                sector_pes[sector].append(pe)
+        sector_median_pe: dict[str, float] = {
+            s: float(np.median(pes)) for s, pes in sector_pes.items() if pes
+        }
+
+        # Phase C: composite = technical + fundamental
         scores: dict[str, float] = {}
         for t in scored_tickers:
-            s = _score_at_cutoff(precomputed[t], cutoff)
-            if s > 0:
-                scores[t] = s
+            tech    = _score_at_cutoff(precomputed[t], cutoff)
+            metrics = month_metrics[t]
+            sec     = metrics.get("sector", "Unknown")
+            fund    = _fundamental_score(metrics, sector_median_pe.get(sec))
+            composite = tech + fund
+            if composite > 0:
+                scores[t] = composite
+
         all_monthly_scores.append(scores)
 
     # Pass 2: simulate — full equal-weight rebalance every hold_months
