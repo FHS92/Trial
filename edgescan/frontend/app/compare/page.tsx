@@ -138,7 +138,7 @@ export default function ComparePage() {
             {/* Comparison table */}
             <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
               <MetricRow label="Price" values={stocks.map(s => s.current_price ? `$${s.current_price.toFixed(2)}` : null)} />
-              <MetricRow label="2M Target" values={stocks.map(s => s.price_target_2m ? `$${s.price_target_2m.toFixed(2)}` : null)} />
+              <MetricRow label="1M Target" values={stocks.map(s => s.price_target_1m ? `$${s.price_target_1m.toFixed(2)}` : null)} />
               <MetricRow label="Upside" values={stocks.map(s => s.upside_pct != null ? `${s.upside_pct >= 0 ? '+' : ''}${s.upside_pct.toFixed(1)}%` : null)} />
               <MetricRow label="Sector" values={stocks.map(s => s.sector)} />
               <MetricRow label="Earnings Date" values={stocks.map(s => s.earnings_date)} />
