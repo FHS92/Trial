@@ -87,8 +87,15 @@ def _precompute_indicators(
     w52_high_s = high.rolling(252, min_periods=50).max()
     from_52w_s = (close - w52_high_s) / w52_high_s.replace(0, np.nan) * 100
 
-    # ---- Volume ratio (vs 20-day avg) ----
-    vol_ratio_s = volume / volume.rolling(20, min_periods=10).mean()
+    # ---- Volume status (directional: matches compute_technicals exactly) ----
+    avg_vol_20    = volume.rolling(20, min_periods=10).mean()
+    high_vol_day  = volume > avg_vol_20
+    price_up      = close.diff() > 0
+    up_hvol_s     = (price_up & high_vol_day).rolling(5, min_periods=1).sum()
+    down_hvol_s   = (~price_up & high_vol_day).rolling(5, min_periods=1).sum()
+    vol_status_s  = pd.Series(0.0, index=close.index)
+    vol_status_s[up_hvol_s >= 2]   = 1.0   # bullish
+    vol_status_s[down_hvol_s >= 2] = -1.0  # bearish
 
     # ---- OBV slope (20-day normalized change) ----
     obv_s       = _obv(close, volume)
@@ -112,7 +119,7 @@ def _precompute_indicators(
         "recent_cross": recent_cross_s,
         "pct_200ma":    pct_200_s,
         "from_52w":     from_52w_s,
-        "vol_ratio":    vol_ratio_s,
+        "vol_status":   vol_status_s,
         "obv_slope":    obv_slope_s,
         "roc_20":       roc_20_s,
         "adx":          adx_s,
@@ -142,7 +149,7 @@ def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp) -> float:
 
     pct_200ma = _val_before(ind["pct_200ma"], cutoff)
     from_52w  = _val_before(ind["from_52w"],  cutoff)
-    vol_ratio = _val_before(ind["vol_ratio"], cutoff)
+    vol_raw   = _val_before(ind["vol_status"], cutoff)
     obv_slope = _val_before(ind["obv_slope"], cutoff)
     roc_20    = _val_before(ind["roc_20"],    cutoff)
     adx       = _val_before(ind["adx"],       cutoff)
@@ -150,13 +157,13 @@ def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp) -> float:
 
     if np.isnan(pct_200ma): pct_200ma = 0.0
     if np.isnan(from_52w):  from_52w  = 0.0
-    if np.isnan(vol_ratio): vol_ratio = 1.0
+    if np.isnan(vol_raw):   vol_raw   = 0.0
     if np.isnan(obv_slope): obv_slope = 0.0
     if np.isnan(roc_20):    roc_20    = 0.0
     if np.isnan(adx):       adx       = 20.0
     if np.isnan(rs_vs_spy): rs_vs_spy = 0.0
 
-    volume_status = "bullish" if vol_ratio > 1.1 else ("bearish" if vol_ratio < 0.8 else "neutral")
+    volume_status = "bullish" if vol_raw >= 1.0 else ("bearish" if vol_raw <= -1.0 else "neutral")
 
     return float(
         _score_rsi(rsi)
