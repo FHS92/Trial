@@ -89,32 +89,39 @@ _backtest_jobs: dict[str, dict] = {}
 
 @app.on_event("startup")
 def startup():
-    init_db()
-    _market_pulse_cache["expires_at"] = 0  # force fresh fetch on first request
-    print("[main] EdgeScan API ready.")
-    # Auto-scan on first boot if DB has no data
-    db = SessionLocal()
     try:
-        has_data = db.query(ScanResult).first()
-    finally:
-        db.close()
-    if not has_data:
-        print("[main] No scan data found — triggering initial scan in background.")
-        def _initial_scan():
-            try:
-                from data_fetcher import get_universe_tickers
-                tickers = get_universe_tickers("sp500")[:50]
-                results = scan_tickers(tickers)
-                db2 = SessionLocal()
+        init_db()
+    except Exception as e:
+        print(f"[main] DB init warning: {e}")
+    _market_pulse_cache["expires_at"] = 0
+    print("[main] EdgeScan API ready.")
+
+    # Auto-scan on first boot if DB has no data — runs in background, never blocks startup
+    try:
+        db = SessionLocal()
+        try:
+            has_data = db.query(ScanResult).first()
+        finally:
+            db.close()
+        if not has_data:
+            print("[main] No scan data — triggering initial scan in background.")
+            def _initial_scan():
                 try:
-                    for r in results:
-                        _store_scan_result(r, db2)
-                    print(f"[main] Initial scan complete — {len(results)} stocks stored.")
-                finally:
-                    db2.close()
-            except Exception as e:
-                print(f"[main] Initial scan failed: {e}")
-        threading.Thread(target=_initial_scan, daemon=True).start()
+                    from data_fetcher import get_universe_tickers
+                    tickers = get_universe_tickers("sp500")[:50]
+                    results = scan_tickers(tickers)
+                    db2 = SessionLocal()
+                    try:
+                        for r in results:
+                            _store_scan_result(r, db2)
+                        print(f"[main] Initial scan complete — {len(results)} stocks stored.")
+                    finally:
+                        db2.close()
+                except Exception as e:
+                    print(f"[main] Initial scan failed: {e}")
+            threading.Thread(target=_initial_scan, daemon=True).start()
+    except Exception as e:
+        print(f"[main] Startup check skipped: {e}")
 
 
 # ---------------------------------------------------------------------------
