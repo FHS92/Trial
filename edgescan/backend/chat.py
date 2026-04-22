@@ -10,7 +10,8 @@ import os
 from typing import Optional
 from anthropic import Anthropic
 
-client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
+_api_key = os.getenv("ANTHROPIC_API_KEY", "")
+client = Anthropic(api_key=_api_key) if _api_key else None
 
 SYSTEM_PROMPT = """You are EdgeScan AI, an expert stock analysis assistant.
 You have access to EdgeScan's composite scoring data for S&P 500 and Russell 1000 stocks.
@@ -104,6 +105,9 @@ Sector: {scan_context.get('sector')}
             "content": f"Context:\n{context}\n\nQuestion: {question}"
         }
     ]
+
+    if client is None:
+        raise RuntimeError("ANTHROPIC_API_KEY is not configured on the server.")
 
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",

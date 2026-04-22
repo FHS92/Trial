@@ -134,7 +134,10 @@ export default function ChatPage() {
         body: JSON.stringify(body),
       })
 
-      if (!res.ok) throw new Error(`Server error ${res.status}`)
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.detail ?? `Server error ${res.status}`)
+      }
 
       const data = await res.json()
       const aiMsg: Message = { role: 'ai', text: data.answer ?? 'No response received.' }
@@ -142,7 +145,7 @@ export default function ChatPage() {
     } catch (err) {
       const errMsg: Message = {
         role: 'ai',
-        text: 'Sorry, I encountered an error reaching the server. Please try again.',
+        text: `Error: ${err instanceof Error ? err.message : 'Could not reach server'}`,
       }
       setMessages((prev) => [...prev, errMsg])
     } finally {
@@ -257,7 +260,7 @@ export default function ChatPage() {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '28px 24px 160px',
+          padding: '28px 24px 220px',
         }}
       >
         <div style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>
@@ -388,17 +391,17 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Input row — fixed to bottom of chat area */}
+      {/* Input row — sits above the BottomNav */}
       <div
         style={{
           position: 'fixed',
-          bottom: 0,
+          bottom: '4.5rem',
           left: 0,
           right: 0,
           backgroundColor: COLORS.bg,
           borderTop: `1px solid ${COLORS.headerBorder}`,
-          padding: '16px 24px 20px',
-          zIndex: 10,
+          padding: '12px 24px 14px',
+          zIndex: 30,
         }}
       >
         <div style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>
