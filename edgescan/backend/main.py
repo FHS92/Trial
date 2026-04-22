@@ -33,6 +33,9 @@ from data_fetcher import SP500_TICKERS, fetch_fundamentals, fetch_price_history
 from models import BacktestRun, PriceHistory, PortfolioHolding, ScanResult, ThesisCache
 from scanner import scan_tickers, score_stock
 from thesis_generator import generate_thesis
+from analytics import get_sector_heatmap, get_rebalance_suggestions
+from chat import answer_question
+from paper_trading import run_monthly_rebalance, get_paper_portfolio
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -796,7 +799,7 @@ def delete_holding(username: str, ticker: str, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/backtest/run")
-def run_backtest(n_stocks: int = 100, hold_months: int = 1):
+def run_backtest(n_stocks: int = 100, hold_months: int = 1, universe: str = "sp500"):
     """
     Start a backtest job in the background. Returns immediately with a job_id.
     Poll GET /api/backtest/status/{job_id} for completion.
@@ -811,7 +814,8 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1):
         import traceback as tb
         try:
             from backtest_engine import run_backtest as _run
-            result = _run(n_stocks=n_stocks, hold_months=hold_months)
+            hm = hold_months
+            result = _run(n_stocks=n_stocks, hold_months=hm, universe=universe)
             if "error" in result:
                 _backtest_jobs[job_id].update({"status": "error", "error": result["error"]})
                 return
@@ -892,7 +896,7 @@ def _parse_backtest_row(row) -> dict:
 
 
 @app.get("/api/backtest/latest")
-def latest_backtest(hold_months: int = 1, db: Session = Depends(get_db)):
+def latest_backtest(hold_months: int = 1, universe: str = "sp500", db: Session = Depends(get_db)):
     """Return the most recently stored backtest for the given hold period."""
     rows = db.query(BacktestRun).order_by(BacktestRun.run_at.desc()).limit(20).all()
     for row in rows:
@@ -903,6 +907,86 @@ def latest_backtest(hold_months: int = 1, db: Session = Depends(get_db)):
         status_code=404,
         detail=f"No {hold_months}-month hold backtest run yet. POST /api/backtest/run?hold_months={hold_months} first.",
     )
+
+
+# ---------------------------------------------------------------------------
+# Analytics
+# ---------------------------------------------------------------------------
+
+@app.get("/api/analytics/sector-heatmap")
+def sector_heatmap(n_months: int = 6):
+    """Sector rotation heatmap — avg score per sector per month."""
+    return get_sector_heatmap(n_months=n_months)
+
+
+@app.get("/api/analytics/rebalance-suggestions")
+def rebalance_suggestions(universe: str = "sp500"):
+    """Current top-3 vs last month — what to buy/sell/hold."""
+    return get_rebalance_suggestions(universe=universe)
+
+
+# ---------------------------------------------------------------------------
+# Paper Trading
+# ---------------------------------------------------------------------------
+
+@app.get("/api/paper-trading")
+def paper_trading_portfolio(universe: str = "sp500"):
+    """Get the paper trading portfolio state."""
+    return get_paper_portfolio(universe=universe)
+
+
+@app.post("/api/paper-trading/rebalance")
+def paper_trading_rebalance(universe: str = "sp500"):
+    """Trigger a manual paper trading rebalance."""
+    return run_monthly_rebalance(universe=universe)
+
+
+# ---------------------------------------------------------------------------
+# Chat
+# ---------------------------------------------------------------------------
+
+class ChatRequest(BaseModel):
+    question: str
+    ticker: Optional[str] = None
+
+
+@app.post("/api/chat")
+def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
+    """Answer a natural language question about EdgeScan data."""
+    scan_ctx = None
+    top_picks_ctx = None
+
+    if req.ticker:
+        row = (
+            db.query(ScanResult)
+            .filter(ScanResult.ticker == req.ticker.upper())
+            .order_by(ScanResult.scanned_at.desc())
+            .first()
+        )
+        if row:
+            scan_ctx = _row_to_dict(row)
+
+    # Always provide top 10 context
+    latest_ts = db.query(func.max(ScanResult.scanned_at)).scalar()
+    if latest_ts:
+        from datetime import timedelta
+        cutoff = latest_ts - timedelta(minutes=10)
+        top_rows = (
+            db.query(ScanResult)
+            .filter(ScanResult.scanned_at >= cutoff)
+            .order_by(ScanResult.score.desc())
+            .limit(10)
+            .all()
+        )
+        top_picks_ctx = [{"ticker": r.ticker, "score": r.score, "sector": r.sector} for r in top_rows]
+
+    answer = answer_question(
+        question=req.question,
+        ticker=req.ticker,
+        scan_context=scan_ctx,
+        top_picks_context=top_picks_ctx,
+    )
+    return {"answer": answer}
 
 
 # ---------------------------------------------------------------------------
