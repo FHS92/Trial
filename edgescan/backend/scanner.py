@@ -108,11 +108,9 @@ def _score_macd(macd_status: str) -> int:
 
 
 def _score_price_vs_200ma(pct_above: float) -> int:
-    if pct_above < 0:         return 0  # below 200MA — bearish trend
-    if pct_above <= 10:       return 8  # tight above — healthy uptrend
-    if pct_above <= 20:       return 6  # moderately extended
-    if pct_above <= 40:       return 4  # significantly extended but uptrend intact
-    return 2                            # very extended — still gets partial credit
+    if 0 <= pct_above <= 10:   return 8
+    if 10 < pct_above <= 20:   return 4
+    return 0  # below 200MA or very extended
 
 
 def _score_volume(volume_status: str) -> int:
@@ -122,13 +120,11 @@ def _score_volume(volume_status: str) -> int:
 
 
 def _score_distance_from_52w_high(from_high_pct: float) -> int:
-    # Recovery-zone logic: reward stocks pulling back from highs (momentum intact)
     below = abs(from_high_pct)
-    if 3 < below <= 10:  return 8  # healthy pullback — sweet spot for recovery plays
-    if below <= 3:       return 4  # at/near 52W high — may be extended or topping
-    if below <= 20:      return 6  # moderate pullback, upside potential
-    if below <= 35:      return 2  # deeper correction
-    return 0                       # >35% down — avoid
+    if 15 <= below <= 35:  return 6
+    if 5 <= below < 15:    return 4
+    if below < 5:          return 2  # near the high — potentially extended
+    return 0  # >35% below — may be in trouble
 
 
 def _score_obv_slope(obv_slope_pct: float) -> int:
@@ -288,18 +284,14 @@ def score_stock(ticker: str) -> dict:
     rs_vs_spy = stock_3m - spy_3m
 
     # ---- Technical score ----
-    rsi_pts    = _score_rsi(signals["rsi"])
-    macd_pts   = _score_macd(signals["macd_status"])
-    ma_pts     = _score_price_vs_200ma(signals["pct_above_200ma"])
-    obv_pts    = _score_obv_slope(signals["obv_slope_pct"])
-    hi_pts     = _score_distance_from_52w_high(signals["from_52w_high"])
-    roc_pts    = _score_roc_20(signals["roc_20"])
-    adx_pts    = _score_adx(signals["adx"])
-    rs_pts     = _score_relative_strength(rs_vs_spy)
-    sector_pts = _score_sector_momentum(fundamentals.get("sector") or "", signals["adx"])
-    penalty    = _earnings_penalty(fundamentals["earnings_date"])
+    rsi_pts  = _score_rsi(signals["rsi"])
+    macd_pts = _score_macd(signals["macd_status"])
+    ma_pts   = _score_price_vs_200ma(signals["pct_above_200ma"])
+    vol_pts  = _score_volume(signals["volume_status"])
+    hi_pts   = _score_distance_from_52w_high(signals["from_52w_high"])
+    penalty  = _earnings_penalty(fundamentals["earnings_date"])
 
-    t_score_raw = rsi_pts + macd_pts + ma_pts + obv_pts + hi_pts + roc_pts + adx_pts + rs_pts + sector_pts
+    t_score_raw = rsi_pts + macd_pts + ma_pts + vol_pts + hi_pts
     t_score = max(0, t_score_raw + penalty)
 
     composite = min(100, f_score + t_score)
@@ -364,12 +356,8 @@ def score_stock(ticker: str) -> dict:
             "rsi_pts": rsi_pts,
             "macd_pts": macd_pts,
             "ma200_pts": ma_pts,
-            "obv_slope_pts": obv_pts,
+            "volume_pts": vol_pts,
             "high52w_pts": hi_pts,
-            "roc20_pts": roc_pts,
-            "adx_pts": adx_pts,
-            "rel_strength_pts": rs_pts,
-            "sector_momentum_pts": sector_pts,
             "earnings_penalty": penalty,
         },
         "earnings_date": str(fundamentals["earnings_date"]) if fundamentals["earnings_date"] else None,

@@ -18,7 +18,6 @@ Performance note:
 """
 
 import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 
 import numpy as np
@@ -33,33 +32,14 @@ from scanner import (
     _score_macd,
     _score_price_vs_200ma,
     _score_rsi,
-    _score_obv_slope,
-    _score_roc_20,
-    _score_adx,
-    _score_relative_strength,
-    _score_sector_momentum,
+    _score_volume,
 )
-from technicals import _rsi, _ema, _sma, _adx, _obv, _roc
+from technicals import _rsi, _ema, _sma
 
 START = date(2020, 1, 1)
 STARTING_CAPITAL = 6_000.0
 PICKS = 3
-STOP_LOSS = 0.85  # 15% intra-month stop-loss
-
-
-def _fetch_sectors(tickers: list[str]) -> dict[str, str]:
-    """Fetch GICS sector for each ticker in parallel. Falls back to '' on error."""
-    def _get(t):
-        try:
-            return t, yf.Ticker(t).info.get("sector", "") or ""
-        except Exception:
-            return t, ""
-
-    sectors: dict[str, str] = {}
-    with ThreadPoolExecutor(max_workers=10) as ex:
-        for t, s in ex.map(_get, tickers):
-            sectors[t] = s
-    return sectors
+STOP_LOSS = 0.90  # 10% intra-month stop-loss
 
 
 def _month_list() -> list[date]:
@@ -89,34 +69,22 @@ def _precompute_indicators(
     rsi_s = _rsi(close, 14)
 
     # ---- MACD ----
-    macd_line = _ema(close, 12) - _ema(close, 26)
-    signal_s  = _ema(macd_line, 9)
+    macd_line    = _ema(close, 12) - _ema(close, 26)
+    signal_s     = _ema(macd_line, 9)
     macd_above_s = (macd_line > signal_s)
-    # Recent crossover: MACD crossed above signal within the last 5 bars
     crossed_up_s = macd_above_s & ~macd_above_s.shift(1).fillna(False)
     recent_cross_s = crossed_up_s.rolling(5, min_periods=1).sum() > 0
 
-    # ---- Moving averages ----
-    ma200_s  = _sma(close, 200) if len(close) >= 200 else _sma(close, len(close))
+    # ---- 200MA ----
+    ma200_s   = _sma(close, 200) if len(close) >= 200 else _sma(close, len(close))
     pct_200_s = (close - ma200_s) / ma200_s.replace(0, np.nan) * 100
 
     # ---- 52-week high distance ----
-    w52_high_s  = high.rolling(252, min_periods=50).max()
-    from_52w_s  = (close - w52_high_s) / w52_high_s.replace(0, np.nan) * 100
+    w52_high_s = high.rolling(252, min_periods=50).max()
+    from_52w_s = (close - w52_high_s) / w52_high_s.replace(0, np.nan) * 100
 
-    # ---- ADX ----
-    adx_s = _adx(high, low, close, 14)
-
-    # ---- OBV slope (20-day finite diff / avg volume, proxy for linear slope) ----
-    obv_s       = _obv(close, volume)
-    avg_vol_20  = volume.rolling(20, min_periods=10).mean().replace(0, np.nan)
-    obv_slope_s = (obv_s.diff(20) / 20) / avg_vol_20 * 100
-
-    # ---- ROC-20 ----
-    roc_s = _roc(close, 20)
-
-    # ---- 3-month return for relative strength ----
-    ret3m_s = close.pct_change(63) * 100
+    # ---- Volume ratio (vs 20-day avg) ----
+    vol_ratio_s = volume / volume.rolling(20, min_periods=10).mean()
 
     return {
         "rsi":          rsi_s,
@@ -124,10 +92,7 @@ def _precompute_indicators(
         "recent_cross": recent_cross_s,
         "pct_200ma":    pct_200_s,
         "from_52w":     from_52w_s,
-        "adx":          adx_s,
-        "obv_slope":    obv_slope_s,
-        "roc_20":       roc_s,
-        "ret3m":        ret3m_s,
+        "vol_ratio":    vol_ratio_s,
         "close":        close,
     }
 
@@ -141,43 +106,32 @@ def _val_before(s: pd.Series, cutoff: pd.Timestamp) -> float:
     return float(v) if not pd.isna(v) else np.nan
 
 
-def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp, spy_3m: float, sector: str = "") -> float:
+def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp) -> float:
     """Score a stock at a given cutoff date using its precomputed indicator dict."""
     rsi = _val_before(ind["rsi"], cutoff)
     if np.isnan(rsi):
         return 0.0
 
-    macd_above    = bool(_val_before(ind["macd_above"],   cutoff))
-    recent_cross  = bool(_val_before(ind["recent_cross"], cutoff))
-    macd_status   = "bullish_crossover" if recent_cross else ("above_signal" if macd_above else "below_signal")
+    macd_above   = bool(_val_before(ind["macd_above"],   cutoff))
+    recent_cross = bool(_val_before(ind["recent_cross"], cutoff))
+    macd_status  = "bullish_crossover" if recent_cross else ("above_signal" if macd_above else "below_signal")
 
     pct_200ma = _val_before(ind["pct_200ma"], cutoff)
     from_52w  = _val_before(ind["from_52w"],  cutoff)
-    adx       = _val_before(ind["adx"],       cutoff)
-    obv_slope = _val_before(ind["obv_slope"], cutoff)
-    roc_20    = _val_before(ind["roc_20"],    cutoff)
-    ret3m     = _val_before(ind["ret3m"],     cutoff)
+    vol_ratio = _val_before(ind["vol_ratio"], cutoff)
 
-    # Replace NaNs with neutral values
     if np.isnan(pct_200ma): pct_200ma = 0.0
     if np.isnan(from_52w):  from_52w  = 0.0
-    if np.isnan(adx):       adx       = 20.0
-    if np.isnan(obv_slope): obv_slope = 0.0
-    if np.isnan(roc_20):    roc_20    = 0.0
-    if np.isnan(ret3m):     ret3m     = 0.0
+    if np.isnan(vol_ratio): vol_ratio = 1.0
 
-    rs_vs_spy = float(ret3m) - spy_3m
+    volume_status = "bullish" if vol_ratio > 1.1 else ("bearish" if vol_ratio < 0.8 else "neutral")
 
     return float(
         _score_rsi(rsi)
         + _score_macd(macd_status)
         + _score_price_vs_200ma(pct_200ma)
-        + _score_obv_slope(obv_slope)
+        + _score_volume(volume_status)
         + _score_distance_from_52w_high(from_52w)
-        + _score_roc_20(roc_20)
-        + _score_adx(adx)
-        + _score_relative_strength(rs_vs_spy)
-        + _score_sector_momentum(sector, adx)
     )
 
 
@@ -237,10 +191,6 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
 
     available = [t for t in tickers if t in close_all.columns]
 
-    # Sector data for defensive-stock filter (fetched once, in parallel)
-    print("[backtest] Fetching sector data...")
-    sectors = _fetch_sectors(available)
-
     # SPY benchmark
     spy_raw   = yf.download("SPY", start=dl_start, auto_adjust=True, progress=False)
     spy_close = _to_series(spy_raw["Close"].ffill() if "Close" in spy_raw.columns else spy_raw.iloc[:, 0].ffill())
@@ -263,21 +213,14 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
 
     scored_tickers = list(precomputed.keys())
 
-    # Precompute SPY 3m return series for relative-strength scoring
-    spy_ret3m_s = spy_close.pct_change(63) * 100
-
     # ── Pass 1: score all months using precomputed indicators ─────────────────
     all_monthly_scores: list[dict[str, float]] = []
 
     for m in months:
-        cutoff  = pd.Timestamp(m)
-        spy_3m  = _val_before(spy_ret3m_s, cutoff)
-        if np.isnan(spy_3m):
-            spy_3m = 0.0
-
+        cutoff = pd.Timestamp(m)
         scores: dict[str, float] = {}
         for t in scored_tickers:
-            s = _score_at_cutoff(precomputed[t], cutoff, spy_3m, sectors.get(t, ""))
+            s = _score_at_cutoff(precomputed[t], cutoff)
             if s > 0:
                 scores[t] = s
         all_monthly_scores.append(scores)
