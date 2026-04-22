@@ -394,6 +394,7 @@ def _fetch_market_pulse() -> dict:
         import yfinance as yf
 
         spx = yf.Ticker("^GSPC")
+        rut = yf.Ticker("^RUT")
         vix = yf.Ticker("^VIX")
         tnx = yf.Ticker("^TNX")  # 10-year yield (x10 = %)
 
@@ -405,11 +406,13 @@ def _fetch_market_pulse() -> dict:
                 return None
 
         spx_price = _last_price(spx)
+        rut_price = _last_price(rut)
         vix_price = _last_price(vix)
         tnx_price = _last_price(tnx)
 
         return {
             "spx": spx_price,
+            "rut": rut_price,
             "vix": vix_price,
             "ten_year_yield": round(tnx_price / 10, 3) if tnx_price else None,
             "cached_at": datetime.utcnow().isoformat(),
@@ -417,6 +420,7 @@ def _fetch_market_pulse() -> dict:
     except Exception as e:
         return {
             "spx": None,
+            "rut": None,
             "vix": None,
             "ten_year_yield": None,
             "cached_at": datetime.utcnow().isoformat(),

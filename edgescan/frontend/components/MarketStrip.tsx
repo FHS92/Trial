@@ -21,6 +21,12 @@ function Chip({ label, value }: { label: string; value: string }) {
 
 export default function MarketStrip() {
   const [pulse, setPulse] = useState<MarketPulse | null>(null)
+  const [universe, setUniverse] = useState<'sp500' | 'russell'>('sp500')
+
+  useEffect(() => {
+    const stored = localStorage.getItem('edgescan_universe')
+    if (stored === 'sp500' || stored === 'russell') setUniverse(stored)
+  }, [])
 
   useEffect(() => {
     api.marketPulse().then(setPulse).catch(() => {})
@@ -28,10 +34,15 @@ export default function MarketStrip() {
     return () => clearInterval(id)
   }, [])
 
+  const indexLabel = universe === 'russell' ? 'RUT' : 'SPX'
+  const indexValue = universe === 'russell'
+    ? fmt(pulse?.rut ?? null, 0)
+    : fmt(pulse?.spx ?? null, 0)
+
   if (!pulse) {
     return (
       <div className="flex gap-2">
-        {['SPX', 'VIX', '10Y'].map(l => (
+        {[indexLabel, 'VIX', '10Y'].map(l => (
           <div key={l} className="h-6 w-20 rounded-pill animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
         ))}
       </div>
@@ -40,7 +51,7 @@ export default function MarketStrip() {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <Chip label="SPX" value={fmt(pulse.spx, 0)} />
+      <Chip label={indexLabel} value={indexValue} />
       <Chip label="VIX" value={fmt(pulse.vix)} />
       <Chip label="10Y" value={pulse.ten_year_yield != null ? `${fmt(pulse.ten_year_yield, 2)}%` : '—'} />
     </div>

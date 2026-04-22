@@ -88,6 +88,7 @@ export type Period = '1w' | '1m' | '3m' | '6m' | '1y'
 
 export interface MarketPulse {
   spx: number | null
+  rut: number | null
   vix: number | null
   ten_year_yield: number | null
   cached_at: string
