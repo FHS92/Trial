@@ -5,7 +5,7 @@ import Link from 'next/link'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
-interface Holding { ticker: string; score: number; entry: number; exit: number; return_pct: number; pnl: number; carried?: boolean }
+interface Holding { ticker: string; score: number; entry: number; exit: number; return_pct: number; pnl: number }
 interface MonthResult {
   month: string
   holdings: Holding[]
@@ -87,7 +87,7 @@ export default function BacktestPage() {
         <div className="mb-5">
           <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>Technical Score Backtest</h1>
           <p className="text-sm" style={{ color: '#6b7a99' }}>
-            Jan 2020 → today · Top 3 picks · $6,000 start · Carry logic active · vs SPY buy-and-hold
+            Jan 2020 → today · Top 3 picks · $6,000 start · Equal-weight monthly rotation · vs SPY buy-and-hold
           </p>
         </div>
 
@@ -201,7 +201,7 @@ export default function BacktestPage() {
                   <span>Month</span><span>Picks</span><span className="text-right">Port %</span><span className="text-right">Port Value</span><span className="text-right">SPY %</span><span className="text-right">vs SPY</span>
                 </div>
                 {data.monthly.map((r, i) => {
-                  const picks = r.holdings.map(h => `${h.ticker}(${h.score})${h.carried ? '↻' : ''}`).join(' · ')
+                  const picks = r.holdings.map(h => `${h.ticker}(${h.score})`).join(' · ')
                   return (
                     <div key={r.month} className="grid px-4 py-2.5 text-xs sm:text-sm items-center gap-1" style={{ gridTemplateColumns: '75px 1fr 90px 110px 80px 80px', background: i % 2 === 0 ? '#0f1521' : '#0b1019', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                       <span className="font-medium" style={{ color: '#a0aec0' }}>{r.month}</span>

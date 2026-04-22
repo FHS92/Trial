@@ -2,14 +2,14 @@
 backtest_engine.py — Core backtest logic for EdgeScan.
 
 Strategy:
-  - Universe : top N stocks from SP500_TICKERS
-  - Signal   : technical score (RSI, MACD, 200MA, OBV, 52W, ROC, ADX, RelStr)
-  - Entry    : close of first trading day of each month
-  - Exit     : close of last trading day of same month (unless carried)
-  - Carry    : if a stock is still in the top PICKS at the next rebalancing point,
-               hold existing shares and buy only new entrants with remaining capital
-  - Sizing   : month 1 = $6,000 ($2,000 × 3); subsequent = free capital / new picks
-  - Benchmark: SPY buy-and-hold from Jan 2020
+  - Universe  : top N stocks from SP500_TICKERS
+  - Signal    : 8-indicator technical score
+                (RSI, MACD, 200MA, OBV slope, 52W high, ROC-20, ADX, Rel-Str vs SPY)
+  - Entry     : close of first trading day of each month
+  - Exit      : close of last trading day of same month
+  - Sizing    : portfolio_value / n_valid_picks (equal weight, full rebalance each period)
+  - Hold      : 1 or 3 months between full rebalances
+  - Benchmark : SPY buy-and-hold from Jan 2020
 
 Performance note:
   Indicators are precomputed once per stock on the full time series, then sampled
@@ -33,8 +33,12 @@ from scanner import (
     _score_price_vs_200ma,
     _score_rsi,
     _score_volume,
+    _score_obv_slope,
+    _score_roc_20,
+    _score_adx,
+    _score_relative_strength,
 )
-from technicals import _rsi, _ema, _sma
+from technicals import _rsi, _ema, _sma, _adx, _obv, _roc
 
 START = date(2020, 1, 1)
 STARTING_CAPITAL = 6_000.0
@@ -58,6 +62,7 @@ def _precompute_indicators(
     volume: pd.Series,
     high: pd.Series,
     low: pd.Series,
+    spy_3m_s: pd.Series,
 ) -> dict | None:
     """Compute all indicator series once on the full price history.
     Returns None if the series is too short to be useful."""
@@ -68,10 +73,10 @@ def _precompute_indicators(
     rsi_s = _rsi(close, 14)
 
     # ---- MACD ----
-    macd_line    = _ema(close, 12) - _ema(close, 26)
-    signal_s     = _ema(macd_line, 9)
-    macd_above_s = (macd_line > signal_s)
-    crossed_up_s = macd_above_s & ~macd_above_s.shift(1).fillna(False)
+    macd_line      = _ema(close, 12) - _ema(close, 26)
+    signal_s       = _ema(macd_line, 9)
+    macd_above_s   = (macd_line > signal_s)
+    crossed_up_s   = macd_above_s & ~macd_above_s.shift(1).fillna(False)
     recent_cross_s = crossed_up_s.rolling(5, min_periods=1).sum() > 0
 
     # ---- 200MA ----
@@ -85,6 +90,22 @@ def _precompute_indicators(
     # ---- Volume ratio (vs 20-day avg) ----
     vol_ratio_s = volume / volume.rolling(20, min_periods=10).mean()
 
+    # ---- OBV slope (20-day normalized change) ----
+    obv_s       = _obv(close, volume)
+    avg_vol_20  = volume.rolling(20, min_periods=10).mean().replace(0, np.nan)
+    obv_slope_s = (obv_s - obv_s.shift(20)) / avg_vol_20 * 100
+
+    # ---- ROC-20 ----
+    roc_20_s = _roc(close, 20)
+
+    # ---- ADX ----
+    adx_s = _adx(high, low, close, 14)
+
+    # ---- Relative strength vs SPY (63-day rolling) ----
+    stock_3m_s  = close.pct_change(63) * 100
+    spy_aligned = spy_3m_s.reindex(close.index, method="ffill")
+    rs_vs_spy_s = stock_3m_s - spy_aligned
+
     return {
         "rsi":          rsi_s,
         "macd_above":   macd_above_s,
@@ -92,6 +113,10 @@ def _precompute_indicators(
         "pct_200ma":    pct_200_s,
         "from_52w":     from_52w_s,
         "vol_ratio":    vol_ratio_s,
+        "obv_slope":    obv_slope_s,
+        "roc_20":       roc_20_s,
+        "adx":          adx_s,
+        "rs_vs_spy":    rs_vs_spy_s,
         "close":        close,
     }
 
@@ -118,10 +143,18 @@ def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp) -> float:
     pct_200ma = _val_before(ind["pct_200ma"], cutoff)
     from_52w  = _val_before(ind["from_52w"],  cutoff)
     vol_ratio = _val_before(ind["vol_ratio"], cutoff)
+    obv_slope = _val_before(ind["obv_slope"], cutoff)
+    roc_20    = _val_before(ind["roc_20"],    cutoff)
+    adx       = _val_before(ind["adx"],       cutoff)
+    rs_vs_spy = _val_before(ind["rs_vs_spy"], cutoff)
 
     if np.isnan(pct_200ma): pct_200ma = 0.0
     if np.isnan(from_52w):  from_52w  = 0.0
     if np.isnan(vol_ratio): vol_ratio = 1.0
+    if np.isnan(obv_slope): obv_slope = 0.0
+    if np.isnan(roc_20):    roc_20    = 0.0
+    if np.isnan(adx):       adx       = 20.0
+    if np.isnan(rs_vs_spy): rs_vs_spy = 0.0
 
     volume_status = "bullish" if vol_ratio > 1.1 else ("bearish" if vol_ratio < 0.8 else "neutral")
 
@@ -131,6 +164,10 @@ def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp) -> float:
         + _score_price_vs_200ma(pct_200ma)
         + _score_volume(volume_status)
         + _score_distance_from_52w_high(from_52w)
+        + _score_obv_slope(obv_slope)
+        + _score_roc_20(roc_20)
+        + _score_adx(adx)
+        + _score_relative_strength(rs_vs_spy)
     )
 
 
@@ -156,7 +193,6 @@ def _px_on_or_before(s, d: date):
         return None
     val = sub.iloc[-1]
     return float(val.iloc[0]) if isinstance(val, pd.Series) else float(val)
-
 
 
 def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
@@ -188,6 +224,9 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
     spy_total_ret = (spy_today - spy_entry) / spy_entry
     spy_final     = STARTING_CAPITAL * (1 + spy_total_ret)
 
+    # SPY 63-day rolling return (for relative strength scoring)
+    spy_3m_s = spy_close.pct_change(63) * 100
+
     # ── Precompute indicator series (once per stock) ──────────────────────────
     precomputed: dict[str, dict] = {}
     for t in available:
@@ -196,6 +235,7 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
             volume_all[t].dropna(),
             high_all[t].dropna(),
             low_all[t].dropna(),
+            spy_3m_s,
         )
         if ind is not None:
             precomputed[t] = ind
@@ -214,48 +254,36 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
                 scores[t] = s
         all_monthly_scores.append(scores)
 
-    # ── Pass 2: simulate with N-month hold + carry logic ─────────────────────
+    # ── Pass 2: simulate — full equal-weight rebalance every hold_months ──────
     portfolio_value = STARTING_CAPITAL
     monthly_results: list[dict] = []
-    held_positions: dict[str, float] = {}
-    current_scores_display: dict[str, float] = {}
+    held_positions: dict[str, float] = {}   # ticker -> shares
+    held_scores:    dict[str, float] = {}
 
     for i, m in enumerate(months):
         is_rebal  = (i % hold_months == 0)
         next_m    = date(m.year + (m.month // 12), (m.month % 12) + 1, 1)
         month_end = next_m - timedelta(days=1)
 
-        new_entries_this_month: set[str] = set()
-
         if is_rebal:
             scores = all_monthly_scores[i]
             if len(scores) >= PICKS:
                 top3 = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:PICKS]
-                top3_set = {t for t, _ in top3}
-                current_scores_display = {t: s for t, s in top3}
+                held_scores = {t: s for t, s in top3}
 
-                start_px_rebal: dict[str, float] = {}
-                for t in top3_set:
+                valid_entries: dict[str, float] = {}
+                for t, _ in top3:
                     ep = _px_on_or_after(close_all[t], m)
                     if ep and ep > 0:
-                        start_px_rebal[t] = ep
+                        valid_entries[t] = ep
 
-                # Carry: keep held positions that are still in the new top picks
-                held_positions = {
-                    t: sh for t, sh in held_positions.items()
-                    if t in top3_set and t in start_px_rebal
-                }
-                held_set = set(held_positions)
-
-                carry_value = sum(held_positions[t] * start_px_rebal[t] for t in held_set)
-                avail       = max(0.0, portfolio_value - carry_value)
-
-                new_entries_list = [t for t in top3_set if t not in held_set and t in start_px_rebal]
-                per_new          = avail / len(new_entries_list) if new_entries_list else 0.0
-
-                for t in new_entries_list:
-                    held_positions[t] = per_new / start_px_rebal[t] if per_new > 0 else 0.0
-                    new_entries_this_month.add(t)
+                if valid_entries:
+                    alloc = portfolio_value / len(valid_entries)
+                    held_positions = {t: alloc / ep for t, ep in valid_entries.items()}
+                else:
+                    held_positions = {}
+            else:
+                held_positions = {}
 
         if not held_positions:
             continue
@@ -263,7 +291,7 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
         month_pnl = 0.0
         holdings: list[dict] = []
 
-        for t, shares in list(held_positions.items()):
+        for t, shares in held_positions.items():
             if t not in close_all.columns:
                 continue
             ep = _px_on_or_after(close_all[t], m)
@@ -277,12 +305,11 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
 
             holdings.append({
                 "ticker":     t,
-                "score":      round(current_scores_display.get(t, 0), 0),
+                "score":      round(held_scores.get(t, 0), 0),
                 "entry":      round(ep, 2),
                 "exit":       round(xp, 2),
                 "return_pct": round(ret, 2),
                 "pnl":        round(pnl, 2),
-                "carried":    t not in new_entries_this_month,
             })
 
         if not holdings:
