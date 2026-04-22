@@ -5,7 +5,7 @@ Scores each stock 0–100:
   Fundamental score: 60 pts max
   Technical score:   40 pts max (with earnings proximity penalty)
 
-Also computes a 2-month price target as a weighted blend of:
+Also computes a 1-month price target as a weighted blend of:
   (a) Analyst consensus target — 40%
   (b) Sector P/E re-rating     — 30%
   (c) FCF-based intrinsic value — 30%
@@ -316,7 +316,7 @@ def score_stock(ticker: str) -> dict:
         "score": composite,
         "fundamental_score": f_score,
         "technical_score": t_score,
-        "price_target_2m": price_target,
+        "price_target_1m": price_target,
         "current_price": current_price,
         "upside_pct": upside_pct,
         "signals": {

@@ -48,7 +48,7 @@ export interface StockResult {
   fundamental_score: number
   technical_score: number
   current_price: number | null
-  price_target_2m: number | null
+  price_target_1m: number | null
   upside_pct: number | null
   signals: Signals
   metrics: Metrics

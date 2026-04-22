@@ -133,15 +133,15 @@ export default function DetailPanel({ stock, history }: Props) {
       </div>
 
       {/* Price target banner */}
-      {stock.price_target_2m != null && (
+      {stock.price_target_1m != null && (
         <div
           className="rounded-card p-4 flex items-center justify-between gap-4"
           style={{ background: 'rgba(34,212,126,0.08)', border: '1px solid rgba(34,212,126,0.2)' }}
         >
           <div>
-            <p className="text-xs" style={{ color: '#6b7a99' }}>2-Month Price Target</p>
+            <p className="text-xs" style={{ color: '#6b7a99' }}>1-Month Price Target</p>
             <p className="text-2xl font-bold" style={{ color: '#22d47e' }}>
-              ${stock.price_target_2m.toFixed(2)}
+              ${stock.price_target_1m.toFixed(2)}
             </p>
           </div>
           <div className="text-right">

@@ -34,7 +34,7 @@ class ScanResult(Base):
 
     # Price & target
     current_price = Column(Float)
-    price_target_2m = Column(Float)
+    price_target_1m = Column(Float)
     upside_pct = Column(Float)
 
     # JSON blobs (stored as TEXT; parse in app layer)
