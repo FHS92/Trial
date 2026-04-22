@@ -62,12 +62,23 @@ export default function BacktestPage() {
     const start = Date.now()
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
     try {
+      // Start the job — returns immediately with a job_id
       const r = await fetch(`${BASE}/api/backtest/run?n_stocks=100&hold_months=${hm}`, { method: 'POST', cache: 'no-store' })
       if (!r.ok) {
         const body = await r.json().catch(() => ({}))
         throw new Error(body.detail ?? `Server error ${r.status}`)
       }
-      setData(await r.json())
+      const { job_id } = await r.json()
+
+      // Poll every 5 s until done
+      while (true) {
+        await new Promise(res => setTimeout(res, 5000))
+        const sr = await fetch(`${BASE}/api/backtest/status/${job_id}`, { cache: 'no-store' })
+        if (!sr.ok) throw new Error('Status check failed')
+        const job = await sr.json()
+        if (job.status === 'done') { setData(job.result); break }
+        if (job.status === 'error') throw new Error(job.error ?? 'Backtest failed')
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Run failed')
     } finally { setRunning(false); clearInterval(timer) }
