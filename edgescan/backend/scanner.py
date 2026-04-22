@@ -150,6 +150,16 @@ def _score_adx(adx: float) -> int:
     return 0
 
 
+DEFENSIVE_SECTORS = {"Utilities", "Real Estate", "Consumer Defensive"}
+
+def _score_sector_momentum(sector: str, adx: float) -> int:
+    """Penalise defensive-sector stocks that lack trend strength.
+    Utilities/REITs/Staples with ADX < 20 are slow drifters, not momentum plays."""
+    if sector in DEFENSIVE_SECTORS and adx < 20:
+        return -8
+    return 0
+
+
 def _score_relative_strength(rs_vs_spy: float) -> int:
     # rs_vs_spy = stock_3m_return − spy_3m_return (percentage points)
     if rs_vs_spy > 10:  return 8
@@ -286,9 +296,10 @@ def score_stock(ticker: str) -> dict:
     roc_pts    = _score_roc_20(signals["roc_20"])
     adx_pts    = _score_adx(signals["adx"])
     rs_pts     = _score_relative_strength(rs_vs_spy)
+    sector_pts = _score_sector_momentum(fundamentals.get("sector") or "", signals["adx"])
     penalty    = _earnings_penalty(fundamentals["earnings_date"])
 
-    t_score_raw = rsi_pts + macd_pts + ma_pts + obv_pts + hi_pts + roc_pts + adx_pts + rs_pts
+    t_score_raw = rsi_pts + macd_pts + ma_pts + obv_pts + hi_pts + roc_pts + adx_pts + rs_pts + sector_pts
     t_score = max(0, t_score_raw + penalty)
 
     composite = min(100, f_score + t_score)
@@ -358,6 +369,7 @@ def score_stock(ticker: str) -> dict:
             "roc20_pts": roc_pts,
             "adx_pts": adx_pts,
             "rel_strength_pts": rs_pts,
+            "sector_momentum_pts": sector_pts,
             "earnings_penalty": penalty,
         },
         "earnings_date": str(fundamentals["earnings_date"]) if fundamentals["earnings_date"] else None,

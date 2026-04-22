@@ -34,7 +34,6 @@ function pctColor(n: number | null) { if (n === null) return '#6b7a99'; return n
 
 const HOLD_OPTIONS = [
   { months: 1, label: '1-Month Hold', short: '1M' },
-  { months: 2, label: '2-Month Hold', short: '2M' },
   { months: 3, label: '3-Month Hold', short: '3M' },
 ]
 

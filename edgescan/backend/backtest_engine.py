@@ -18,6 +18,7 @@ Performance note:
 """
 
 import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 
 import numpy as np
@@ -36,12 +37,29 @@ from scanner import (
     _score_roc_20,
     _score_adx,
     _score_relative_strength,
+    _score_sector_momentum,
 )
 from technicals import _rsi, _ema, _sma, _adx, _obv, _roc
 
 START = date(2020, 1, 1)
 STARTING_CAPITAL = 6_000.0
 PICKS = 3
+STOP_LOSS = 0.85  # 15% intra-month stop-loss
+
+
+def _fetch_sectors(tickers: list[str]) -> dict[str, str]:
+    """Fetch GICS sector for each ticker in parallel. Falls back to '' on error."""
+    def _get(t):
+        try:
+            return t, yf.Ticker(t).info.get("sector", "") or ""
+        except Exception:
+            return t, ""
+
+    sectors: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        for t, s in ex.map(_get, tickers):
+            sectors[t] = s
+    return sectors
 
 
 def _month_list() -> list[date]:
@@ -123,7 +141,7 @@ def _val_before(s: pd.Series, cutoff: pd.Timestamp) -> float:
     return float(v) if not pd.isna(v) else np.nan
 
 
-def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp, spy_3m: float) -> float:
+def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp, spy_3m: float, sector: str = "") -> float:
     """Score a stock at a given cutoff date using its precomputed indicator dict."""
     rsi = _val_before(ind["rsi"], cutoff)
     if np.isnan(rsi):
@@ -159,6 +177,7 @@ def _score_at_cutoff(ind: dict, cutoff: pd.Timestamp, spy_3m: float) -> float:
         + _score_roc_20(roc_20)
         + _score_adx(adx)
         + _score_relative_strength(rs_vs_spy)
+        + _score_sector_momentum(sector, adx)
     )
 
 
@@ -187,9 +206,9 @@ def _px_on_or_before(s, d: date):
 
 
 def _stop_triggered(close_col, month_start: date, month_end: date, entry_px: float) -> bool:
-    """Return True if any daily close after entry falls ≥10% below entry_px."""
+    """Return True if any daily close after entry falls ≥15% below entry_px."""
     s = _to_series(close_col)
-    stop = entry_px * 0.90
+    stop = entry_px * STOP_LOSS
     mask = (s.index > pd.Timestamp(month_start)) & (s.index <= pd.Timestamp(month_end))
     for px in s[mask]:
         if float(px) <= stop:
@@ -217,6 +236,10 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
         low_all    = raw[["Low"]].ffill().rename(columns={"Low": tickers[0]})
 
     available = [t for t in tickers if t in close_all.columns]
+
+    # Sector data for defensive-stock filter (fetched once, in parallel)
+    print("[backtest] Fetching sector data...")
+    sectors = _fetch_sectors(available)
 
     # SPY benchmark
     spy_raw   = yf.download("SPY", start=dl_start, auto_adjust=True, progress=False)
@@ -254,7 +277,7 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
 
         scores: dict[str, float] = {}
         for t in scored_tickers:
-            s = _score_at_cutoff(precomputed[t], cutoff, spy_3m)
+            s = _score_at_cutoff(precomputed[t], cutoff, spy_3m, sectors.get(t, ""))
             if s > 0:
                 scores[t] = s
         all_monthly_scores.append(scores)
@@ -316,10 +339,10 @@ def run_backtest(n_stocks: int = 100, hold_months: int = 1) -> dict:
             if not ep or ep <= 0 or shares <= 0:
                 continue
 
-            # Stop-loss: sell at entry × 0.90 if any intra-month close hits it
+            # Stop-loss: sell at entry × STOP_LOSS if any intra-month close hits it
             if _stop_triggered(close_all[t], m, month_end, ep):
-                xp  = ep * 0.90
-                ret = -10.0
+                xp  = ep * STOP_LOSS
+                ret = (STOP_LOSS - 1) * 100  # -15.0
                 stopped_out.add(t)
             else:
                 xp = _px_on_or_before(close_all[t], month_end)
