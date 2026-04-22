@@ -164,3 +164,29 @@ class FundamentalSnapshot(Base):
         UniqueConstraint("ticker", "period_end", name="uq_fund_snap_ticker_period"),
         Index("ix_fund_snap_ticker_filed", "ticker", "filed_at"),
     )
+
+
+class PaperTrade(Base):
+    """
+    Tracks the auto-paper-trading portfolio that follows the model's monthly
+    top-3 picks. One row per position per month. Rebalances on 1st of each month.
+    """
+    __tablename__ = "paper_trades"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    universe    = Column(String(20), nullable=False, default="sp500")
+    month       = Column(String(7), nullable=False)   # "YYYY-MM"
+    ticker      = Column(String(10), nullable=False)
+    score       = Column(Float)
+    entry_price = Column(Float)
+    exit_price  = Column(Float)
+    shares      = Column(Float)
+    pnl         = Column(Float)
+    return_pct  = Column(Float)
+    entered_at  = Column(DateTime, default=datetime.utcnow)
+    exited_at   = Column(DateTime, nullable=True)
+    status      = Column(String(10), default="open")  # "open" | "closed"
+
+    __table_args__ = (
+        Index("ix_paper_trades_universe_month", "universe", "month"),
+    )

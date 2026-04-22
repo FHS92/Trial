@@ -37,6 +37,11 @@ const HOLD_OPTIONS = [
   { months: 3, label: '3-Month Hold', short: '3M' },
 ]
 
+const UNIVERSE_OPTIONS: { value: 'sp500' | 'russell'; label: string }[] = [
+  { value: 'sp500', label: 'S&P 500' },
+  { value: 'russell', label: 'Russell 1000' },
+]
+
 export default function BacktestPage() {
   const [data, setData] = useState<BacktestData | null>(null)
   const [running, setRunning] = useState(false)
@@ -44,11 +49,12 @@ export default function BacktestPage() {
   const [error, setError] = useState('')
   const [elapsed, setElapsed] = useState(0)
   const [holdMonths, setHoldMonths] = useState(1)
+  const [universe, setUniverse] = useState<'sp500' | 'russell'>('sp500')
 
   async function loadLatest(hm: number) {
     setLoading(true); setError('')
     try {
-      const r = await fetch(`${BASE}/api/backtest/latest?hold_months=${hm}`, { cache: 'no-store' })
+      const r = await fetch(`${BASE}/api/backtest/latest?hold_months=${hm}&universe=${universe}`, { cache: 'no-store' })
       if (!r.ok) throw new Error(r.status === 404 ? `No ${hm}-month backtest run yet — click Run to start one.` : 'Failed to load')
       setData(await r.json())
     } catch (e: unknown) {
@@ -63,7 +69,7 @@ export default function BacktestPage() {
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
     try {
       // Start the job — returns immediately with a job_id
-      const r = await fetch(`${BASE}/api/backtest/run?n_stocks=100&hold_months=${hm}`, { method: 'POST', cache: 'no-store' })
+      const r = await fetch(`${BASE}/api/backtest/run?n_stocks=100&hold_months=${hm}&universe=${universe}`, { method: 'POST', cache: 'no-store' })
       if (!r.ok) {
         const body = await r.json().catch(() => ({}))
         throw new Error(body.detail ?? `Server error ${r.status}`)
@@ -98,13 +104,13 @@ export default function BacktestPage() {
         <div className="mb-5">
           <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>Technical Score Backtest</h1>
           <p className="text-sm" style={{ color: '#6b7a99' }}>
-            Jan 2020 → today · Top 3 picks · $6,000 start · Technical + Fundamental · Equal-weight monthly rotation · vs SPY buy-and-hold
+            Jan 2020 → today · Top 3 picks · $6,000 start · Technical + Fundamental · Equal-weight monthly rotation · {UNIVERSE_OPTIONS.find(u => u.value === universe)?.label} · vs SPY buy-and-hold
           </p>
         </div>
 
-        {/* Hold period selector + run/load controls */}
+        {/* Hold period selector + universe selector + run/load controls */}
         <div className="flex flex-col gap-3 mb-6">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {HOLD_OPTIONS.map(opt => (
               <button
                 key={opt.months}
@@ -116,6 +122,23 @@ export default function BacktestPage() {
                   color: holdMonths === opt.months ? '#fff' : '#a0aec0',
                   border: '1px solid',
                   borderColor: holdMonths === opt.months ? '#4f8ef7' : 'rgba(255,255,255,0.08)',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+            <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', margin: '0 4px' }} />
+            {UNIVERSE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setUniverse(opt.value)}
+                disabled={running || loading}
+                className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors"
+                style={{
+                  background: universe === opt.value ? '#4f8ef7' : 'rgba(255,255,255,0.06)',
+                  color: universe === opt.value ? '#fff' : '#a0aec0',
+                  border: '1px solid',
+                  borderColor: universe === opt.value ? '#4f8ef7' : 'rgba(255,255,255,0.08)',
                 }}
               >
                 {opt.label}
@@ -182,7 +205,7 @@ export default function BacktestPage() {
 
             <p className="text-xs" style={{ color: '#3a4259' }}>
               {data.run_at && `Run ${new Date(data.run_at).toLocaleString()} · `}
-              {activeHold}-month hold · Universe: {s.n_stocks} stocks · {s.months_traded} months · Beat SPY {s.beat_spy_months}/{s.months_traded} ({s.beat_spy_months_pct}%)
+              {activeHold}-month hold · {UNIVERSE_OPTIONS.find(u => u.value === universe)?.label} · {s.n_stocks} stocks · {s.months_traded} months · Beat SPY {s.beat_spy_months}/{s.months_traded} ({s.beat_spy_months_pct}%)
             </p>
 
             {/* Yearly summary */}
