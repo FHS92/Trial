@@ -98,7 +98,7 @@ export default function BacktestPage() {
         <div className="mb-5">
           <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>Technical Score Backtest</h1>
           <p className="text-sm" style={{ color: '#6b7a99' }}>
-            Jan 2020 → today · Top 3 picks · $6,000 start · Equal-weight monthly rotation · vs SPY buy-and-hold
+            Jan 2020 → today · Top 3 picks · $6,000 start · Technical + Fundamental · Equal-weight monthly rotation · vs SPY buy-and-hold
           </p>
         </div>
 
@@ -228,7 +228,7 @@ export default function BacktestPage() {
             </div>
 
             <div className="rounded-xl p-4 text-xs space-y-1" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)', color: '#6b7a99' }}>
-              <p>⚠ Technical score only — fundamental score excluded from this backtest</p>
+              <p>⚠ Fundamental data from SEC EDGAR filings — point-in-time, no look-ahead bias</p>
               <p>⚠ Survivorship bias — universe uses current S&P 500 members, not historical composition</p>
               <p>⚠ No transaction costs, slippage, or taxes modeled</p>
               <p>⚠ Past performance does not predict future results</p>
