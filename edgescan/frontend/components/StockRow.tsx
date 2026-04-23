@@ -1,9 +1,11 @@
 'use client'
 
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import ScoreRing from './ScoreRing'
 import Sparkline from './Sparkline'
 import type { StockResult, OHLCVBar } from '@/lib/types'
+import { loadWatchlist, toggleWatchlist } from '@/app/watchlist/WatchlistClient'
 
 const SECTOR_COLORS: Record<string, string> = {
   Technology: '#4f8ef7',
@@ -40,6 +42,22 @@ export default function StockRow({ stock, rank, history = [] }: Props) {
     sparkData.length >= 2
       ? sparkData[sparkData.length - 1].close >= sparkData[0].close
       : true
+
+  const [starred, setStarred] = useState(false)
+
+  useEffect(() => {
+    setStarred(loadWatchlist().includes(stock.ticker))
+  }, [stock.ticker])
+
+  const handleStar = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const next = toggleWatchlist(stock.ticker)
+      setStarred(next)
+    },
+    [stock.ticker],
+  )
 
   return (
     <Link
@@ -96,6 +114,28 @@ export default function StockRow({ stock, rank, history = [] }: Props) {
       <div className="flex-shrink-0">
         <ScoreRing score={stock.score} size={48} />
       </div>
+
+      {/* Watchlist star */}
+      <button
+        onClick={handleStar}
+        className="flex-shrink-0 p-1 rounded transition-colors hover:bg-white/[0.08]"
+        title={starred ? 'Remove from watchlist' : 'Add to watchlist'}
+        aria-label={starred ? 'Remove from watchlist' : 'Add to watchlist'}
+      >
+        {starred ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#f5a623" stroke="#f5a623" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round"
+              d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+            />
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round"
+              d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+            />
+          </svg>
+        )}
+      </button>
     </Link>
   )
 }
