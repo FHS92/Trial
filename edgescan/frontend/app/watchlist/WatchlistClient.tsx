@@ -172,7 +172,7 @@ export default function WatchlistClient() {
         >
           <p className="text-sm mb-1" style={{ color: '#6b7a99' }}>Your watchlist is empty.</p>
           <p className="text-xs" style={{ color: '#6b7a99' }}>
-            Use the field above or the + button on any stock detail page.
+            Tap the ⭐ star on any stock card in the scanner, or use the search field above.
           </p>
         </div>
       ) : (

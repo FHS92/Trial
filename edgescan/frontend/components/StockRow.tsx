@@ -124,7 +124,7 @@ export default function StockRow({ stock, rank, history = [] }: Props) {
       <button
         type="button"
         onClick={handleStar}
-        className="flex-shrink-0 p-1 rounded transition-colors hover:bg-white/[0.08] relative"
+        className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors hover:bg-white/[0.08] relative"
         style={{ zIndex: 1 }}
         title={starred ? 'Remove from watchlist' : 'Add to watchlist'}
         aria-label={starred ? 'Remove from watchlist' : 'Add to watchlist'}
