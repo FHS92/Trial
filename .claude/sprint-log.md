@@ -7,6 +7,20 @@ Each sprint entry is written by the sprint coordinator after all 4 agents comple
 <!-- Sprint entries will be prepended here by the /sprint command -->
 
 ---
+## Sprint 4 — 2026-04-23 (4 parallel teams)
+
+**Merged commits:** `84a5bf7` (team-1) · `0595c5c` (team-3) · `0432c76` (team-4)
+
+| Team | Feature | File | Result |
+|------|---------|------|--------|
+| 1 | Sparkline visible on mobile | `StockRow.tsx` | ✅ shipped — `hidden md:block` removed, rank badge hidden on mobile |
+| 2 | Star on stock detail page | `app/stock/[ticker]/page.tsx` | ❌ rate limit hit — not implemented |
+| 3 | Last-scanned timestamp banner | `app/scanner/page.tsx` | ✅ shipped — clock icon + "Last scanned Xm ago · N stocks" |
+| 4 | Mobile comparison page | `app/compare/page.tsx` | ✅ shipped — stacked cards on mobile, grid on desktop |
+
+**Note:** Agents shared a single git working tree so branches got mixed commits. Resolved by cherry-picking the 3 clean commits directly. Team 2 (star on detail page) is rolled back to backlog for next sprint.
+
+---
 ## Sprint 3 — 2026-04-23
 
 **Built:** Fix 7-day sparkline — pass OHLCV history to StockRow so price charts actually render.
