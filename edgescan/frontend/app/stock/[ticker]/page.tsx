@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { api } from '@/lib/api'
 import DetailPanel from '@/components/DetailPanel'
+import WatchStar from '@/components/WatchStar'
 import type { OHLCVBar } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -157,6 +158,9 @@ export default async function StockPage({ params }: Props) {
         </Link>
         <span style={{ color: 'rgba(255,255,255,0.12)' }}>/</span>
         <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>{ticker}</span>
+        <div className="ml-auto">
+          <WatchStar ticker={ticker} />
+        </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-4">
