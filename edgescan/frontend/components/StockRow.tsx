@@ -72,7 +72,7 @@ export default function StockRow({ stock, rank, history = [] }: Props) {
 
       {/* Rank */}
       <span
-        className="w-6 text-center text-sm font-semibold flex-shrink-0 relative"
+        className="hidden sm:inline-block w-6 text-center text-sm font-semibold flex-shrink-0 relative"
         style={{ color: '#6b7a99' }}
       >
         {rank}
@@ -101,7 +101,7 @@ export default function StockRow({ stock, rank, history = [] }: Props) {
       </div>
 
       {/* 7-day sparkline */}
-      <div className="hidden md:block flex-shrink-0 relative">
+      <div className="flex-shrink-0 relative">
         <Sparkline data={sparkData} positive={isPositive} />
       </div>
 
