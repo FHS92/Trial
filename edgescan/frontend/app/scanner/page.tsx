@@ -3,7 +3,7 @@ import { api } from '@/lib/api'
 import StockRow from '@/components/StockRow'
 import MarketStrip from '@/components/MarketStrip'
 import UniverseBadge from '@/components/UniverseBadge'
-import type { StockResult, OHLCVBar } from '@/lib/types'
+import type { StockResult } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,17 +54,6 @@ export default async function ScannerPage({
 
   const displayed = showAll ? bySector : bySector.slice(0, 10)
   const hasMore = bySector.length > 10
-
-  // Fetch 1-week price history in parallel for displayed stocks only (≤10)
-  const historyResults = await Promise.allSettled(
-    displayed.map(stock => api.priceHistory(stock.ticker, '1w')),
-  )
-  const historyMap = new Map<string, OHLCVBar[]>()
-  historyResults.forEach((result, i) => {
-    if (result.status === 'fulfilled') {
-      historyMap.set(displayed[i].ticker, result.value.data)
-    }
-  })
 
   return (
     <div className="min-h-screen" style={{ background: '#080b12' }}>
@@ -184,7 +173,6 @@ export default async function ScannerPage({
                 key={stock.ticker}
                 stock={stock}
                 rank={i + 1}
-                history={historyMap.get(stock.ticker) ?? []}
               />
             ))
           )}

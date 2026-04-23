@@ -6,6 +6,7 @@ import ScoreRing from './ScoreRing'
 import Sparkline from './Sparkline'
 import type { StockResult, OHLCVBar } from '@/lib/types'
 import { loadWatchlist, toggleWatchlist } from '@/app/watchlist/WatchlistClient'
+import { api } from '@/lib/api'
 
 const SECTOR_COLORS: Record<string, string> = {
   Technology: '#4f8ef7',
@@ -24,7 +25,6 @@ const SECTOR_COLORS: Record<string, string> = {
 interface Props {
   stock: StockResult
   rank: number
-  history?: OHLCVBar[]
 }
 
 function fmt(n: number | null, prefix = '', suffix = '') {
@@ -32,10 +32,13 @@ function fmt(n: number | null, prefix = '', suffix = '') {
   return `${prefix}${n.toFixed(2)}${suffix}`
 }
 
-export default function StockRow({ stock, rank, history = [] }: Props) {
+export default function StockRow({ stock, rank }: Props) {
   const sectorColor = SECTOR_COLORS[stock.sector ?? ''] ?? '#6b7a99'
   const upside = stock.upside_pct ?? 0
   const upsideColor = upside >= 0 ? '#22d47e' : '#f75f5f'
+
+  const [history, setHistory] = useState<OHLCVBar[]>([])
+  const [starred, setStarred] = useState(false)
 
   const sparkData = history.slice(-7).map(b => ({ close: b.close }))
   const isPositive =
@@ -43,10 +46,11 @@ export default function StockRow({ stock, rank, history = [] }: Props) {
       ? sparkData[sparkData.length - 1].close >= sparkData[0].close
       : true
 
-  const [starred, setStarred] = useState(false)
-
   useEffect(() => {
     setStarred(loadWatchlist().includes(stock.ticker))
+    api.priceHistory(stock.ticker, '1w')
+      .then(r => setHistory(r.data))
+      .catch(() => {})
   }, [stock.ticker])
 
   const handleStar = useCallback(
