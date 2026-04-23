@@ -9,7 +9,12 @@ export const dynamic = 'force-dynamic'
 
 const SECTORS = ['All', 'Technology', 'Financials', 'Healthcare', 'Energy', 'Industrials', 'Consumer']
 
-async function getTopStocks(): Promise<{ results: StockResult[]; meta: string }> {
+async function getTopStocks(): Promise<{
+  results: StockResult[]
+  meta: string
+  lastScannedMinutesAgo: number | null
+  totalScanned: number | null
+}> {
   try {
     const data = await api.topOpportunities()
     const minutes = data.last_scanned_minutes_ago
@@ -17,9 +22,19 @@ async function getTopStocks(): Promise<{ results: StockResult[]; meta: string }>
       minutes != null
         ? `Last scanned ${minutes}m ago · ${data.total_scanned} stocks`
         : `${data.total_scanned} stocks scanned`
-    return { results: data.results, meta }
+    return {
+      results: data.results,
+      meta,
+      lastScannedMinutesAgo: minutes ?? null,
+      totalScanned: data.total_scanned ?? null,
+    }
   } catch {
-    return { results: [], meta: 'Scanner unavailable — is the backend running?' }
+    return {
+      results: [],
+      meta: 'Scanner unavailable — is the backend running?',
+      lastScannedMinutesAgo: null,
+      totalScanned: null,
+    }
   }
 }
 
@@ -28,7 +43,7 @@ export default async function ScannerPage({
 }: {
   searchParams: { sector?: string; show?: string }
 }) {
-  const { results, meta } = await getTopStocks()
+  const { results, meta, lastScannedMinutesAgo, totalScanned } = await getTopStocks()
   const activeSector = searchParams?.sector ?? 'All'
   const showAll = searchParams?.show === 'all'
 
@@ -83,7 +98,35 @@ export default async function ScannerPage({
           <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>
             Top Opportunities
           </h1>
-          <p className="text-sm" style={{ color: '#6b7a99' }}>{meta}</p>
+          {/* Last-scanned banner */}
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-pill"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.07)',
+            }}
+          >
+            {/* Clock icon (inline SVG, 14×14px) */}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="#6b7a99"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="7" cy="7" r="5.5" />
+              <polyline points="7,4 7,7 9,9" />
+            </svg>
+            <span className="text-xs" style={{ color: '#6b7a99' }}>
+              {lastScannedMinutesAgo == null || lastScannedMinutesAgo > 120
+                ? 'Scanning now…'
+                : `Last scanned ${lastScannedMinutesAgo}m ago · ${totalScanned} stocks`}
+            </span>
+          </div>
         </div>
 
         {/* Sector filter pills */}
