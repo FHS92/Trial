@@ -7,53 +7,70 @@ After completing an item, move it to Done and promote the next item.
 
 ## 🔴 READY (pick from top)
 
-### [READY-1] Watchlist — save favourite tickers to localStorage
-User can tap a ⭐ icon on any stock card to add it to a personal watchlist stored in localStorage.
-A "Watchlist" tab appears in the More tray and shows only those tickers with live scores.
-**Scope:** frontend only — no backend changes needed.
+### [READY-1] Watchlist — star icon on stock cards (scanner page integration)
+The Watchlist page and localStorage logic (`WatchlistClient.tsx`, `loadWatchlist`, `toggleWatchlist`)
+already exist. What is missing is the entry point: a ⭐ icon on each `StockRow` in the scanner
+so users can add a ticker without navigating away.
+- Import `toggleWatchlist` / `loadWatchlist` from `WatchlistClient.tsx` into `StockRow.tsx`.
+- Render a small star button (right of the score ring). Filled gold when in watchlist, outline when not.
+- Persist via `toggleWatchlist`; re-read state from `loadWatchlist` on mount.
+- The "Watchlist" tab in the More tray already routes to `/watchlist` — no nav changes needed.
+**Scope:** `components/StockRow.tsx`, `app/watchlist/WatchlistClient.tsx` (export helpers already present).
 
-### [READY-2] Score trend arrow on stock cards
-Show a small ↑ ↓ → indicator next to each score on the scanner page, comparing current score
-to the score from the previous scan (use the score-history endpoint).
-Green arrow up if score improved >3 pts, red down if dropped >3 pts, grey flat otherwise.
-**Scope:** frontend only.
+### [READY-2] Mobile-friendly comparison page
+The compare page table (`app/compare/page.tsx`) uses a CSS grid with fixed pixel columns
+(`gridTemplateColumns: '160px repeat(…)'`) which overflows on small screens.
+- Below 640 px: render each stock as a vertically stacked card instead of columns.
+- The `MetricRow` component should collapse to a labelled list item per stock on mobile.
+- Use Tailwind responsive prefixes (`sm:`) and existing dark-palette CSS variables — no new colours.
+**Scope:** `app/compare/page.tsx` only.
 
-### [READY-3] Sector badge score average
-Each sector filter pill on the scanner page should show the average score of stocks in that sector
-in small text below the sector name (e.g. "Technology · avg 61").
-**Scope:** frontend — derive from the already-loaded top-opportunities data.
+### [READY-3] Score trend arrow on stock cards
+Show a small ↑ ↓ → indicator next to each score on the scanner page comparing the current score
+to the most recent previous score (via `api.scoreHistory(ticker)`).
+- Green ↑ if score improved > 3 pts, red ↓ if dropped > 3 pts, grey → otherwise.
+- Fetch score history per-ticker client-side in `StockRow` (lazy, non-blocking).
+- `api.scoreHistory` already exists in `lib/api.ts`; `ScoreHistoryResponse` type is in `lib/types.ts`.
+**Scope:** `components/StockRow.tsx`, possibly a new small `components/TrendArrow.tsx`.
 
 ### [READY-4] Skeleton loading screens
-Replace blank/spinner states with skeleton placeholder cards (grey animated pulses)
-while the scanner is loading its initial data.
-**Scope:** frontend only.
+Replace blank/spinner states with animated skeleton placeholder cards while the scanner loads.
+- Scanner page (`app/scanner/page.tsx`) already has a spinner fallback; replace with 8–10 skeleton
+  `StockRow`-shaped grey pulse cards.
+- Use Tailwind `animate-pulse` and existing `#1e2540` background colour (already used in
+  `WatchlistClient.tsx` skeleton rows).
+- Also apply to the stock detail loading state (`app/stock/[ticker]/loading.tsx`).
+**Scope:** `app/scanner/page.tsx`, `app/stock/[ticker]/loading.tsx`, optionally a shared
+`components/SkeletonRow.tsx`.
 
 ### [READY-5] Last-scanned timestamp banner
 Show a subtle banner at the top of the scanner page: "Last scanned 42 min ago · 47 stocks".
-Already available from the top-opportunities API response (last_scanned_minutes_ago, total_scanned).
-**Scope:** frontend only.
+The `meta` string is already computed in `getTopStocks()` and rendered as a `<p>` subtitle.
+Promote it to a more visible sticky banner with a refresh icon.
+**Scope:** `app/scanner/page.tsx` only.
 
 ### [READY-6] One-tap refresh for a single stock
-On the stock detail page, add a "Refresh" button that calls POST /api/stock/{ticker}/refresh
-(or just re-fetches GET /api/stock/{ticker} with cache-bust) so the user can get a fresh score
-without waiting for the next full scan.
-**Scope:** frontend only (the backend already rescores on cache miss).
+On the stock detail page, add a "Refresh" button that re-fetches `GET /api/stock/{ticker}`
+with a cache-bust query param so the user gets a fresh score without waiting for the next full scan.
+The backend already rescores on cache miss; `api.stock(ticker)` in `lib/api.ts` is the call to reuse.
+**Scope:** `app/stock/[ticker]/page.tsx`.
 
-### [READY-7] Mobile-friendly comparison page
-The compare page table overflows on small screens. Convert it to vertically stacked cards
-on mobile (< 640px) rather than a horizontal grid.
-**Scope:** frontend responsive CSS only.
+### [READY-7] Sector badge score average
+Each sector filter pill on the scanner page should show the average score of stocks in that sector
+in small text below the sector name (e.g. "Technology · avg 61").
+Derive from the already-loaded `results` array — no extra API call.
+**Scope:** `app/scanner/page.tsx` only.
 
 ---
 
 ## 🟡 BACKLOG (not yet refined — PM should refine before marking READY)
 
-- Alert / push notification when a watchlisted stock's score changes >5 pts
-- PDF export of backtest results
+- Historical score chart on the stock detail page (data already available via `api.scoreHistory`)
+- Alert / push notification when a watchlisted stock's score changes > 5 pts
 - Dark/light theme toggle
 - Sector rotation heatmap improvements (click cell to see stocks in that sector/month)
-- Historical score chart on the stock detail page (data already available via score-history)
 - Russell 1000 scanner results page (separate from S&P 500 tab)
+- PDF export of backtest results
 - Portfolio import via CSV
 - News sentiment overlay on price chart
 
