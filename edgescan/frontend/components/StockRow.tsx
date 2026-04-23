@@ -60,21 +60,26 @@ export default function StockRow({ stock, rank, history = [] }: Props) {
   )
 
   return (
-    <Link
-      href={`/stock/${stock.ticker}`}
+    <div
       className="flex items-center gap-4 px-4 py-3 rounded-cell transition-colors hover:bg-white/[0.03] group"
-      style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+      style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}
     >
+      <Link
+        href={`/stock/${stock.ticker}`}
+        className="absolute inset-0"
+        aria-label={`View ${stock.ticker}`}
+      />
+
       {/* Rank */}
       <span
-        className="w-6 text-center text-sm font-semibold flex-shrink-0"
+        className="w-6 text-center text-sm font-semibold flex-shrink-0 relative"
         style={{ color: '#6b7a99' }}
       >
         {rank}
       </span>
 
       {/* Ticker + name + sector */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 relative">
         <div className="flex items-center gap-2">
           <span className="font-bold text-sm" style={{ color: '#e2e8f8' }}>
             {stock.ticker}
@@ -96,12 +101,12 @@ export default function StockRow({ stock, rank, history = [] }: Props) {
       </div>
 
       {/* 7-day sparkline */}
-      <div className="hidden md:block flex-shrink-0">
+      <div className="hidden md:block flex-shrink-0 relative">
         <Sparkline data={sparkData} positive={isPositive} />
       </div>
 
       {/* Price + upside */}
-      <div className="text-right flex-shrink-0 min-w-[80px]">
+      <div className="text-right flex-shrink-0 min-w-[80px] relative">
         <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>
           {fmt(stock.current_price, '$')}
         </p>
@@ -111,14 +116,16 @@ export default function StockRow({ stock, rank, history = [] }: Props) {
       </div>
 
       {/* Score ring */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 relative">
         <ScoreRing score={stock.score} size={48} />
       </div>
 
       {/* Watchlist star */}
       <button
+        type="button"
         onClick={handleStar}
-        className="flex-shrink-0 p-1 rounded transition-colors hover:bg-white/[0.08]"
+        className="flex-shrink-0 p-1 rounded transition-colors hover:bg-white/[0.08] relative"
+        style={{ zIndex: 1 }}
         title={starred ? 'Remove from watchlist' : 'Add to watchlist'}
         aria-label={starred ? 'Remove from watchlist' : 'Add to watchlist'}
       >
@@ -136,6 +143,6 @@ export default function StockRow({ stock, rank, history = [] }: Props) {
           </svg>
         )}
       </button>
-    </Link>
+    </div>
   )
 }
