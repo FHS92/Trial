@@ -7,42 +7,107 @@ After completing an item, move it to Done and promote the next item.
 
 ## 🔴 READY (pick from top)
 
-### [READY-1] Watchlist nav entry + star UX polish (Sprint 2 top item — three fixes bundled)
-Three urgent follow-ups from the Sprint 1 Watchlist star feature. All three touch the same
-narrow file set and together make the Watchlist feature actually usable end-to-end. Split
-into sub-tasks below but should ship as one atomic PR.
+### [READY-1] Fix 7-day sparkline: pass OHLCV history to StockRow on the scanner page (Sprint 3 top item)
 
-**Sub-task A — Add Watchlist to primary bottom nav (CRITICAL)**
-The Watchlist page at `/watchlist` has no navigation entry anywhere in the app: it is absent
-from `PRIMARY_NAV`, absent from `MORE_NAV`, and the scanner header has no shortcut to it.
-Users can star stocks but have no visible path to find them again.
-- Move `Backtest` out of `PRIMARY_NAV` and into `MORE_NAV` (Backtest is low-frequency).
-- Insert a `Watchlist` entry into `PRIMARY_NAV` with a star/bookmark SVG icon.
-- Optionally render a small count badge (number of saved tickers from `loadWatchlist`) on the
-  Watchlist tab label so users can see at a glance how many stocks they have saved.
-**Scope:** `components/BottomNav.tsx`
+The 7-day sparkline column rendered on every `StockRow` has been permanently empty since it
+shipped. `StockRow` accepts a `history?: OHLCVBar[]` prop and correctly slices the last 7 bars,
+but `scanner/page.tsx` never passes that prop — every card renders an invisible 80×32 px blank
+area instead of a price line. This is a broken UI element visible to 100% of scanner users on
+every page load and must be fixed before any cosmetic enhancements.
 
-**Sub-task B — Fix empty-state copy on Watchlist page (QUICK)**
-The empty-state hint reads *"Use the field above or the + button on any stock detail page."*
-There is no `+` button on the stock detail page — the control is labelled "☆ Watch".
-- Update the empty-state string to accurately describe the star icon on scanner cards and the
-  "☆ Watch" pill on the stock detail page.
-**Scope:** `app/watchlist/WatchlistClient.tsx`
+**Root cause (confirmed by code review):**
+`scanner/page.tsx` line 129:
+```tsx
+<StockRow key={stock.ticker} stock={stock} rank={i + 1} />
+```
+The `history` prop is absent. `StockRow` defaults to `history = []`, so `sparkData` is always
+empty and `Sparkline` returns a blank `<div>`.
 
-**Sub-task C — Increase star touch target to 44 × 44 px (ACCESSIBILITY)**
-The star SVG is 16 × 16 px inside a `p-1` wrapper (~24 px hit area). On mobile in a fast-scroll
-session users frequently miss the target and trigger card navigation instead.
-- Wrap the star `<button>` in `min-w-[44px] min-h-[44px]` with `flex items-center justify-center`
-  so the tap area meets Apple HIG / WCAG 2.5.5 minimum (the visible icon stays 16–20 px).
-**Scope:** `components/StockRow.tsx`
+**Approach — parallel server-side fetch for the displayed stocks only:**
+`scanner/page.tsx` is an `async` server component (already `force-dynamic`). The fix stays
+entirely server-side — no client state, no new hooks, no layout changes.
 
-> **Deliberately deferred from this bundle:** Toast/snackbar confirmation after starring. This
-> requires installing or building a toast primitive (no existing one in the codebase) and is a
-> separate scope. It is queued as READY-2 immediately below.
+1. After `getTopStocks()` resolves, take `displayed` (the top 10 or sector-filtered list, max
+   10 by default).
+2. Fetch `api.priceHistory(ticker, '1w')` for each ticker in `displayed` in parallel using
+   `Promise.allSettled` (so a single bad ticker does not break the whole page).
+3. Build a `Map<string, OHLCVBar[]>` keyed by ticker from the settled results (skip rejected
+   promises silently — `StockRow` already handles an empty array gracefully).
+4. Pass `history={historyMap.get(stock.ticker) ?? []}` on each `<StockRow>`.
+
+**Important constraints:**
+- Fetch only for `displayed` (≤10 tickers by default, ≤ full filtered set when "show all" is
+  active). Do NOT fetch history for every result in `results` (up to 100 rows) — that would
+  fire 100 parallel requests on every page load.
+- `api.priceHistory` already exists in `lib/api.ts` and returns `PriceHistoryResponse` with
+  `data: OHLCVBar[]`. The `OHLCVBar` type is in `lib/types.ts`. No backend changes needed.
+- Keep `getTopStocks()` as a pure helper that returns `StockResult[]`; the history fetching
+  belongs in the page component body, not inside that helper.
+- The sparkline renders on `md:` and above (`hidden md:block` wrapper in `StockRow`). No change
+  to that visibility rule is needed.
+
+**Scope:** `app/scanner/page.tsx` only. No other files require changes.
+
+**Acceptance criteria:**
+- On a desktop viewport (≥768 px) each stock card in the scanner shows a coloured 7-day price
+  line (green if net positive over the week, red if net negative).
+- A ticker whose history fetch fails (network error, 404) still renders a blank sparkline slot —
+  no error boundary or console crash.
+- TypeScript compiles clean (`tsc --noEmit`).
 
 ---
 
-### [READY-2] Toast/snackbar confirmation after starring a stock
+### [READY-2] Complete touch-target audit: fix X button on WatchlistCard and close button on More tray
+
+Two interactive controls were missed by the Sprint 2 touch-target pass and remain under the
+44×44 px WCAG 2.5.5 / Apple HIG minimum.
+
+**Sub-task A — Watchlist card X button (~22 px)**
+Each `WatchlistCard` in `app/watchlist/WatchlistClient.tsx` has a remove button with a small
+icon and `p-1` padding. Apply the same `min-w-[44px] min-h-[44px] flex items-center
+justify-center` treatment used on the scanner star button in Sprint 2.
+**Scope:** `app/watchlist/WatchlistClient.tsx`
+
+**Sub-task B — More tray close button (24 px)**
+The close X in `BottomNav.tsx` is `w-6 h-6` (24 px). Expand to `min-w-[44px] min-h-[44px]`
+with `flex items-center justify-center`; the visual circle background can stay at its current
+size by applying it to an inner `<span>` rather than the button itself, or by simply enlarging
+the button hit zone with a negative-margin / padding trick.
+
+Also note the CSS animation bug flagged by the User Tester: both open and closed states share
+`bottom: '4.5rem'`; the closed state relies entirely on a `translateY` transform. While it works
+visually, consider setting `bottom: '4.5rem'` for open and moving to `visibility: hidden` /
+`pointer-events: none` after the close transition completes to prevent interaction with off-screen
+elements on slow browsers.
+**Scope:** `components/BottomNav.tsx`
+
+Ship both sub-tasks as one atomic commit.
+
+---
+
+### [READY-3] Add watchlist star button to the stock detail page
+
+Users who arrive at `/stock/[ticker]` via Search or a direct link have no way to save the stock
+to their watchlist — the page shell has no star/watch toggle. The `DetailPanel` component
+presumably has a "Watch" pill internally, but it is not surfaced at the page level.
+
+- Add a star `<button>` to the header area of `app/stock/[ticker]/page.tsx` (next to the ticker
+  name / back arrow), using the same `loadWatchlist` / `toggleWatchlist` helpers from
+  `WatchlistClient.tsx` that `StockRow` uses.
+- The button must be `'use client'` — either convert the page to a client component for the
+  header section, or extract a small `<WatchStar ticker={ticker} />` client component that
+  wraps only the interactive button while the rest of the page remains a server component.
+- Touch target: `min-w-[44px] min-h-[44px]`, consistent with the scanner star.
+- Confirm the star state is initialised from `localStorage` on mount so already-saved tickers
+  show gold immediately.
+
+**Scope:** `app/stock/[ticker]/page.tsx` (primary); optionally a new small
+`components/WatchStar.tsx` client component if the page-level client boundary is undesirable.
+
+---
+
+### [READY-4] Toast/snackbar confirmation after starring a stock
+
 After tapping the star on a `StockRow`, users get no feedback that the action succeeded beyond
 the icon fill changing — which is easy to miss mid-scroll. A brief toast ("AAPL added to
 watchlist") closes the loop.
@@ -56,7 +121,8 @@ watchlist") closes the loop.
 
 ---
 
-### [READY-3] Mobile-friendly comparison page
+### [READY-5] Mobile-friendly comparison page
+
 The compare page table (`app/compare/page.tsx`) uses a CSS grid with fixed pixel columns
 (`gridTemplateColumns: '160px repeat(…)'`) which overflows on small screens.
 - Below 640 px: render each stock as a vertically stacked card instead of columns.
@@ -66,7 +132,8 @@ The compare page table (`app/compare/page.tsx`) uses a CSS grid with fixed pixel
 
 ---
 
-### [READY-4] Score trend arrow on stock cards
+### [READY-6] Score trend arrow on stock cards
+
 Show a small ↑ ↓ → indicator next to each score on the scanner page comparing the current score
 to the most recent previous score (via `api.scoreHistory(ticker)`).
 - Green ↑ if score improved > 3 pts, red ↓ if dropped > 3 pts, grey → otherwise.
@@ -76,7 +143,8 @@ to the most recent previous score (via `api.scoreHistory(ticker)`).
 
 ---
 
-### [READY-5] Skeleton loading screens
+### [READY-7] Skeleton loading screens
+
 Replace blank/spinner states with animated skeleton placeholder cards while the scanner loads.
 - Scanner page (`app/scanner/page.tsx`) already has a spinner fallback; replace with 8–10 skeleton
   `StockRow`-shaped grey pulse cards.
@@ -88,7 +156,8 @@ Replace blank/spinner states with animated skeleton placeholder cards while the 
 
 ---
 
-### [READY-6] Last-scanned timestamp banner
+### [READY-8] Last-scanned timestamp banner
+
 Show a subtle banner at the top of the scanner page: "Last scanned 42 min ago · 47 stocks".
 The `meta` string is already computed in `getTopStocks()` and rendered as a `<p>` subtitle.
 Promote it to a more visible sticky banner with a refresh icon.
@@ -96,24 +165,15 @@ Promote it to a more visible sticky banner with a refresh icon.
 
 ---
 
-### [READY-7] One-tap refresh for a single stock
-On the stock detail page, add a "Refresh" button that re-fetches `GET /api/stock/{ticker}`
-with a cache-bust query param so the user gets a fresh score without waiting for the next full scan.
-The backend already rescores on cache miss; `api.stock(ticker)` in `lib/api.ts` is the call to reuse.
-**Scope:** `app/stock/[ticker]/page.tsx`.
-
----
-
-### [READY-8] Sector badge score average
-Each sector filter pill on the scanner page should show the average score of stocks in that sector
-in small text below the sector name (e.g. "Technology · avg 61").
-Derive from the already-loaded `results` array — no extra API call.
-**Scope:** `app/scanner/page.tsx` only.
-
----
-
 ## 🟡 BACKLOG (not yet refined — PM should refine before marking READY)
 
+- One-tap refresh for a single stock: on the stock detail page, add a "Refresh" button that
+  re-fetches `GET /api/stock/{ticker}` with a cache-bust query param. Backend already rescores
+  on cache miss; `api.stock(ticker)` in `lib/api.ts` is the call to reuse.
+  **Scope:** `app/stock/[ticker]/page.tsx`
+- Sector badge score average: each sector filter pill on the scanner page should show the average
+  score of stocks in that sector in small text (e.g. "Technology · avg 61"). Derive from the
+  already-loaded `results` array — no extra API call. **Scope:** `app/scanner/page.tsx` only.
 - Watchlist size guard + lazy loading: cap at ~50 tickers with a user-facing warning; or switch
   watchlist page to paginated/virtualised loading so large lists do not fire dozens of simultaneous
   `api.stock()` calls on mount (flagged by User Tester, Sprint 1)
@@ -121,7 +181,7 @@ Derive from the already-loaded `results` array — no extra API call.
   `useEffect` and drift when both open simultaneously — fix with a `storage` event listener
 - Sector badge hidden on mobile: `StockRow` hides the sector pill with `hidden sm:inline`; reconsider
   layout so the sector is visible on phones (primary use case)
-- Watchlist count badge on nav entry (can be added once Watchlist is in primary nav — READY-1A)
+- Watchlist count badge on nav entry (can be added once Watchlist is in primary nav — already done)
 - Historical score chart on the stock detail page (data already available via `api.scoreHistory`)
 - Alert / push notification when a watchlisted stock's score changes > 5 pts
 - Dark/light theme toggle
@@ -130,15 +190,35 @@ Derive from the already-loaded `results` array — no extra API call.
 - PDF export of backtest results
 - Portfolio import via CSV
 - News sentiment overlay on price chart
+- Swipe-to-remove on watchlist cards (right-swipe gesture revealing delete action)
+- Live watchlist badge count on the Watchlist nav tab (number bubble showing saved ticker count)
 
 ---
 
 ## ✅ DONE
 
-- [READY-1] Watchlist — star icon on stock cards (scanner page integration) — completed Sprint 1 (2026-04-23)
-  - Star button live on `StockRow.tsx`; fills gold when in watchlist, outline when not
-  - State initialised from `localStorage` on mount; `e.stopPropagation()` prevents accidental navigation
-  - `aria-label` toggles between "Add to watchlist" / "Remove from watchlist"
+### Sprint 2 — 2026-04-23: Watchlist nav + touch target + empty-state copy fixes
+
+**[READY-1] Watchlist nav entry + star UX polish (three fixes bundled) — completed Sprint 2 (2026-04-23)**
+- **Sub-task A:** `Backtest` moved from `PRIMARY_NAV` to `MORE_NAV`; `Watchlist` inserted into
+  `PRIMARY_NAV` (slot 3) with star SVG icon. **File:** `components/BottomNav.tsx`
+- **Sub-task B:** Empty-state copy updated to accurately reference the star icon on scanner cards
+  (no longer mentions a phantom "+" button). **File:** `app/watchlist/WatchlistClient.tsx`
+- **Sub-task C:** Star `<button>` expanded to `min-w-[44px] min-h-[44px]` with `flex items-center
+  justify-center` to meet WCAG 2.5.5 / Apple HIG 44 px minimum. **File:** `components/StockRow.tsx`
+- Commit: `de7b8ce`
+
+### Sprint 1 — 2026-04-23: Watchlist star on stock cards
+
+**[READY-1] Watchlist — star icon on stock cards (scanner page integration) — completed Sprint 1 (2026-04-23)**
+- Star button live on `StockRow.tsx`; fills gold when in watchlist, outline when not
+- State initialised from `localStorage` on mount; `e.stopPropagation()` prevents accidental navigation
+- `aria-label` toggles between "Add to watchlist" / "Remove from watchlist"
+- QA fix: overlay-link pattern to resolve invalid `<button>` inside `<Link>` HTML
+- Commits: `18c3d48` (feat), `9fe0178` (QA fix)
+
+### Earlier sprints
+
 - Universe selection landing page (S&P 500 vs Russell 1000)
 - Bottom nav redesign (5 tabs + More tray)
 - AI chat fix (input above nav bar)
