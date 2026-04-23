@@ -1,143 +1,186 @@
-# EdgeScan Sprint — 4-Agent Cycle
+# EdgeScan Sprint — 4 Parallel Teams
 
 You are the **Sprint Coordinator** for EdgeScan (FastAPI backend + Next.js 14 frontend, repo at /home/user/Trial/edgescan, working branch: claude/edgescan-initial-setup-uiZgZ).
 
-Run the four agents below **strictly in order**. Each agent's output informs the next. Do not skip any agent. After all four finish, write the sprint summary.
+Run **one PM agent** first, then **four teams in parallel** (each team = Coder + QA + User Tester on its own git branch). Merge all branches at the end.
 
 ---
 
 ## Before starting — read context
 
-Read these three files so you have the full picture to pass to each agent:
+Read these files:
 - `/home/user/Trial/.claude/backlog.md`
 - `/home/user/Trial/.claude/user-feedback.md`
-- `/home/user/Trial/.claude/sprint-log.md` (last 1–2 entries only)
+- `/home/user/Trial/.claude/sprint-log.md` (last 1–2 entries)
+
+Also run: `git log --oneline -3` to get the current HEAD commit.
 
 ---
 
-## AGENT 1 — Product Manager
+## STEP 1 — PM Agent (run first, wait for result)
 
-Spawn a **general-purpose** agent with this prompt (fill in the actual file contents where indicated):
+Spawn a **general-purpose** agent with this prompt:
 
-> You are the Product Manager for EdgeScan, a stock scanner web app (FastAPI backend + Next.js 14 frontend).
+> You are the Product Manager for EdgeScan.
 >
-> **Your job this sprint:**
-> 1. Read the current backlog at `/home/user/Trial/.claude/backlog.md`.
-> 2. Read the latest user feedback at `/home/user/Trial/.claude/user-feedback.md`.
-> 3. Read the last sprint entry in `/home/user/Trial/.claude/sprint-log.md` to understand what was just built.
-> 4. Decide: is the top READY item still the right thing to build? If user feedback calls out something more urgent, reorder the backlog.
-> 5. If the backlog has fewer than 3 READY items, promote and refine 1–2 items from BACKLOG into READY.
-> 6. Write your updated backlog back to `/home/user/Trial/.claude/backlog.md`.
-> 7. Output a short **PM Decision** (3–5 sentences): what the Coder should build this sprint and why. Be specific — name the exact item ID (e.g. READY-1) and the files most likely to need editing.
+> Read:
+> - `/home/user/Trial/.claude/backlog.md`
+> - `/home/user/Trial/.claude/user-feedback.md`
+> - `/home/user/Trial/.claude/sprint-log.md`
 >
-> Do not implement any code. Research only — read files, then write the updated backlog and your decision.
+> Your job:
+> 1. Move any completed items from the last sprint into the DONE section.
+> 2. Pick exactly **4 READY items** to build this sprint — one per team.
+> 3. **CRITICAL: each item must touch different files.** No two items may edit the same file. List the primary file(s) for each item explicitly. If two items share a file, pick a different item or split the work.
+> 4. If there are fewer than 4 READY items, promote and refine items from BACKLOG.
+> 5. Write the updated backlog to `/home/user/Trial/.claude/backlog.md`.
+> 6. Output a **PM Plan** in exactly this format:
+>
+> ```
+> TEAM 1: [item name] | Files: [file1, file2] | Task: [one sentence description]
+> TEAM 2: [item name] | Files: [file1, file2] | Task: [one sentence description]
+> TEAM 3: [item name] | Files: [file1, file2] | Task: [one sentence description]
+> TEAM 4: [item name] | Files: [file1, file2] | Task: [one sentence description]
+> ```
 
-After the PM agent returns, extract the **PM Decision** from its output. You will pass this to the Coder agent.
+Extract the PM Plan. You will use it to brief each team.
 
 ---
 
-## AGENT 2 — Coder
+## STEP 2 — Create 4 branches (run before spawning coders)
 
-Spawn a **general-purpose** agent with this prompt (insert the actual PM Decision text where indicated):
-
-> You are the Coder for EdgeScan, a stock scanner web app.
-> - Repo: `/home/user/Trial/edgescan`
-> - Working branch: `claude/edgescan-initial-setup-uiZgZ`
-> - Backend: FastAPI in `edgescan/backend/`
-> - Frontend: Next.js 14 App Router in `edgescan/frontend/`
->
-> **PM Decision for this sprint:**
-> [INSERT PM DECISION HERE]
->
-> **Your job:**
-> 1. Read the relevant files before touching anything.
-> 2. Implement exactly what the PM specified — nothing more, nothing less. Keep the change small and self-contained.
-> 3. Do not refactor unrelated code. Do not add comments unless the logic is non-obvious.
-> 4. After implementing, run a quick sanity check:
->    - If you changed frontend files: `cd /home/user/Trial/edgescan/frontend && npx tsc --noEmit 2>&1 | head -30`
->    - If you changed backend files: `cd /home/user/Trial/edgescan/backend && python -m py_compile main.py models.py database.py scanner.py 2>&1`
-> 5. Fix any errors the sanity check reveals.
-> 6. Stage and commit your changes with a clear message, then push:
->    `git add <specific files> && git commit -m "..." && git push -u origin claude/edgescan-initial-setup-uiZgZ`
->
-> Output a short **Coder Report** (3–5 sentences): what you changed, which files, and the git commit hash.
-
-After the Coder agent returns, extract the **Coder Report** and the list of changed files. Pass these to the QA agent.
-
----
-
-## AGENT 3 — QA Engineer
-
-Spawn a **general-purpose** agent with this prompt (insert the Coder Report where indicated):
-
-> You are the QA Engineer for EdgeScan, a stock scanner web app.
-> - Repo: `/home/user/Trial/edgescan`
-> - Frontend: Next.js 14 in `edgescan/frontend/`
-> - Backend: FastAPI in `edgescan/backend/`
->
-> **What the Coder just implemented:**
-> [INSERT CODER REPORT HERE]
->
-> **Your job:**
-> 1. Read the files that were changed (listed in the Coder Report above).
-> 2. Run the frontend build check: `cd /home/user/Trial/edgescan/frontend && npx tsc --noEmit 2>&1 | tail -20`
-> 3. Run the backend syntax check: `cd /home/user/Trial/edgescan/backend && python -m py_compile main.py models.py database.py scanner.py backtest_engine.py 2>&1`
-> 4. Review the changed code carefully for: broken imports, undefined variables, missing props in React components, logic errors, and anything that could cause a runtime crash.
-> 5. If you find real bugs: fix them, commit the fix with message "fix: [description] (QA pass)", and push.
-> 6. If everything looks good, note that.
->
-> Output a **QA Report** (bullet list): what you checked, what you found, what (if anything) you fixed. Be specific — include line numbers if you found issues.
-
-After the QA agent returns, extract the **QA Report**. Pass this to the User Tester agent.
-
----
-
-## AGENT 4 — User Tester
-
-Spawn a **general-purpose** agent with this prompt (insert the PM Decision and Coder Report where indicated):
-
-> You are a demanding but fair end-user of EdgeScan, a stock scanner web app for retail investors.
-> You use the app daily on your phone to find investment opportunities.
->
-> **What was just built this sprint:**
-> PM Decision: [INSERT PM DECISION]
-> Coder Report: [INSERT CODER REPORT]
->
-> **Your job:**
-> 1. Read the changed files to understand exactly what was built.
-> 2. Think like a real user: Is it intuitive? Is it useful? Does it solve a real pain point? What's missing or confusing? What could go wrong in edge cases?
-> 3. Look at the broader app (read key pages in `edgescan/frontend/app/` and `edgescan/frontend/components/`) to identify 2–3 other things that annoy you or feel incomplete as a user — things the PM should add to the backlog.
-> 4. Write your feedback to `/home/user/Trial/.claude/user-feedback.md` — **prepend** a new dated section, keeping old feedback below it. Format:
->    ```
->    ## [Today's date] — Sprint feedback
->    **Feature tested:** [name]
->    **Works well:** ...
->    **Issues / confusing parts:** ...
->    **Missing / wish it had:** ...
->    **New backlog suggestions:** (2–3 items the PM should consider)
->    ```
->
-> Output a short **User Report** (3–5 sentences) summarising your verdict on this sprint's feature.
-
-After the User Tester agent returns, extract the **User Report**.
-
----
-
-## Final step — Write sprint summary
-
-Append a new entry to the **top** of `/home/user/Trial/.claude/sprint-log.md` in this format:
-
+Run these git commands (replace SPRINT_N with the current sprint number from the log):
 ```
----
-## Sprint — [today's date and time]
-
-**Built:** [one sentence from PM Decision]
-**Commit:** [commit hash from Coder Report]
-
-**PM Decision:** [paste PM Decision]
-**Coder Report:** [paste Coder Report]
-**QA Report:** [paste QA Report]
-**User Report:** [paste User Report]
+git checkout claude/edgescan-initial-setup-uiZgZ
+git checkout -b sprint/SPRINT_N-team-1
+git checkout claude/edgescan-initial-setup-uiZgZ
+git checkout -b sprint/SPRINT_N-team-2
+git checkout claude/edgescan-initial-setup-uiZgZ
+git checkout -b sprint/SPRINT_N-team-3
+git checkout claude/edgescan-initial-setup-uiZgZ
+git checkout -b sprint/SPRINT_N-team-4
+git checkout claude/edgescan-initial-setup-uiZgZ
 ```
 
-Then tell the user: "Sprint complete. Here's what happened:" and print a clean summary of all four agents' reports.
+Push all 4 branches:
+```
+git push -u origin sprint/SPRINT_N-team-1
+git push -u origin sprint/SPRINT_N-team-2
+git push -u origin sprint/SPRINT_N-team-3
+git push -u origin sprint/SPRINT_N-team-4
+```
+
+---
+
+## STEP 3 — 4 Coders in parallel (spawn all 4 in one message)
+
+Spawn 4 **general-purpose** agents simultaneously, one per team. Each gets this prompt (fill in team-specific values):
+
+> You are the Coder for EdgeScan Team [N].
+> - Repo: `/home/user/Trial/edgescan`
+> - Your branch: `sprint/SPRINT_N-team-N` (already exists on remote — check it out first)
+> - Frontend: `edgescan/frontend/`, Backend: `edgescan/backend/`
+>
+> **Your task:** [TASK FROM PM PLAN FOR THIS TEAM]
+> **Files to edit:** [FILES FROM PM PLAN FOR THIS TEAM]
+>
+> Steps:
+> 1. `git checkout sprint/SPRINT_N-team-N`
+> 2. Read all files you will touch before changing anything.
+> 3. Implement the task. Keep changes minimal and self-contained.
+> 4. Run TypeScript check if you changed frontend files: `cd /home/user/Trial/edgescan/frontend && npx tsc --noEmit 2>&1 | head -30`
+> 5. Run Python syntax check if you changed backend files: `cd /home/user/Trial/edgescan/backend && python -m py_compile main.py 2>&1`
+> 6. Fix any errors.
+> 7. Commit and push to YOUR branch only:
+>    `git add <files> && git commit -m "feat(team-N): [description]" && git push -u origin sprint/SPRINT_N-team-N`
+>
+> Output a **Coder Report**: what you changed, which files, commit hash.
+
+Wait for all 4 Coder agents to finish before proceeding.
+
+---
+
+## STEP 4 — 4 QA Engineers in parallel (spawn all 4 in one message)
+
+Spawn 4 **general-purpose** agents simultaneously. Each gets this prompt:
+
+> You are the QA Engineer for EdgeScan Team [N].
+> - Branch to review: `sprint/SPRINT_N-team-N`
+> - Repo: `/home/user/Trial/edgescan`
+>
+> **What was implemented:** [CODER REPORT FOR THIS TEAM]
+>
+> Steps:
+> 1. `git checkout sprint/SPRINT_N-team-N`
+> 2. Read the changed files carefully.
+> 3. Run: `cd /home/user/Trial/edgescan/frontend && npx tsc --noEmit 2>&1 | tail -20`
+> 4. Check for: broken imports, logic errors, SSR/hydration issues, invalid HTML, missing null checks.
+> 5. If you find bugs: fix them, commit with message "fix(team-N): [desc] (QA pass)", push to `sprint/SPRINT_N-team-N`.
+> 6. If clean, say so.
+>
+> Output a **QA Report**: bullet list of what you checked and found.
+
+Wait for all 4 QA agents to finish.
+
+---
+
+## STEP 5 — 4 User Testers in parallel (spawn all 4 in one message)
+
+Spawn 4 **general-purpose** agents simultaneously. Each gets this prompt:
+
+> You are a demanding end-user of EdgeScan testing Team [N]'s work.
+>
+> **What was built:** [PM TASK + CODER REPORT FOR THIS TEAM]
+> **Branch:** `sprint/SPRINT_N-team-N`
+>
+> Steps:
+> 1. `git checkout sprint/SPRINT_N-team-N`
+> 2. Read the changed files.
+> 3. Evaluate from a phone-user perspective: Is it intuitive? What's missing? What could break?
+> 4. Append your feedback to `/home/user/Trial/.claude/user-feedback.md` under a section:
+>    `## [date] — Sprint N Team [N] feedback`
+>    Include: Works well / Issues / Missing / New backlog suggestions (1–2 items)
+>
+> Output a **User Report** (2–3 sentences).
+
+---
+
+## STEP 6 — Merge all branches
+
+Run these commands sequentially:
+```
+git checkout claude/edgescan-initial-setup-uiZgZ
+git merge --no-ff sprint/SPRINT_N-team-1 -m "merge(sprint-N): team-1"
+git merge --no-ff sprint/SPRINT_N-team-2 -m "merge(sprint-N): team-2"
+git merge --no-ff sprint/SPRINT_N-team-3 -m "merge(sprint-N): team-3"
+git merge --no-ff sprint/SPRINT_N-team-4 -m "merge(sprint-N): team-4"
+git push -u origin claude/edgescan-initial-setup-uiZgZ
+```
+
+If a merge conflict occurs: resolve it by keeping both sets of changes (each team touched different files, so real conflicts mean the PM plan was wrong — take Team 1's version of any shared file and note it in the sprint log).
+
+---
+
+## STEP 7 — Write sprint summary
+
+Run a final TypeScript check on the merged branch:
+`cd /home/user/Trial/edgescan/frontend && npx tsc --noEmit 2>&1 | tail -20`
+
+Prepend a new entry to `/home/user/Trial/.claude/sprint-log.md`:
+```
+---
+## Sprint N — [date]
+**Teams:** 4 parallel
+**Merged commit:** [hash after merge]
+
+| Team | Feature | Commit | QA | User verdict |
+|------|---------|--------|----|--------------|
+| 1 | ... | ... | clean/fixed | ... |
+| 2 | ... | ... | clean/fixed | ... |
+| 3 | ... | ... | clean/fixed | ... |
+| 4 | ... | ... | clean/fixed | ... |
+```
+
+Commit: `git add .claude/ && git commit -m "Sprint N log" && git push`
+
+Then print a clean summary to the user: "Sprint N complete — 4 features shipped:" with one bullet per team.
