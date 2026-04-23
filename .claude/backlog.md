@@ -85,24 +85,11 @@ Ship both sub-tasks as one atomic commit.
 
 ---
 
-### [READY-3] Add watchlist star button to the stock detail page
+### ✅ [DONE — Sprint 5] Add watchlist star button to the stock detail page
 
-Users who arrive at `/stock/[ticker]` via Search or a direct link have no way to save the stock
-to their watchlist — the page shell has no star/watch toggle. The `DetailPanel` component
-presumably has a "Watch" pill internally, but it is not surfaced at the page level.
-
-- Add a star `<button>` to the header area of `app/stock/[ticker]/page.tsx` (next to the ticker
-  name / back arrow), using the same `loadWatchlist` / `toggleWatchlist` helpers from
-  `WatchlistClient.tsx` that `StockRow` uses.
-- The button must be `'use client'` — either convert the page to a client component for the
-  header section, or extract a small `<WatchStar ticker={ticker} />` client component that
-  wraps only the interactive button while the rest of the page remains a server component.
-- Touch target: `min-w-[44px] min-h-[44px]`, consistent with the scanner star.
-- Confirm the star state is initialised from `localStorage` on mount so already-saved tickers
-  show gold immediately.
-
-**Scope:** `app/stock/[ticker]/page.tsx` (primary); optionally a new small
-`components/WatchStar.tsx` client component if the page-level client boundary is undesirable.
+Completed 2026-04-23. New `WatchStar.tsx` client component added; star appears in the stock
+detail page header with 44px touch target, localStorage sync, and cross-component event dispatch.
+Commits: `0359636` (feat), `ebcc310` (QA sync fix).
 
 ---
 

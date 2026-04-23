@@ -7,6 +7,14 @@ Each sprint entry is written by the sprint coordinator after all 4 agents comple
 <!-- Sprint entries will be prepended here by the /sprint command -->
 
 ---
+## Sprint 5 — 2026-04-23
+**Feature:** WatchStar on stock detail page
+**Discovered via:** Alex (AI user workshop)
+**Coder commit:** 0359636 / QA fix: ebcc310
+**QA verdict:** SHIP IT — TypeScript clean, all acceptance criteria passed, bonus cross-component sync added
+**What shipped:** Users can now star/unstar a stock directly from the detail page header, whether they arrived via Search or a direct link.
+
+---
 ## Sprint 4 — 2026-04-23 (4 parallel teams)
 
 **Merged commits:** `84a5bf7` (team-1) · `0595c5c` (team-3) · `0432c76` (team-4)

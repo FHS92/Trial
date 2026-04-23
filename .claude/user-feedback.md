@@ -4,6 +4,23 @@ Written by the User Tester agent after each sprint. The PM agent reads this at t
 
 ---
 
+## 2026-04-23 — Sprint 5 Workshop (Alex)
+**Pain points raised:**
+- No star/save button on stock detail page (primary blocker — Search is >50% of entry points)
+- Watchlist star tap has no reliable confirmation (badge count more trustworthy than gold fill alone)
+- Score is a black box — no explanation for why it changed (want top reason, not full data dump)
+- "Scanning now..." has no progress signal — users close the tab thinking backend crashed
+- Sector pills hidden on mobile so sector filter feels invisible/broken
+
+**Features considered:**
+- A. WatchStar on detail page — star button in header using existing helpers — effort: S
+- B. Live watchlist badge count on nav tab — reactive count bubble — effort: S
+- C. Score breakdown panel — sub-scores + top reason sentence on detail page — effort: L
+
+**Built:** WatchStar on stock detail page (Feature A)
+
+---
+
 ## 2026-04-23 — Sprint 3 feedback
 
 **Feature tested:** 7-day sparkline on stock cards
