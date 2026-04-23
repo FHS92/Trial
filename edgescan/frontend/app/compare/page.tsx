@@ -15,12 +15,28 @@ function scoreColor(score: number) {
 
 function MetricRow({ label, values }: { label: string; values: (string | null)[] }) {
   return (
-    <div className="grid gap-px" style={{ gridTemplateColumns: `160px repeat(${values.length}, 1fr)`, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-      <span className="px-3 py-2.5 text-xs" style={{ color: '#6b7a99', background: '#0a0e17' }}>{label}</span>
-      {values.map((v, i) => (
-        <span key={i} className="px-3 py-2.5 text-xs font-medium text-center" style={{ color: '#e2e8f8', background: '#0f1521' }}>{v ?? '—'}</span>
-      ))}
-    </div>
+    <>
+      {/* Mobile: stacked block — label header + value cells */}
+      <div className="sm:hidden" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+        <div className="px-3 py-1.5 text-xs font-semibold" style={{ color: '#6b7a99', background: '#0a0e17' }}>{label}</div>
+        <div className="flex" style={{ background: '#0f1521' }}>
+          {values.map((v, i) => (
+            <span key={i} className="flex-1 px-3 py-2 text-xs font-medium text-center" style={{ color: '#e2e8f8' }}>{v ?? '—'}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop: side-by-side grid with fixed label column */}
+      <div
+        className="hidden sm:grid gap-px"
+        style={{ gridTemplateColumns: `160px repeat(${values.length}, 1fr)`, borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+      >
+        <span className="px-3 py-2.5 text-xs" style={{ color: '#6b7a99', background: '#0a0e17' }}>{label}</span>
+        {values.map((v, i) => (
+          <span key={i} className="px-3 py-2.5 text-xs font-medium text-center" style={{ color: '#e2e8f8', background: '#0f1521' }}>{v ?? '—'}</span>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -110,8 +126,8 @@ export default function ComparePage() {
 
         {n > 0 && (
           <div className="space-y-5">
-            {/* Header row */}
-            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
+            {/* Header row — single column on mobile, side-by-side on sm+ */}
+            <div className="flex flex-col sm:grid gap-3" style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
               {stocks.map(s => (
                 <div key={s.ticker} className="rounded-xl p-4 relative" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <button onClick={() => remove(s.ticker)} className="absolute top-3 right-3 text-xs" style={{ color: '#6b7a99' }}>✕</button>
