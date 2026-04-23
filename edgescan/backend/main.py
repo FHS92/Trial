@@ -211,58 +211,46 @@ def _store_price_history(ticker: str, db: Session) -> None:
 @app.get("/api/top-opportunities")
 def top_opportunities(db: Session = Depends(get_db)):
     """
-    Return the top 10 scored stocks from the most recent scan.
-    Falls back to an on-demand scan of 10 representative tickers
-    if the DB is empty.
+    Return the top-scored stocks using the most recent scan result per ticker.
+    Falls back to an on-demand scan of 30 tickers if the DB is empty.
     """
-    # Latest scanned_at timestamp
-    latest_ts = db.execute(
-        text("SELECT MAX(scanned_at) FROM scan_results")
-    ).scalar()
-
-    rows = []
-    if latest_ts:
-        # Normalise to datetime (SQLite returns strings)
-        if isinstance(latest_ts, str):
-            latest_ts = datetime.fromisoformat(latest_ts)
-        # All results from the latest scan batch (within 10 min window)
-        cutoff = latest_ts - timedelta(minutes=10)
-        rows = (
+    def _query_top(limit=100):
+        # One row per ticker — always the most recently scanned result
+        latest_subq = (
+            db.query(ScanResult.ticker, func.max(ScanResult.scanned_at).label("latest"))
+            .group_by(ScanResult.ticker)
+            .subquery()
+        )
+        return (
             db.query(ScanResult)
-            .filter(ScanResult.scanned_at >= cutoff)
+            .join(latest_subq,
+                  (ScanResult.ticker == latest_subq.c.ticker) &
+                  (ScanResult.scanned_at == latest_subq.c.latest))
             .order_by(ScanResult.score.desc())
-            .limit(100)
+            .limit(limit)
             .all()
         )
+
+    rows = _query_top()
 
     if not rows:
         # DB is empty — seed with a quick 30-ticker scan
-        sample = SP500_TICKERS[:30]
-        results = scan_tickers(sample)
+        results = scan_tickers(SP500_TICKERS[:30])
         for r in results:
             _store_scan_result(r, db)
-        # Re-query
-        latest_ts = db.execute(text("SELECT MAX(scanned_at) FROM scan_results")).scalar()
-        cutoff = latest_ts - timedelta(minutes=10)
-        rows = (
-            db.query(ScanResult)
-            .filter(ScanResult.scanned_at >= cutoff)
-            .order_by(ScanResult.score.desc())
-            .limit(100)
-            .all()
-        )
+        rows = _query_top()
 
-    # Compute minutes since last scan
+    # Report age of the most recent batch scan (max scanned_at across all rows)
+    latest_ts = max((r.scanned_at for r in rows), default=None)
     minutes_ago = None
     if latest_ts:
-        delta = datetime.utcnow() - (latest_ts if isinstance(latest_ts, datetime) else datetime.fromisoformat(str(latest_ts)))
-        minutes_ago = int(delta.total_seconds() / 60)
+        minutes_ago = int((datetime.utcnow() - latest_ts).total_seconds() / 60)
 
     return {
         "results": [_row_to_dict(r, include_thesis=True, db=db) for r in rows],
         "total_scanned": db.query(ScanResult.ticker).distinct().count(),
         "last_scanned_minutes_ago": minutes_ago,
-        "scanned_at": latest_ts.isoformat() if isinstance(latest_ts, datetime) else str(latest_ts),
+        "scanned_at": latest_ts.isoformat() if latest_ts else None,
     }
 
 
