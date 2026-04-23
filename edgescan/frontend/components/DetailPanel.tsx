@@ -70,13 +70,28 @@ export default function DetailPanel({ stock, history }: Props) {
   const [scoreHistory, setScoreHistory] = useState<ScoreHistoryPoint[]>([])
   const [news, setNews] = useState<NewsItem[]>([])
 
-  useEffect(() => { setWatched(loadWatchlist().includes(stock.ticker)) }, [stock.ticker])
+  useEffect(() => {
+    setWatched(loadWatchlist().includes(stock.ticker))
+    function onWatchlistChange() {
+      setWatched(loadWatchlist().includes(stock.ticker))
+    }
+    window.addEventListener('edgescan:watchlist', onWatchlistChange)
+    window.addEventListener('storage', onWatchlistChange)
+    return () => {
+      window.removeEventListener('edgescan:watchlist', onWatchlistChange)
+      window.removeEventListener('storage', onWatchlistChange)
+    }
+  }, [stock.ticker])
   useEffect(() => {
     api.scoreHistory(stock.ticker).then(d => setScoreHistory(d.history)).catch(() => {})
     api.stockNews(stock.ticker).then(d => setNews(d.news)).catch(() => {})
   }, [stock.ticker])
 
-  function handleWatch() { const added = toggleWatchlist(stock.ticker); setWatched(added) }
+  function handleWatch() {
+    const added = toggleWatchlist(stock.ticker)
+    setWatched(added)
+    window.dispatchEvent(new Event('edgescan:watchlist'))
+  }
 
   function fmtDate(iso: string) {
     try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) } catch { return iso }

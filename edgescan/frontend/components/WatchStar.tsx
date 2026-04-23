@@ -14,9 +14,24 @@ export default function WatchStar({ ticker }: Props) {
     setStarred(loadWatchlist().includes(ticker))
   }, [ticker])
 
+  // Sync when DetailPanel's internal Watch button (or another tab) changes localStorage
+  useEffect(() => {
+    function onStorage() {
+      setStarred(loadWatchlist().includes(ticker))
+    }
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('edgescan:watchlist', onStorage)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('edgescan:watchlist', onStorage)
+    }
+  }, [ticker])
+
   const handleClick = useCallback(() => {
     const next = toggleWatchlist(ticker)
     setStarred(next)
+    // Notify sibling client components (e.g. DetailPanel) on the same page
+    window.dispatchEvent(new Event('edgescan:watchlist'))
   }, [ticker])
 
   return (
