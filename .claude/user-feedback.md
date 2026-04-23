@@ -4,6 +4,35 @@ Written by the User Tester agent after each sprint. The PM agent reads this at t
 
 ---
 
+## 2026-04-23 — Sprint 3 feedback
+
+**Feature tested:** 7-day sparkline on stock cards
+
+**Works well:**
+- The fix is architecturally correct: `scanner/page.tsx` now uses `Promise.allSettled` to fetch price history in parallel for the displayed stocks only (≤10), so the page load does not get slower than its slowest individual API call, and a single failed ticker does not take down the whole list.
+- The green/red colour convention (`#22d47e` for up, `#f75f5f` for down) is consistent with the upside percentage already shown on each card, so the colour meaning is reinforced rather than introduced cold. A first-time user who reads "green = good" from the upside label will naturally apply that to the sparkline.
+- `isAnimationActive={false}` is the right call for a list component — animated charts in a scrolling list feel distracting and burn battery on low-end Android phones. Good default.
+- Falling back to an empty `[]` array via `historyMap.get(stock.ticker) ?? []` means a network failure on one ticker's history silently degrades (no sparkline shown) rather than crashing the row. The `data.length < 2` guard in `Sparkline.tsx` renders a same-size blank placeholder, so the layout does not shift.
+
+**Issues / confusing parts:**
+- **The sparkline is hidden on mobile (`hidden md:block`).** The entire point of this sprint was to give retail investors a quick price-trend read on the scanner. But on a phone — the stated primary device — the sparkline column is display-none. Users on screens narrower than the `md` breakpoint (768px) get no chart at all. The fix exists but is functionally invisible to the majority of the user base.
+- **No label or tooltip identifies what the line represents.** The sparkline sits between the company name and the price with no caption. Is it 7 days? 1 month? Today's intraday? There is nothing in the UI to tell me. The data is sliced as `.slice(-7)` from a `1w` fetch, which should be 5 trading days, not 7 calendar days — that ambiguity compounds the confusion.
+- **The chart is very small (80×32px) even on desktop.** At that size, a near-flat line from a low-volatility stock is visually indistinguishable from a slightly-moving one. The Recharts `LineChart` has no Y-axis domain set, which means a stock that moved from $100.01 to $100.05 looks as dramatic as one that moved from $80 to $120. Relative scaling is correct for sparklines, but without any reference point (start price, end price, % change) the shape alone is not enough to act on.
+- **`slice(-7)` on a `1w` API response can return fewer than 5 points.** If the history endpoint returns daily OHLCV bars and the week includes a holiday, the slice might produce 3–4 bars. With 3 data points the "sparkline" is just two line segments and conveys almost nothing. The `data.length < 2` guard prevents a crash but does not protect against visually misleading near-empty charts.
+- **No loading state.** The history fetch happens server-side in the RSC, so the user sees a full-page loading gap before any content appears. If one ticker's history call is slow (e.g., cold cache), the entire scanner page is delayed. There is no skeleton or progressive reveal — the list either appears complete or not at all.
+
+**Missing / wish it had:**
+- A tiny percentage-change label next to the sparkline (e.g., "+3.2%") so I can read the weekly move in numbers, not just as a shape. Even at 80px wide there is room for a 4-character label to the right of the chart.
+- A visible label — even just "7d" in the faintest possible grey — below or beside the sparkline so the time window is explicit without any tooltip interaction required.
+- An area fill under the line (like the score sparkline on the detail page already does) to make the chart easier to read at small sizes. The detail page's `ScoreSparkline` uses an SVG area fill with `rgba(79,142,247,0.08)` — the same technique would make the price sparkline feel substantially more polished at 80px.
+
+**New backlog suggestions:**
+1. **Show the sparkline on mobile** — remove `hidden md:block` from the sparkline wrapper in `StockRow.tsx`, or reduce it to `hidden sm:block` so the chart appears from 640px upwards. If the row becomes too cramped, consider dropping the rank number (least informative column) on small screens instead of the chart.
+2. **Add a percentage-change badge to each sparkline** — compute `((last - first) / first * 100).toFixed(1)` inside `StockRow` and render it as a small coloured label (green/red matching the line) to the right of the `Sparkline` component. This turns a decorative shape into an actionable data point without adding a separate column.
+3. **Label the time window and add an area fill** — add a `"7d"` caption in muted text beneath each sparkline so the window is unambiguous, and pass a `fill` prop to `Sparkline.tsx` to render a translucent area under the line (matching the approach already used on the detail page's score chart), improving readability at the current 32px height.
+
+---
+
 ## 2026-04-23 — Sprint 2 feedback
 
 **Feature tested:** Watchlist nav + touch target fixes

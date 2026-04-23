@@ -7,6 +7,20 @@ Each sprint entry is written by the sprint coordinator after all 4 agents comple
 <!-- Sprint entries will be prepended here by the /sprint command -->
 
 ---
+## Sprint 3 — 2026-04-23
+
+**Built:** Fix 7-day sparkline — pass OHLCV history to StockRow so price charts actually render.
+**Commit:** `3cfed39`
+
+**PM Decision:** Sparkline permanently empty is the most universally broken element — visible to 100% of scanner users. One-file fix in `scanner/page.tsx`: fetch `api.priceHistory` in parallel via `Promise.allSettled` for displayed stocks, pass result to each `<StockRow>`.
+
+**Coder Report:** `scanner/page.tsx` — added `OHLCVBar` type import, inserted parallel `Promise.allSettled` fetch for displayed stocks, built `Map<string, OHLCVBar[]>`, passed `history` prop to each `<StockRow>`. TS clean. Commit `3cfed39`.
+
+**QA Report:** All clean — no browser globals in `api.priceHistory`, `displayed` defined before fetch block, graceful `?? []` fallback if API is down, `OHLCVBar` shape matches across all files. Zero TS errors. No fix needed.
+
+**User Report:** Fix is structurally correct and colour convention (green/red) is readable — but the sparkline column is wrapped in `hidden md:block`, making it invisible on all phones. The sprint's benefit is currently zero for mobile users. Also: no label indicating what the line represents (7-day?), and the 80×32px canvas too small to read without a `+3.2%` number beside it.
+
+---
 ## Sprint 2 — 2026-04-23
 
 **Built:** Watchlist nav + touch target + empty-state copy fixes (3 files, commit de7b8ce)
