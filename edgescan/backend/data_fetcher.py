@@ -355,27 +355,29 @@ def _gross_margin(annual_fin, q_fin, info) -> float:
 
 
 def _ebitda(annual_fin, q_fin, annual_cf, q_cf, info) -> Optional[float]:
-    """EBITDA (TTM). Tries info.ebitda first, then EBIT + D&A from statements."""
+    """EBITDA = Operating Profit + D&A. Statements first, info.ebitda as last resort."""
+    # Annual: operating income + D&A
+    op_s = _find_row(annual_fin, _EBIT_NAMES)
+    da_s = _find_row(annual_cf,  _DA_NAMES)
+    if op_s is not None and da_s is not None:
+        op = _scalar(op_s, 0)
+        da = _scalar(da_s, 0)
+        if op is not None and da is not None:
+            return op + abs(da)
+
+    # TTM quarterly: sum last 4 quarters of operating income + D&A
+    op_q = _find_row(q_fin, _EBIT_NAMES)
+    da_q = _find_row(q_cf,  _DA_NAMES)
+    if op_q is not None and da_q is not None:
+        op = _ttm(op_q, 4)
+        da = _ttm(da_q, 4)
+        if op is not None and da is not None:
+            return op + abs(da)
+
+    # Last resort: yfinance cached value (formula unknown)
     val = info.get("ebitda")
     if val and not _is_bad(val) and float(val) != 0:
         return float(val)
-
-    ebit_s = _find_row(annual_fin, _EBIT_NAMES)
-    da_s   = _find_row(annual_cf,  _DA_NAMES)
-    if ebit_s is not None and da_s is not None:
-        ebit = _scalar(ebit_s, 0)
-        da   = _scalar(da_s, 0)
-        if ebit is not None and da is not None:
-            return ebit + abs(da)
-
-    # TTM quarterly fallback
-    ebit_q = _find_row(q_fin, _EBIT_NAMES)
-    da_q   = _find_row(q_cf,  _DA_NAMES)
-    if ebit_q is not None and da_q is not None:
-        ebit = _ttm(ebit_q, 4)
-        da   = _ttm(da_q, 4)
-        if ebit is not None and da is not None:
-            return ebit + abs(da)
     return None
 
 
