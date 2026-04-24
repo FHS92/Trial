@@ -25,8 +25,8 @@ from technicals import compute_technicals
 
 def _score_rev_growth_vs_sector(pct: float, sector_median: float) -> int:
     diff = pct - sector_median
-    if diff > 10:  return 10
-    if diff > 5:   return 7
+    if diff > 10:  return 8
+    if diff > 5:   return 6
     if diff > 0:   return 4
     if diff > -5:  return 2
     return 0
@@ -34,8 +34,8 @@ def _score_rev_growth_vs_sector(pct: float, sector_median: float) -> int:
 
 def _score_eps_growth_vs_sector(pct: float, sector_median: float) -> int:
     diff = pct - sector_median
-    if diff > 10:  return 10
-    if diff > 5:   return 7
+    if diff > 10:  return 8
+    if diff > 5:   return 6
     if diff > 0:   return 4
     if diff > -5:  return 2
     return 0
@@ -43,62 +43,62 @@ def _score_eps_growth_vs_sector(pct: float, sector_median: float) -> int:
 
 def _score_fcf_yield_vs_sector(pct: float, sector_median: float) -> int:
     diff = pct - sector_median
-    if diff > 3:   return 8
-    if diff > 1:   return 6
-    if diff > 0:   return 4
-    if diff > -1:  return 2
+    if diff > 3:   return 10
+    if diff > 1.5: return 8
+    if diff > 0:   return 6
+    if diff > -1:  return 3
     return 0
 
 
 def _score_ev_ebitda_vs_sector(ev_ebitda: Optional[float], sector_median: float) -> int:
     if ev_ebitda is None or ev_ebitda <= 0:
-        return 3  # neutral when data unavailable
+        return 5  # neutral when data unavailable
     ratio = ev_ebitda / sector_median
-    if ratio < 0.75:  return 8   # >25% discount to sector — very cheap
-    if ratio < 0.90:  return 5   # 10–25% discount
-    if ratio < 1.00:  return 3   # slight discount
-    if ratio < 1.15:  return 1   # slight premium
+    if ratio < 0.70:  return 10  # >30% discount to sector
+    if ratio < 0.85:  return 8   # 15–30% discount
+    if ratio < 1.00:  return 6   # slight discount
+    if ratio < 1.15:  return 3   # slight premium
     return 0                      # significant premium to sector
 
 
 def _score_ebitda_margin_vs_sector(margin: float, sector_median: float) -> int:
     diff = margin - sector_median
-    if diff > 10:  return 6
-    if diff > 5:   return 5
-    if diff > 0:   return 3
-    if diff > -5:  return 1
+    if diff > 15:  return 10
+    if diff > 8:   return 8
+    if diff > 3:   return 6
+    if diff > 0:   return 4
+    if diff > -5:  return 2
     return 0
 
 
 def _score_debt_coverage_vs_sector(coverage: float, sector_median: float) -> int:
     if sector_median <= 0:
-        return 3  # neutral for sectors where coverage is not meaningful
+        return 4  # neutral for sectors where coverage is not meaningful
     ratio = coverage / sector_median
-    if ratio > 2.0:  return 6   # covers debt at 2× the sector rate
-    if ratio > 1.5:  return 5
-    if ratio > 1.0:  return 3   # above sector median
-    if ratio > 0.7:  return 1
+    if ratio > 2.5:  return 8
+    if ratio > 1.8:  return 7
+    if ratio > 1.2:  return 5
+    if ratio > 0.8:  return 3
+    if ratio > 0.5:  return 1
     return 0
 
 
 def _score_eps_revision(recommendation: str) -> int:
-    # Use analyst recommendation as a proxy for EPS revision direction
-    # (true revision data requires a paid data provider)
     rec = recommendation.lower()
     if rec in ("buy", "strong_buy", "strongbuy"):
-        return 6
+        return 4
     if rec in ("hold", "neutral"):
-        return 3
+        return 2
     return 0
 
 
 def _score_fwd_pe_vs_sector(fwd_pe: Optional[float], sector_pe: float) -> int:
     if fwd_pe is None or fwd_pe <= 0:
-        return 3  # neutral if missing
+        return 1  # neutral if missing
+    if fwd_pe < sector_pe * 0.85:
+        return 2
     if fwd_pe < sector_pe:
-        return 6
-    if fwd_pe <= sector_pe * 1.1:
-        return 3
+        return 1
     return 0
 
 

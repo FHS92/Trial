@@ -55,8 +55,8 @@ from technicals import _ema, _rsi, _sma
 def _bt_score_rev_growth(pct: float, sector: str) -> int:
     median = SECTOR_REV_GROWTH_MEDIANS.get(sector, SECTOR_REV_GROWTH_MEDIANS["Unknown"])
     diff = pct - median
-    if diff > 10:  return 10
-    if diff > 5:   return 7
+    if diff > 10:  return 8
+    if diff > 5:   return 6
     if diff > 0:   return 4
     if diff > -5:  return 2
     return 0
@@ -65,8 +65,8 @@ def _bt_score_rev_growth(pct: float, sector: str) -> int:
 def _bt_score_eps_growth(pct: float, sector: str) -> int:
     median = SECTOR_EPS_GROWTH_MEDIANS.get(sector, SECTOR_EPS_GROWTH_MEDIANS["Unknown"])
     diff = pct - median
-    if diff > 10:  return 10
-    if diff > 5:   return 7
+    if diff > 10:  return 8
+    if diff > 5:   return 6
     if diff > 0:   return 4
     if diff > -5:  return 2
     return 0
@@ -75,42 +75,43 @@ def _bt_score_eps_growth(pct: float, sector: str) -> int:
 def _bt_score_fcf_yield(pct: float, sector: str) -> int:
     median = SECTOR_FCF_YIELD_MEDIANS.get(sector, SECTOR_FCF_YIELD_MEDIANS["Unknown"])
     diff = pct - median
-    if diff > 3:   return 8
-    if diff > 1:   return 6
-    if diff > 0:   return 4
-    if diff > -1:  return 2
+    if diff > 3:   return 10
+    if diff > 1.5: return 8
+    if diff > 0:   return 6
+    if diff > -1:  return 3
     return 0
 
 
 def _bt_score_ebitda_margin(gross_margin: float, sector: str) -> int:
-    # Approximation: gross margin as proxy for EBITDA margin vs sector benchmark.
-    # Gross margins run ~15-20 pts higher than EBITDA margins, so we offset the
-    # sector EBITDA benchmarks upward to keep comparisons meaningful.
+    # Gross margin as proxy for EBITDA margin. Gross margins run ~18 pts higher
+    # than EBITDA margins on average, so we offset the sector benchmark accordingly.
     sector_ebitda = SECTOR_EBITDA_MARGIN_MEDIANS.get(sector, SECTOR_EBITDA_MARGIN_MEDIANS["Unknown"])
-    sector_gross_proxy = sector_ebitda + 18.0   # typical gross→EBITDA spread
+    sector_gross_proxy = sector_ebitda + 18.0
     diff = gross_margin - sector_gross_proxy
-    if diff > 10:  return 6
-    if diff > 5:   return 5
-    if diff > 0:   return 3
-    if diff > -5:  return 1
+    if diff > 15:  return 10
+    if diff > 8:   return 8
+    if diff > 3:   return 6
+    if diff > 0:   return 4
+    if diff > -5:  return 2
     return 0
 
 
 def _bt_score_debt_coverage(ocf: Optional[float], debt: Optional[float], sector: str) -> int:
-    # OCF / total_debt as a proxy for EBITDA/debt coverage ratio.
+    # OCF / total_debt as proxy for EBITDA/debt coverage.
     sector_median = SECTOR_DEBT_COVERAGE_MEDIANS.get(sector, SECTOR_DEBT_COVERAGE_MEDIANS["Unknown"])
     if debt is None or debt <= 0:
-        return 6   # effectively debt-free
+        return 8   # effectively debt-free
     if ocf is None or ocf <= 0:
         return 0
     coverage = ocf / debt
     if sector_median <= 0:
-        return 3
+        return 4
     ratio = coverage / sector_median
-    if ratio > 2.0:  return 6
-    if ratio > 1.5:  return 5
-    if ratio > 1.0:  return 3
-    if ratio > 0.7:  return 1
+    if ratio > 2.5:  return 8
+    if ratio > 1.8:  return 7
+    if ratio > 1.2:  return 5
+    if ratio > 0.8:  return 3
+    if ratio > 0.5:  return 1
     return 0
 
 START = date(2020, 1, 1)
