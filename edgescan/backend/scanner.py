@@ -23,50 +23,61 @@ from technicals import compute_technicals
 # Fundamental sub-scores
 # ---------------------------------------------------------------------------
 
-def _score_rev_growth(pct: float) -> int:
-    if pct > 20:   return 10
-    if pct > 10:   return 7
-    if pct > 5:    return 4
-    if pct > 0:    return 2
+def _score_rev_growth_vs_sector(pct: float, sector_median: float) -> int:
+    diff = pct - sector_median
+    if diff > 10:  return 10
+    if diff > 5:   return 7
+    if diff > 0:   return 4
+    if diff > -5:  return 2
     return 0
 
 
-def _score_eps_growth(pct: float) -> int:
-    if pct > 20:   return 10
-    if pct > 10:   return 7
-    if pct > 5:    return 4
-    if pct > 0:    return 2
+def _score_eps_growth_vs_sector(pct: float, sector_median: float) -> int:
+    diff = pct - sector_median
+    if diff > 10:  return 10
+    if diff > 5:   return 7
+    if diff > 0:   return 4
+    if diff > -5:  return 2
     return 0
 
 
-def _score_fcf_yield(pct: float) -> int:
-    if pct > 6:    return 8
-    if pct > 4:    return 6
-    if pct > 2:    return 4
-    if pct > 0:    return 2
+def _score_fcf_yield_vs_sector(pct: float, sector_median: float) -> int:
+    diff = pct - sector_median
+    if diff > 3:   return 8
+    if diff > 1:   return 6
+    if diff > 0:   return 4
+    if diff > -1:  return 2
     return 0
 
 
-def _score_roe(pct: float) -> int:
-    if pct > 25:   return 8
-    if pct > 15:   return 6
-    if pct > 10:   return 4
-    if pct > 5:    return 2
+def _score_ev_ebitda_vs_sector(ev_ebitda: Optional[float], sector_median: float) -> int:
+    if ev_ebitda is None or ev_ebitda <= 0:
+        return 3  # neutral when data unavailable
+    ratio = ev_ebitda / sector_median
+    if ratio < 0.75:  return 8   # >25% discount to sector — very cheap
+    if ratio < 0.90:  return 5   # 10–25% discount
+    if ratio < 1.00:  return 3   # slight discount
+    if ratio < 1.15:  return 1   # slight premium
+    return 0                      # significant premium to sector
+
+
+def _score_ebitda_margin_vs_sector(margin: float, sector_median: float) -> int:
+    diff = margin - sector_median
+    if diff > 10:  return 6
+    if diff > 5:   return 5
+    if diff > 0:   return 3
+    if diff > -5:  return 1
     return 0
 
 
-def _score_gross_margin(pct: float) -> int:
-    # Without QoQ quarterly data we use absolute level as a proxy.
-    # >50% (high-quality business) = 6, 30-50% = 3, <30% = 0
-    if pct > 50:   return 6
-    if pct > 30:   return 3
-    return 0
-
-
-def _score_debt_equity(ratio: float) -> int:
-    if ratio < 0.3:    return 6
-    if ratio < 0.7:    return 4
-    if ratio < 1.5:    return 2
+def _score_debt_coverage_vs_sector(coverage: float, sector_median: float) -> int:
+    if sector_median <= 0:
+        return 3  # neutral for sectors where coverage is not meaningful
+    ratio = coverage / sector_median
+    if ratio > 2.0:  return 6   # covers debt at 2× the sector rate
+    if ratio > 1.5:  return 5
+    if ratio > 1.0:  return 3   # above sector median
+    if ratio > 0.7:  return 1
     return 0
 
 
@@ -273,16 +284,16 @@ def score_stock(ticker: str) -> dict:
     current_price = fundamentals.get("current_price") or signals.get("current_price")
 
     # ---- Fundamental score (60 pts max) ----
-    rev_pts    = _score_rev_growth(fundamentals["rev_growth"])
-    eps_pts    = _score_eps_growth(fundamentals["eps_growth"])
-    fcf_pts    = _score_fcf_yield(fundamentals["fcf_yield"])
-    roe_pts    = _score_roe(fundamentals["roe"])
-    margin_pts = _score_gross_margin(fundamentals["gross_margin"])
-    de_pts     = _score_debt_equity(fundamentals["debt_to_equity"])
+    rev_pts     = _score_rev_growth_vs_sector(fundamentals["rev_growth"],   fundamentals["sector_rev_growth"])
+    eps_pts     = _score_eps_growth_vs_sector(fundamentals["eps_growth"],   fundamentals["sector_eps_growth"])
+    fcf_pts     = _score_fcf_yield_vs_sector(fundamentals["fcf_yield"],     fundamentals["sector_fcf_yield"])
+    eveb_pts    = _score_ev_ebitda_vs_sector(fundamentals["ev_ebitda"],     fundamentals["sector_ev_ebitda"])
+    margin_pts  = _score_ebitda_margin_vs_sector(fundamentals["ebitda_margin"], fundamentals["sector_ebitda_margin"])
+    cov_pts     = _score_debt_coverage_vs_sector(fundamentals["debt_coverage"], fundamentals["sector_debt_coverage"])
     rev_est_pts = _score_eps_revision(fundamentals["recommendation"])
-    pe_pts     = _score_fwd_pe_vs_sector(fundamentals["fwd_pe"], fundamentals["sector_pe"])
+    pe_pts      = _score_fwd_pe_vs_sector(fundamentals["fwd_pe"], fundamentals["sector_pe"])
 
-    f_score = rev_pts + eps_pts + fcf_pts + roe_pts + margin_pts + de_pts + rev_est_pts + pe_pts
+    f_score = rev_pts + eps_pts + fcf_pts + eveb_pts + margin_pts + cov_pts + rev_est_pts + pe_pts
 
     # ---- Relative strength vs SPY (3-month) ----
     spy_3m = _spy_3m_return_cached(str(date.today()))
@@ -344,11 +355,17 @@ def score_stock(ticker: str) -> dict:
         },
         "metrics": {
             "rev_growth": fundamentals["rev_growth"],
+            "sector_rev_growth": fundamentals["sector_rev_growth"],
             "eps_growth": fundamentals["eps_growth"],
+            "sector_eps_growth": fundamentals["sector_eps_growth"],
             "fcf_yield": fundamentals["fcf_yield"],
-            "roe": fundamentals["roe"],
-            "gross_margin": fundamentals["gross_margin"],
-            "debt_to_equity": fundamentals["debt_to_equity"],
+            "sector_fcf_yield": fundamentals["sector_fcf_yield"],
+            "ev_ebitda": fundamentals["ev_ebitda"],
+            "sector_ev_ebitda": fundamentals["sector_ev_ebitda"],
+            "ebitda_margin": fundamentals["ebitda_margin"],
+            "sector_ebitda_margin": fundamentals["sector_ebitda_margin"],
+            "debt_coverage": fundamentals["debt_coverage"],
+            "sector_debt_coverage": fundamentals["sector_debt_coverage"],
             "fwd_pe": fundamentals["fwd_pe"],
             "sector_pe": fundamentals["sector_pe"],
             "analyst_target": fundamentals["analyst_target"],
@@ -358,9 +375,9 @@ def score_stock(ticker: str) -> dict:
             "rev_growth_pts": rev_pts,
             "eps_growth_pts": eps_pts,
             "fcf_yield_pts": fcf_pts,
-            "roe_pts": roe_pts,
-            "gross_margin_pts": margin_pts,
-            "debt_equity_pts": de_pts,
+            "ev_ebitda_pts": eveb_pts,
+            "ebitda_margin_pts": margin_pts,
+            "debt_coverage_pts": cov_pts,
             "eps_revision_pts": rev_est_pts,
             "fwd_pe_pts": pe_pts,
             "rsi_pts": rsi_pts,
