@@ -31,102 +31,6 @@ SECTOR_PE_MEDIANS = {
     "Unknown": 20.0,
 }
 
-# Sector median EV/EBITDA (forward, approximate)
-SECTOR_EV_EBITDA_MEDIANS = {
-    "Technology": 20.0,
-    "Healthcare": 16.0,
-    "Financials": 12.0,
-    "Consumer Discretionary": 14.0,
-    "Consumer Staples": 13.0,
-    "Industrials": 14.0,
-    "Energy": 7.0,
-    "Materials": 9.0,
-    "Real Estate": 20.0,
-    "Utilities": 11.0,
-    "Communication Services": 10.0,
-    "Unknown": 14.0,
-}
-
-# Sector median EBITDA margin % (TTM, approximate)
-SECTOR_EBITDA_MARGIN_MEDIANS = {
-    "Technology": 28.0,
-    "Healthcare": 20.0,
-    "Financials": 32.0,
-    "Consumer Discretionary": 12.0,
-    "Consumer Staples": 14.0,
-    "Industrials": 16.0,
-    "Energy": 25.0,
-    "Materials": 22.0,
-    "Real Estate": 52.0,
-    "Utilities": 38.0,
-    "Communication Services": 28.0,
-    "Unknown": 20.0,
-}
-
-# Sector median debt coverage ratio (EBITDA / Total Debt, approximate)
-SECTOR_DEBT_COVERAGE_MEDIANS = {
-    "Technology": 3.0,
-    "Healthcare": 2.5,
-    "Financials": 0.5,   # banks are naturally highly levered
-    "Consumer Discretionary": 2.0,
-    "Consumer Staples": 2.5,
-    "Industrials": 2.5,
-    "Energy": 2.0,
-    "Materials": 2.5,
-    "Real Estate": 0.8,  # REITs carry structural leverage
-    "Utilities": 0.8,    # capital-intensive, low coverage by design
-    "Communication Services": 1.5,
-    "Unknown": 2.0,
-}
-
-# Sector median revenue growth % YoY (approximate)
-SECTOR_REV_GROWTH_MEDIANS = {
-    "Technology": 10.0,
-    "Healthcare": 7.0,
-    "Financials": 5.0,
-    "Consumer Discretionary": 6.0,
-    "Consumer Staples": 4.0,
-    "Industrials": 6.0,
-    "Energy": 3.0,
-    "Materials": 4.0,
-    "Real Estate": 5.0,
-    "Utilities": 3.0,
-    "Communication Services": 5.0,
-    "Unknown": 5.0,
-}
-
-# Sector median EPS growth % YoY (approximate)
-SECTOR_EPS_GROWTH_MEDIANS = {
-    "Technology": 12.0,
-    "Healthcare": 8.0,
-    "Financials": 6.0,
-    "Consumer Discretionary": 8.0,
-    "Consumer Staples": 5.0,
-    "Industrials": 8.0,
-    "Energy": 5.0,
-    "Materials": 5.0,
-    "Real Estate": 4.0,
-    "Utilities": 4.0,
-    "Communication Services": 6.0,
-    "Unknown": 6.0,
-}
-
-# Sector median FCF yield % (approximate)
-SECTOR_FCF_YIELD_MEDIANS = {
-    "Technology": 3.5,
-    "Healthcare": 4.0,
-    "Financials": 3.0,
-    "Consumer Discretionary": 3.0,
-    "Consumer Staples": 4.5,
-    "Industrials": 3.5,
-    "Energy": 6.0,
-    "Materials": 4.0,
-    "Real Estate": 3.0,
-    "Utilities": 2.5,
-    "Communication Services": 5.0,
-    "Unknown": 3.5,
-}
-
 # Sample of 500 S&P 500 tickers (first 50 shown; full list used in production)
 SP500_TICKERS = [
     "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "GOOG", "BRK-B", "LLY", "AVGO",
@@ -177,10 +81,6 @@ _EQUITY_NAMES     = ["StockholdersEquity", "Stockholders Equity", "CommonStockEq
                      "Common Stock Equity", "Total Stockholder Equity", "TotalStockholdersEquity"]
 _DEBT_NAMES       = ["TotalDebt", "Total Debt", "LongTermDebt", "Long Term Debt",
                      "Total Long Term Debt"]
-_EBIT_NAMES       = ["EBIT", "OperatingIncome", "Operating Income", "EarningsBeforeInterestAndTaxes"]
-_DA_NAMES         = ["DepreciationAmortization", "Depreciation And Amortization",
-                     "ReconciledDepreciation", "DepreciationAndAmortization",
-                     "Depreciation", "DDA"]
 
 
 def _find_row(df: pd.DataFrame, candidates: list[str]) -> Optional[pd.Series]:
@@ -354,80 +254,6 @@ def _gross_margin(annual_fin, q_fin, info) -> float:
     return 0.0
 
 
-def _ebitda(annual_fin, q_fin, annual_cf, q_cf, info) -> Optional[float]:
-    """EBITDA = Operating Profit + D&A. Statements first, info.ebitda as last resort."""
-    # Annual: operating income + D&A
-    op_s = _find_row(annual_fin, _EBIT_NAMES)
-    da_s = _find_row(annual_cf,  _DA_NAMES)
-    if op_s is not None and da_s is not None:
-        op = _scalar(op_s, 0)
-        da = _scalar(da_s, 0)
-        if op is not None and da is not None:
-            return op + abs(da)
-
-    # TTM quarterly: sum last 4 quarters of operating income + D&A
-    op_q = _find_row(q_fin, _EBIT_NAMES)
-    da_q = _find_row(q_cf,  _DA_NAMES)
-    if op_q is not None and da_q is not None:
-        op = _ttm(op_q, 4)
-        da = _ttm(da_q, 4)
-        if op is not None and da is not None:
-            return op + abs(da)
-
-    # Last resort: yfinance cached value (formula unknown)
-    val = info.get("ebitda")
-    if val and not _is_bad(val) and float(val) != 0:
-        return float(val)
-    return None
-
-
-def _ebitda_margin(annual_fin, q_fin, annual_cf, q_cf, info) -> float:
-    """EBITDA margin % = EBITDA / Revenue * 100."""
-    val = info.get("ebitdaMargins")
-    if val and not _is_bad(val):
-        return float(val) * 100
-
-    eb = _ebitda(annual_fin, q_fin, annual_cf, q_cf, info)
-    rev_s = _find_row(annual_fin, _REVENUE_NAMES)
-    if eb is not None and rev_s is not None:
-        rev = _scalar(rev_s, 0)
-        if rev and rev > 0:
-            return eb / rev * 100
-
-    # TTM quarterly fallback
-    rev_q = _find_row(q_fin, _REVENUE_NAMES)
-    eb_q  = _ebitda(None, q_fin, None, q_cf, {})
-    if eb_q is not None and rev_q is not None:
-        rev = _ttm(rev_q, 4)
-        if rev and rev > 0:
-            return eb_q / rev * 100
-    return 0.0
-
-
-def _ev_ebitda(info) -> Optional[float]:
-    """Enterprise Value / EBITDA from yfinance info."""
-    val = info.get("enterpriseToEbitda")
-    if val and not _is_bad(val) and float(val) > 0:
-        return float(val)
-    return None
-
-
-def _debt_coverage(annual_fin, q_fin, annual_cf, q_cf, annual_bs, q_bs, info) -> float:
-    """Debt coverage = EBITDA / Total Debt. Higher = safer balance sheet."""
-    eb = _ebitda(annual_fin, q_fin, annual_cf, q_cf, info)
-
-    debt_s = _find_row(annual_bs, _DEBT_NAMES)
-    if debt_s is None:
-        debt_s = _find_row(q_bs, _DEBT_NAMES)
-    debt = _scalar(debt_s, 0) if debt_s is not None else None
-
-    if debt is not None and debt <= 0:
-        return 10.0  # essentially debt-free — maximum coverage
-    if eb is not None and debt and debt > 0:
-        return eb / debt
-    return 0.0
-
-
 def _debt_to_equity(annual_bs, q_bs, info) -> float:
     # Total debt / stockholders equity (annual)
     debt_a = _find_row(annual_bs, _DEBT_NAMES)
@@ -477,13 +303,7 @@ def fetch_fundamentals(ticker: str) -> dict:
         info = t.info
 
         sector    = info.get("sector", "Unknown")
-        sector_pe           = SECTOR_PE_MEDIANS.get(sector, SECTOR_PE_MEDIANS["Unknown"])
-        sector_ev_ebitda    = SECTOR_EV_EBITDA_MEDIANS.get(sector, SECTOR_EV_EBITDA_MEDIANS["Unknown"])
-        sector_ebitda_margin = SECTOR_EBITDA_MARGIN_MEDIANS.get(sector, SECTOR_EBITDA_MARGIN_MEDIANS["Unknown"])
-        sector_debt_coverage = SECTOR_DEBT_COVERAGE_MEDIANS.get(sector, SECTOR_DEBT_COVERAGE_MEDIANS["Unknown"])
-        sector_rev_growth   = SECTOR_REV_GROWTH_MEDIANS.get(sector, SECTOR_REV_GROWTH_MEDIANS["Unknown"])
-        sector_eps_growth   = SECTOR_EPS_GROWTH_MEDIANS.get(sector, SECTOR_EPS_GROWTH_MEDIANS["Unknown"])
-        sector_fcf_yield    = SECTOR_FCF_YIELD_MEDIANS.get(sector, SECTOR_FCF_YIELD_MEDIANS["Unknown"])
+        sector_pe = SECTOR_PE_MEDIANS.get(sector, SECTOR_PE_MEDIANS["Unknown"])
 
         market_cap = _safe_info(info, "marketCap", None)
 
@@ -498,13 +318,12 @@ def fetch_fundamentals(ticker: str) -> dict:
         except Exception:
             annual_fin = q_fin = annual_bs = q_bs = annual_cf = q_cf = None
 
-        rev_growth_val    = _rev_growth(annual_fin, q_fin, info)
-        eps_growth_val    = _eps_growth(annual_fin, q_fin, info)
-        fcf_yield_val     = _fcf_yield(annual_cf, q_cf, info, market_cap)
-        ebitda_margin_val = _ebitda_margin(annual_fin, q_fin, annual_cf, q_cf, info)
-        ev_ebitda_val     = _ev_ebitda(info)
-        debt_coverage_val = _debt_coverage(annual_fin, q_fin, annual_cf, q_cf, annual_bs, q_bs, info)
-        de_val            = _debt_to_equity(annual_bs, q_bs, info)
+        rev_growth_val  = _rev_growth(annual_fin, q_fin, info)
+        eps_growth_val  = _eps_growth(annual_fin, q_fin, info)
+        fcf_yield_val   = _fcf_yield(annual_cf, q_cf, info, market_cap)
+        roe_val         = _roe(annual_fin, q_fin, annual_bs, q_bs, info)
+        gross_margin_val = _gross_margin(annual_fin, q_fin, info)
+        de_val          = _debt_to_equity(annual_bs, q_bs, info)
 
         # These have no reliable free statement equivalent — keep from info
         fwd_pe        = _safe_info(info, "forwardPE", None)
@@ -523,19 +342,12 @@ def fetch_fundamentals(ticker: str) -> dict:
             "name": info.get("longName", ticker),
             "sector": sector,
             "sector_pe": sector_pe,
-            "sector_ev_ebitda": sector_ev_ebitda,
-            "sector_ebitda_margin": sector_ebitda_margin,
-            "sector_debt_coverage": sector_debt_coverage,
-            "sector_rev_growth": sector_rev_growth,
-            "sector_eps_growth": sector_eps_growth,
-            "sector_fcf_yield": sector_fcf_yield,
             "current_price": current_price,
             "rev_growth": rev_growth_val,
             "eps_growth": eps_growth_val,
             "fcf_yield": fcf_yield_val,
-            "ebitda_margin": ebitda_margin_val,
-            "ev_ebitda": ev_ebitda_val,
-            "debt_coverage": debt_coverage_val,
+            "roe": roe_val,
+            "gross_margin": gross_margin_val,
             "debt_to_equity": de_val,
             "fwd_pe": fwd_pe,
             "analyst_target": analyst_target,
@@ -597,19 +409,12 @@ def _empty_fundamentals(ticker: str) -> dict:
         "name": ticker,
         "sector": "Unknown",
         "sector_pe": 20.0,
-        "sector_ev_ebitda": 14.0,
-        "sector_ebitda_margin": 20.0,
-        "sector_debt_coverage": 2.0,
-        "sector_rev_growth": 5.0,
-        "sector_eps_growth": 6.0,
-        "sector_fcf_yield": 3.5,
         "current_price": None,
         "rev_growth": 0.0,
         "eps_growth": 0.0,
         "fcf_yield": 0.0,
-        "ebitda_margin": 0.0,
-        "ev_ebitda": None,
-        "debt_coverage": 0.0,
+        "roe": 0.0,
+        "gross_margin": 0.0,
         "debt_to_equity": 2.0,
         "fwd_pe": None,
         "analyst_target": None,

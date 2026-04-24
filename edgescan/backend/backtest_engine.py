@@ -6,7 +6,7 @@ Strategy:
   - Signal    : composite score = technical (5 indicators) + fundamental (EDGAR)
   - Technical : RSI, MACD, 200MA, directional volume, 52W-high distance
   - Fundamental: revenue growth, EPS growth, FCF yield, ROE, gross margin,
-                 D/E ratio, trailing P/E vs dynamic sector median.
+                 D/E ratio, trailing P/E vs dynamic sector median (absolute thresholds).
                  All sourced from SEC EDGAR filings (point-in-time, no
                  look-ahead bias). Cached in Neon after first fetch.
   - Entry     : close of first trading day of each month
@@ -27,92 +27,22 @@ import yfinance as yf
 
 warnings.filterwarnings("ignore")
 
-from data_fetcher import (
-    SP500_TICKERS, get_universe_tickers,
-    SECTOR_REV_GROWTH_MEDIANS,
-    SECTOR_EPS_GROWTH_MEDIANS,
-    SECTOR_FCF_YIELD_MEDIANS,
-    SECTOR_EBITDA_MARGIN_MEDIANS,
-    SECTOR_DEBT_COVERAGE_MEDIANS,
-)
+from data_fetcher import SP500_TICKERS, get_universe_tickers
 from scanner import (
     _score_distance_from_52w_high,
     _score_macd,
     _score_price_vs_200ma,
     _score_rsi,
     _score_volume,
-    _score_ev_ebitda_vs_sector,
-    _score_eps_revision,
-    _score_fwd_pe_vs_sector,
+    _score_rev_growth,
+    _score_eps_growth,
+    _score_fcf_yield,
+    _score_roe,
+    _score_gross_margin,
+    _score_debt_equity,
 )
 from technicals import _ema, _rsi, _sma
 
-
-# ---------------------------------------------------------------------------
-# Backtest-local fundamental scoring (sector-relative where data permits)
-# ---------------------------------------------------------------------------
-
-def _bt_score_rev_growth(pct: float, sector: str) -> int:
-    median = SECTOR_REV_GROWTH_MEDIANS.get(sector, SECTOR_REV_GROWTH_MEDIANS["Unknown"])
-    diff = pct - median
-    if diff > 10:  return 8
-    if diff > 5:   return 6
-    if diff > 0:   return 4
-    if diff > -5:  return 2
-    return 0
-
-
-def _bt_score_eps_growth(pct: float, sector: str) -> int:
-    median = SECTOR_EPS_GROWTH_MEDIANS.get(sector, SECTOR_EPS_GROWTH_MEDIANS["Unknown"])
-    diff = pct - median
-    if diff > 10:  return 8
-    if diff > 5:   return 6
-    if diff > 0:   return 4
-    if diff > -5:  return 2
-    return 0
-
-
-def _bt_score_fcf_yield(pct: float, sector: str) -> int:
-    median = SECTOR_FCF_YIELD_MEDIANS.get(sector, SECTOR_FCF_YIELD_MEDIANS["Unknown"])
-    diff = pct - median
-    if diff > 3:   return 10
-    if diff > 1.5: return 8
-    if diff > 0:   return 6
-    if diff > -1:  return 3
-    return 0
-
-
-def _bt_score_ebitda_margin(gross_margin: float, sector: str) -> int:
-    # Gross margin as proxy for EBITDA margin. Gross margins run ~18 pts higher
-    # than EBITDA margins on average, so we offset the sector benchmark accordingly.
-    sector_ebitda = SECTOR_EBITDA_MARGIN_MEDIANS.get(sector, SECTOR_EBITDA_MARGIN_MEDIANS["Unknown"])
-    sector_gross_proxy = sector_ebitda + 18.0
-    diff = gross_margin - sector_gross_proxy
-    if diff > 15:  return 10
-    if diff > 8:   return 8
-    if diff > 3:   return 6
-    if diff > 0:   return 4
-    if diff > -5:  return 2
-    return 0
-
-
-def _bt_score_debt_coverage(ocf: Optional[float], debt: Optional[float], sector: str) -> int:
-    # OCF / total_debt as proxy for EBITDA/debt coverage.
-    sector_median = SECTOR_DEBT_COVERAGE_MEDIANS.get(sector, SECTOR_DEBT_COVERAGE_MEDIANS["Unknown"])
-    if debt is None or debt <= 0:
-        return 8   # effectively debt-free
-    if ocf is None or ocf <= 0:
-        return 0
-    coverage = ocf / debt
-    if sector_median <= 0:
-        return 4
-    ratio = coverage / sector_median
-    if ratio > 2.5:  return 8
-    if ratio > 1.8:  return 7
-    if ratio > 1.2:  return 5
-    if ratio > 0.8:  return 3
-    if ratio > 0.5:  return 1
-    return 0
 
 START = date(2020, 1, 1)
 STARTING_CAPITAL = 6_000.0
@@ -397,7 +327,16 @@ def _fund_metrics_at(
 
     eq   = bs["stockholders_equity"]
     debt = bs["total_debt"]
-    ocf  = cur["operating_cash_flow"]
+
+    # ROE = net_income / stockholders_equity
+    roe = 0.0
+    if cur["net_income"] is not None and eq and eq != 0:
+        roe = cur["net_income"] / abs(eq) * 100
+
+    # D/E = total_debt / stockholders_equity
+    d_e = 2.0  # default: moderately leveraged
+    if debt is not None and eq and eq != 0:
+        d_e = debt / abs(eq)
 
     # Trailing P/E = market_cap_at_cutoff / annual_net_income
     trailing_pe = None
@@ -415,35 +354,34 @@ def _fund_metrics_at(
         "eps_growth":   eps_growth,
         "gross_margin": gross_margin,
         "fcf_yield":    fcf_yield,
-        "ocf":          ocf,
-        "debt":         debt,
+        "roe":          roe,
+        "d_e":          d_e,
         "trailing_pe":  trailing_pe,
     }
 
 
 def _score_trailing_pe(stock_pe: Optional[float], sector_median: Optional[float]) -> int:
-    """Score P/E relative to dynamically-computed sector median for that month."""
+    """Score trailing P/E vs dynamically-computed sector median (mirrors live _score_fwd_pe_vs_sector)."""
     if not stock_pe or stock_pe <= 0 or not sector_median or sector_median <= 0:
-        return 3  # neutral when data is absent
-    if stock_pe < sector_median * 0.90:    # >10% below sector median = cheap
-        return 6
-    if stock_pe <= sector_median * 1.10:   # within ±10% of sector median
-        return 3
-    return 0                               # >10% above = expensive vs peers
+        return 1  # neutral when data is absent
+    if stock_pe < sector_median * 0.85:
+        return 2
+    if stock_pe < sector_median:
+        return 1
+    return 0
 
 
 def _fundamental_score(metrics: dict, sector_median_pe: Optional[float]) -> int:
     if not metrics:
         return 0
-    sector = metrics.get("sector", "Unknown")
     return (
-        _bt_score_rev_growth(metrics["rev_growth"], sector)
-        + _bt_score_eps_growth(metrics["eps_growth"], sector)
-        + _bt_score_fcf_yield(metrics["fcf_yield"], sector)
-        + _score_ev_ebitda_vs_sector(None, 14.0)           # no historical EV/EBITDA data → neutral
-        + _bt_score_ebitda_margin(metrics["gross_margin"], sector)
-        + _bt_score_debt_coverage(metrics.get("ocf"), metrics.get("debt"), sector)
-        + 3                                                 # neutral proxy for analyst rec
+        _score_rev_growth(metrics["rev_growth"])
+        + _score_eps_growth(metrics["eps_growth"])
+        + _score_fcf_yield(metrics["fcf_yield"])
+        + _score_roe(metrics.get("roe", 0.0))
+        + _score_gross_margin(metrics["gross_margin"])
+        + _score_debt_equity(metrics.get("d_e", 2.0))
+        + 3                                              # neutral proxy for analyst rec (no EDGAR data)
         + _score_trailing_pe(metrics["trailing_pe"], sector_median_pe)
     )
 
