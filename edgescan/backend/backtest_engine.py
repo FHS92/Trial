@@ -27,21 +27,91 @@ import yfinance as yf
 
 warnings.filterwarnings("ignore")
 
-from data_fetcher import SP500_TICKERS, get_universe_tickers
+from data_fetcher import (
+    SP500_TICKERS, get_universe_tickers,
+    SECTOR_REV_GROWTH_MEDIANS,
+    SECTOR_EPS_GROWTH_MEDIANS,
+    SECTOR_FCF_YIELD_MEDIANS,
+    SECTOR_EBITDA_MARGIN_MEDIANS,
+    SECTOR_DEBT_COVERAGE_MEDIANS,
+)
 from scanner import (
-    _score_debt_equity,
     _score_distance_from_52w_high,
-    _score_eps_growth,
-    _score_fcf_yield,
-    _score_gross_margin,
     _score_macd,
     _score_price_vs_200ma,
-    _score_rev_growth,
     _score_rsi,
-    _score_roe,
     _score_volume,
+    _score_ev_ebitda_vs_sector,
+    _score_eps_revision,
+    _score_fwd_pe_vs_sector,
 )
 from technicals import _ema, _rsi, _sma
+
+
+# ---------------------------------------------------------------------------
+# Backtest-local fundamental scoring (sector-relative where data permits)
+# ---------------------------------------------------------------------------
+
+def _bt_score_rev_growth(pct: float, sector: str) -> int:
+    median = SECTOR_REV_GROWTH_MEDIANS.get(sector, SECTOR_REV_GROWTH_MEDIANS["Unknown"])
+    diff = pct - median
+    if diff > 10:  return 10
+    if diff > 5:   return 7
+    if diff > 0:   return 4
+    if diff > -5:  return 2
+    return 0
+
+
+def _bt_score_eps_growth(pct: float, sector: str) -> int:
+    median = SECTOR_EPS_GROWTH_MEDIANS.get(sector, SECTOR_EPS_GROWTH_MEDIANS["Unknown"])
+    diff = pct - median
+    if diff > 10:  return 10
+    if diff > 5:   return 7
+    if diff > 0:   return 4
+    if diff > -5:  return 2
+    return 0
+
+
+def _bt_score_fcf_yield(pct: float, sector: str) -> int:
+    median = SECTOR_FCF_YIELD_MEDIANS.get(sector, SECTOR_FCF_YIELD_MEDIANS["Unknown"])
+    diff = pct - median
+    if diff > 3:   return 8
+    if diff > 1:   return 6
+    if diff > 0:   return 4
+    if diff > -1:  return 2
+    return 0
+
+
+def _bt_score_ebitda_margin(gross_margin: float, sector: str) -> int:
+    # Approximation: gross margin as proxy for EBITDA margin vs sector benchmark.
+    # Gross margins run ~15-20 pts higher than EBITDA margins, so we offset the
+    # sector EBITDA benchmarks upward to keep comparisons meaningful.
+    sector_ebitda = SECTOR_EBITDA_MARGIN_MEDIANS.get(sector, SECTOR_EBITDA_MARGIN_MEDIANS["Unknown"])
+    sector_gross_proxy = sector_ebitda + 18.0   # typical gross→EBITDA spread
+    diff = gross_margin - sector_gross_proxy
+    if diff > 10:  return 6
+    if diff > 5:   return 5
+    if diff > 0:   return 3
+    if diff > -5:  return 1
+    return 0
+
+
+def _bt_score_debt_coverage(ocf: Optional[float], debt: Optional[float], sector: str) -> int:
+    # OCF / total_debt as a proxy for EBITDA/debt coverage ratio.
+    sector_median = SECTOR_DEBT_COVERAGE_MEDIANS.get(sector, SECTOR_DEBT_COVERAGE_MEDIANS["Unknown"])
+    if debt is None or debt <= 0:
+        return 6   # effectively debt-free
+    if ocf is None or ocf <= 0:
+        return 0
+    coverage = ocf / debt
+    if sector_median <= 0:
+        return 3
+    ratio = coverage / sector_median
+    if ratio > 2.0:  return 6
+    if ratio > 1.5:  return 5
+    if ratio > 1.0:  return 3
+    if ratio > 0.7:  return 1
+    return 0
 
 START = date(2020, 1, 1)
 STARTING_CAPITAL = 6_000.0
@@ -324,17 +394,9 @@ def _fund_metrics_at(
         if price and shares and price > 0 and shares > 0:
             fcf_yield = fcf / (price * shares) * 100
 
-    # ROE = net_income / equity (most recent balance sheet equity)
-    roe = 0.0
-    eq  = bs["stockholders_equity"]
-    if cur["net_income"] and eq and eq != 0:
-        roe = cur["net_income"] / abs(eq) * 100
-
-    # D/E = total_debt / equity
-    d_e  = 2.0
+    eq   = bs["stockholders_equity"]
     debt = bs["total_debt"]
-    if debt is not None and eq and eq != 0:
-        d_e = debt / abs(eq)
+    ocf  = cur["operating_cash_flow"]
 
     # Trailing P/E = market_cap_at_cutoff / annual_net_income
     trailing_pe = None
@@ -343,7 +405,7 @@ def _fund_metrics_at(
     ni     = cur["net_income"]
     if price and shares and ni and price > 0 and shares > 0 and ni > 0:
         pe = (price * shares) / ni
-        if 0 < pe <= 300:   # discard absurd values (negative or >300x)
+        if 0 < pe <= 300:
             trailing_pe = pe
 
     return {
@@ -352,8 +414,8 @@ def _fund_metrics_at(
         "eps_growth":   eps_growth,
         "gross_margin": gross_margin,
         "fcf_yield":    fcf_yield,
-        "roe":          roe,
-        "d_e":          d_e,
+        "ocf":          ocf,
+        "debt":         debt,
         "trailing_pe":  trailing_pe,
     }
 
@@ -372,14 +434,15 @@ def _score_trailing_pe(stock_pe: Optional[float], sector_median: Optional[float]
 def _fundamental_score(metrics: dict, sector_median_pe: Optional[float]) -> int:
     if not metrics:
         return 0
+    sector = metrics.get("sector", "Unknown")
     return (
-        _score_rev_growth(metrics["rev_growth"])
-        + _score_eps_growth(metrics["eps_growth"])
-        + _score_fcf_yield(metrics["fcf_yield"])
-        + _score_roe(metrics["roe"])
-        + _score_gross_margin(metrics["gross_margin"])
-        + _score_debt_equity(metrics["d_e"])
-        + 3   # neutral proxy for analyst rec (no free historical source)
+        _bt_score_rev_growth(metrics["rev_growth"], sector)
+        + _bt_score_eps_growth(metrics["eps_growth"], sector)
+        + _bt_score_fcf_yield(metrics["fcf_yield"], sector)
+        + _score_ev_ebitda_vs_sector(None, 14.0)           # no historical EV/EBITDA data → neutral
+        + _bt_score_ebitda_margin(metrics["gross_margin"], sector)
+        + _bt_score_debt_coverage(metrics.get("ocf"), metrics.get("debt"), sector)
+        + 3                                                 # neutral proxy for analyst rec
         + _score_trailing_pe(metrics["trailing_pe"], sector_median_pe)
     )
 
