@@ -111,9 +111,13 @@ export default async function ScannerPage({
               <polyline points="7,4 7,7 9,9" />
             </svg>
             <span className="text-xs" style={{ color: '#6b7a99' }}>
-              {lastScannedMinutesAgo == null || lastScannedMinutesAgo > 120
+              {lastScannedMinutesAgo == null 
                 ? 'Scanning now…'
-                : `Last scanned ${lastScannedMinutesAgo}m ago · ${totalScanned} stocks`}
+                : lastScannedMinutesAgo < 120
+                  ? `Last scanned ${lastScannedMinutesAgo}m ago · ${totalScanned} stocks`
+                  : lastScannedMinutesAgo < 1440
+                    ? `Last scanned ${Math.round(lastScannedMinutesAgo / 60)}h ago · ${totalScanned} stocks`
+                    : `Last scanned ${Math.round(lastScannedMinutesAgo / 1440)}d ago · ${totalScanned} stocks`}
             </span>
           </div>
         </div>
