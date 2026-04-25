@@ -115,8 +115,8 @@ class PortfolioHolding(Base):
     added_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("username", "ticker", name="uq_portfolio_username_ticker"),
-        Index("ix_portfolio_username", "username"),
+        UniqueConstraint("profile_id", "ticker", name="uq_portfolio_profile_ticker"),
+        Index("ix_portfolio_profile_id", "profile_id"),
     )
 
 
