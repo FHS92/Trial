@@ -13,6 +13,32 @@ function _token(): string | null {
   return sessionStorage.getItem('edgescan_profile_token')
 }
 
+// ─── Server-side watchlist cache ─────────────────────────────────────────────
+// One fetch per page load shared across all StockRow / WatchStar instances.
+// Falls back to localStorage when there is no session token.
+
+let _serverCache: string[] | null = null
+let _fetchPromise: Promise<string[]> | null = null
+
+export function getServerWatchlist(): Promise<string[]> {
+  if (_serverCache !== null) return Promise.resolve(_serverCache)
+  if (_fetchPromise) return _fetchPromise
+  const token = _token()
+  if (!token) return Promise.resolve(loadWatchlist())
+  _fetchPromise = fetch('/api/watchlist', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then(r => r.ok ? r.json() : { tickers: [] })
+    .then((data: { tickers: string[] }) => {
+      _serverCache = data.tickers ?? []
+      // Keep localStorage in sync so toggleWatchlist stays consistent
+      localStorage.setItem(WL_KEY, JSON.stringify(_serverCache))
+      return _serverCache as string[]
+    })
+    .catch(() => loadWatchlist())
+  return _fetchPromise
+}
+
 // ─── Public helpers (used by WatchStar + other components) ───────────────────
 
 export function loadWatchlist(): string[] {
@@ -29,6 +55,9 @@ export function toggleWatchlist(ticker: string): boolean {
   const exists = list.includes(ticker)
   const next = exists ? list.filter(t => t !== ticker) : [...list, ticker]
   localStorage.setItem(WL_KEY, JSON.stringify(next))
+
+  // Keep module-level cache in sync so subsequent reads are correct
+  if (_serverCache !== null) _serverCache = next
 
   // Fire-and-forget API sync so the change persists server-side
   const token = _token()

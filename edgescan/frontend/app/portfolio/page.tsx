@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { PortfolioHolding, PortfolioSummary } from '@/lib/types'
-
-const STORAGE_KEY = 'edgescan_username'
 
 function slugify(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 40)
@@ -34,14 +33,14 @@ function fmtPct(n: number | null) {
 }
 
 export default function PortfolioPage() {
+  const router = useRouter()
   const [username, setUsername] = useState<string | null>(null)
-  const [nameInput, setNameInput] = useState('')
+  const [profileName, setProfileName] = useState<string>('')
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([])
   const [summary, setSummary] = useState<PortfolioSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Add form state
   const [showForm, setShowForm] = useState(false)
   const [ticker, setTicker] = useState('')
   const [shares, setShares] = useState('')
@@ -49,10 +48,17 @@ export default function PortfolioPage() {
   const [buyDate, setBuyDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  // Derive username from the active profile — no manual entry needed
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) setUsername(saved)
-  }, [])
+    const token = sessionStorage.getItem('edgescan_profile_token')
+    if (!token) {
+      router.replace('/')
+      return
+    }
+    const name = sessionStorage.getItem('edgescan_profile_name') ?? 'default'
+    setProfileName(name)
+    setUsername(slugify(name))
+  }, [router])
 
   const loadPortfolio = useCallback(async (user: string) => {
     setLoading(true)
@@ -71,14 +77,6 @@ export default function PortfolioPage() {
   useEffect(() => {
     if (username) loadPortfolio(username)
   }, [username, loadPortfolio])
-
-  function handleNameSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const slug = slugify(nameInput.trim())
-    if (!slug) return
-    localStorage.setItem(STORAGE_KEY, slug)
-    setUsername(slug)
-  }
 
   async function handleAddHolding(e: React.FormEvent) {
     e.preventDefault()
@@ -102,43 +100,11 @@ export default function PortfolioPage() {
     await loadPortfolio(username)
   }
 
-  // ── Name entry screen ───────────────────────────────────────────────────────
+  // Blank screen while session check is in flight
   if (!username) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: '#080b12' }}>
-        <div className="w-full max-w-sm">
-          <Link href="/" className="flex items-center gap-1 mb-8">
-            <span className="text-base font-bold" style={{ color: '#4f8ef7' }}>Edge</span>
-            <span className="text-base font-bold" style={{ color: '#e2e8f8' }}>Scan</span>
-          </Link>
-          <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>My Portfolio</h1>
-          <p className="text-sm mb-6" style={{ color: '#6b7a99' }}>
-            Enter a name to create or access your portfolio. No password needed — just remember your name.
-          </p>
-          <form onSubmit={handleNameSubmit} className="flex gap-2">
-            <input
-              autoFocus
-              value={nameInput}
-              onChange={e => setNameInput(e.target.value)}
-              placeholder="e.g. eltigre"
-              className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
-              style={{ background: '#131720', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f8' }}
-            />
-            <button
-              type="submit"
-              disabled={!nameInput.trim()}
-              className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity disabled:opacity-40"
-              style={{ background: '#4f8ef7', color: '#fff' }}
-            >
-              Go
-            </button>
-          </form>
-        </div>
-      </div>
-    )
+    return <div style={{ position: 'fixed', inset: 0, background: '#080b12' }} />
   }
 
-  // ── Main portfolio view ─────────────────────────────────────────────────────
   return (
     <div className="min-h-screen" style={{ background: '#080b12' }}>
       {/* Header */}
@@ -154,18 +120,9 @@ export default function PortfolioPage() {
           <span className="text-base font-bold tracking-tight" style={{ color: '#4f8ef7' }}>Edge</span>
           <span className="text-base font-bold tracking-tight" style={{ color: '#e2e8f8' }}>Scan</span>
         </Link>
-        <div className="flex items-center gap-2">
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(79,142,247,0.12)', color: '#4f8ef7' }}>
-            {username}
-          </span>
-          <button
-            onClick={() => { localStorage.removeItem(STORAGE_KEY); setUsername(null); setHoldings([]); setSummary(null) }}
-            className="text-xs px-2 py-1 rounded transition-colors hover:bg-white/[0.06]"
-            style={{ color: '#6b7a99' }}
-          >
-            Switch
-          </button>
-        </div>
+        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(79,142,247,0.12)', color: '#4f8ef7' }}>
+          {profileName}
+        </span>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
@@ -258,7 +215,6 @@ export default function PortfolioPage() {
         {/* Holdings table */}
         {holdings.length > 0 && (
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-            {/* Table header */}
             <div
               className="hidden sm:grid text-xs px-4 py-2"
               style={{
@@ -339,7 +295,6 @@ export default function PortfolioPage() {
           <div className="mt-8 space-y-5">
             <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: '#6b7a99' }}>Risk View</h2>
 
-            {/* Score alerts */}
             {(() => {
               const alerts = holdings.filter(h => h.score !== null && h.score_at_buy !== null && h.score_delta !== null && h.score_delta <= -10)
               return alerts.length > 0 ? (
@@ -357,7 +312,6 @@ export default function PortfolioPage() {
               ) : null
             })()}
 
-            {/* Sector concentration */}
             {(() => {
               const sectorMap: Record<string, number> = {}
               const total = holdings.reduce((sum, h) => sum + (h.current_value ?? h.cost_basis), 0)
@@ -382,7 +336,6 @@ export default function PortfolioPage() {
               ) : null
             })()}
 
-            {/* Avg portfolio score */}
             {(() => {
               const scored = holdings.filter(h => h.score !== null)
               if (scored.length === 0) return null

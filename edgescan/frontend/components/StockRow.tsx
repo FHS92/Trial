@@ -5,7 +5,7 @@ import Link from 'next/link'
 import ScoreRing from './ScoreRing'
 import Sparkline from './Sparkline'
 import type { StockResult, OHLCVBar } from '@/lib/types'
-import { loadWatchlist, toggleWatchlist } from '@/app/watchlist/WatchlistClient'
+import { getServerWatchlist, toggleWatchlist } from '@/app/watchlist/WatchlistClient'
 import { api } from '@/lib/api'
 
 const SECTOR_COLORS: Record<string, string> = {
@@ -47,7 +47,7 @@ export default function StockRow({ stock, rank }: Props) {
       : true
 
   useEffect(() => {
-    setStarred(loadWatchlist().includes(stock.ticker))
+    getServerWatchlist().then(list => setStarred(list.includes(stock.ticker)))
     api.priceHistory(stock.ticker, '1w')
       .then(r => setHistory(r.data))
       .catch(() => {})

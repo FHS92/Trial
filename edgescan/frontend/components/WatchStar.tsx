@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { loadWatchlist, toggleWatchlist } from '@/app/watchlist/WatchlistClient'
+import { getServerWatchlist, loadWatchlist, toggleWatchlist } from '@/app/watchlist/WatchlistClient'
 
 interface Props {
   ticker: string
@@ -10,11 +10,13 @@ interface Props {
 export default function WatchStar({ ticker }: Props) {
   const [starred, setStarred] = useState(false)
 
+  // Initial state comes from the server so it reflects the active profile,
+  // not whatever another profile may have left in localStorage.
   useEffect(() => {
-    setStarred(loadWatchlist().includes(ticker))
+    getServerWatchlist().then(list => setStarred(list.includes(ticker)))
   }, [ticker])
 
-  // Sync when DetailPanel's internal Watch button (or another tab) changes localStorage
+  // Keep in sync when toggleWatchlist updates localStorage on this page
   useEffect(() => {
     function onStorage() {
       setStarred(loadWatchlist().includes(ticker))
@@ -30,7 +32,6 @@ export default function WatchStar({ ticker }: Props) {
   const handleClick = useCallback(() => {
     const next = toggleWatchlist(ticker)
     setStarred(next)
-    // Notify sibling client components (e.g. DetailPanel) on the same page
     window.dispatchEvent(new Event('edgescan:watchlist'))
   }, [ticker])
 
