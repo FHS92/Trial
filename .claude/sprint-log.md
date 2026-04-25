@@ -7,6 +7,14 @@ Each sprint entry is written by the sprint coordinator after all 4 agents comple
 <!-- Sprint entries will be prepended here by the /sprint command -->
 
 ---
+## Sprint 6 — 2026-04-25
+**Feature:** Multi-Profile System
+**Discovered via:** Alex (user workshop) — shared-device collision (Alex + Priya on same iPad), cross-device data loss via localStorage, PIN privacy request
+**Coder commits:** a4f3a52 (frontend picker/modals/auth), ea96232 (QA fixes: AuthGuard flash + portfolio unique constraint), ac7d785 (server-side watchlist)
+**QA verdict:** SHIP IT — all acceptance criteria passed after fixes; watchlist fully migrated to server-side
+**What shipped:** Users select a named profile (with optional PIN) on every fresh load; watchlists and portfolios are stored in the database, scoped per profile, and persist across devices and sessions
+
+---
 ## Sprint 5 — 2026-04-23
 **Feature:** WatchStar on stock detail page
 **Discovered via:** Alex (AI user workshop)

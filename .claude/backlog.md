@@ -184,6 +184,11 @@ Promote it to a more visible sticky banner with a refresh icon.
 
 ## ✅ DONE
 
+### Sprint 6 — 2026-04-25: Multi-Profile System — DONE
+
+Netflix-style profile picker replaces the landing page. Profiles stored server-side with optional PIN, all watchlist/portfolio data scoped per profile, persists across devices.
+Commits: `a4f3a52`, `ea96232`, `ac7d785`
+
 ### Sprint 2 — 2026-04-23: Watchlist nav + touch target + empty-state copy fixes
 
 **[READY-1] Watchlist nav entry + star UX polish (three fixes bundled) — completed Sprint 2 (2026-04-23)**

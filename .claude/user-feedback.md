@@ -4,6 +4,21 @@ Written by the User Tester agent after each sprint. The PM agent reads this at t
 
 ---
 
+## 2026-04-25 — Sprint 6 Workshop (Alex)
+**Pain points raised:**
+- Watchlist lost when switching between phone and laptop (localStorage is device-local)
+- Alex and Priya share an iPad — watchlists and portfolios bleeding into each other
+- Want optional PIN per profile for decision-making privacy
+- Score explanation still a "black box" — parked for a future sprint
+
+**Features considered:**
+- A. Multi-profile system (Netflix-style picker, server-side storage, optional PIN) — effort: L
+- B. Score explanation panel (top reason sentence) — effort: L (parked)
+
+**Built:** Multi-profile system (Feature A)
+
+---
+
 ## 2026-04-23 — Sprint 5 Workshop (Alex)
 **Pain points raised:**
 - No star/save button on stock detail page (primary blocker — Search is >50% of entry points)
