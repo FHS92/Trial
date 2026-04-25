@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 
 const PRIMARY_NAV = [
   {
@@ -120,7 +120,20 @@ const MORE_NAV = [
 
 export default function BottomNav() {
   const pathname = usePathname()
+  const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [profileName, setProfileName] = useState<string | null>(null)
+
+  useEffect(() => {
+    setProfileName(sessionStorage.getItem('edgescan_profile_name'))
+  }, [])
+
+  function handleSwitchProfile() {
+    sessionStorage.removeItem('edgescan_profile_token')
+    sessionStorage.removeItem('edgescan_profile_name')
+    setOpen(false)
+    router.push('/')
+  }
 
   const moreActive = MORE_NAV.some(n => pathname === n.href)
 
@@ -149,7 +162,17 @@ export default function BottomNav() {
         }}
       >
         <div className="flex items-center justify-between mb-4 px-1">
-          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#4a556b' }}>More</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#4a556b' }}>More</span>
+            {profileName && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(79,142,247,0.12)', color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.2)' }}
+              >
+                {profileName}
+              </span>
+            )}
+          </div>
           <button
             onClick={() => setOpen(false)}
             className="w-6 h-6 flex items-center justify-center rounded-full transition-colors"
@@ -180,6 +203,22 @@ export default function BottomNav() {
               </Link>
             )
           })}
+          {/* Switch Profile */}
+          <button
+            onClick={handleSwitchProfile}
+            className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl transition-colors"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              color: '#8492aa',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} style={{ color: '#8492aa' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span className="text-[10px] font-medium leading-tight text-center">Switch Profile</span>
+          </button>
         </div>
       </div>
 

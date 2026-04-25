@@ -900,7 +900,11 @@ def get_portfolio(username: str, authorization: str = Header(default=""), db: Se
 
 
 @app.post("/api/portfolio/{username}")
-def upsert_holding(username: str, holding: HoldingIn, db: Session = Depends(get_db)):
+def upsert_holding(username: str, holding: HoldingIn, authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+
     username = _slugify(username)
     if not username:
         raise HTTPException(status_code=400, detail="Invalid username")
@@ -918,7 +922,7 @@ def upsert_holding(username: str, holding: HoldingIn, db: Session = Depends(get_
 
     existing = (
         db.query(PortfolioHolding)
-        .filter(PortfolioHolding.username == username, PortfolioHolding.ticker == ticker)
+        .filter(PortfolioHolding.profile_id == profile_id, PortfolioHolding.ticker == ticker)
         .first()
     )
     if existing:
@@ -930,6 +934,7 @@ def upsert_holding(username: str, holding: HoldingIn, db: Session = Depends(get_
     else:
         db.add(PortfolioHolding(
             username=username,
+            profile_id=profile_id,
             ticker=ticker,
             shares=holding.shares,
             buy_price=holding.buy_price,
@@ -941,12 +946,16 @@ def upsert_holding(username: str, holding: HoldingIn, db: Session = Depends(get_
 
 
 @app.delete("/api/portfolio/{username}/{ticker}")
-def delete_holding(username: str, ticker: str, db: Session = Depends(get_db)):
+def delete_holding(username: str, ticker: str, authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+
     username = _slugify(username)
     ticker = ticker.upper().strip()
     row = (
         db.query(PortfolioHolding)
-        .filter(PortfolioHolding.username == username, PortfolioHolding.ticker == ticker)
+        .filter(PortfolioHolding.profile_id == profile_id, PortfolioHolding.ticker == ticker)
         .first()
     )
     if not row:

@@ -1,47 +1,79 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Universe, UNIVERSE_LABELS } from '@/hooks/useUniverse'
+import PinModal from '@/components/PinModal'
+import NewProfileModal from '@/components/NewProfileModal'
 
-const UNIVERSES: {
-  value: Universe
-  label: string
-  subtitle: string
-  stats: { label: string; value: string }[]
-  accent: string
-  desc: string
-}[] = [
-  {
-    value: 'sp500',
-    label: 'S&P 500',
-    subtitle: 'Large-cap U.S. leaders',
-    accent: '#4f8ef7',
-    desc: 'The 500 largest publicly traded U.S. companies by market cap. Represents ~80% of total U.S. market value.',
-    stats: [
-      { label: 'Companies', value: '504' },
-      { label: 'Market cap', value: '~$44T' },
-      { label: 'Avg score data', value: 'Deep' },
-    ],
-  },
-  {
-    value: 'russell',
-    label: 'Russell 1000',
-    subtitle: 'Large + mid-cap coverage',
-    accent: '#a78bfa',
-    desc: 'The top 1,000 U.S. companies by market cap. Adds ~500 mid-cap names beyond the S&P 500 for broader coverage.',
-    stats: [
-      { label: 'Companies', value: '1,000' },
-      { label: 'Market cap', value: '~$47T' },
-      { label: 'Avg score data', value: 'Broader' },
-    ],
-  },
-]
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
-export default function UniverseSelectPage() {
+interface Profile {
+  id: string
+  name: string
+  avatarColour: string
+  hasPin: boolean
+  createdAt: string | null
+}
+
+export default function ProfilePickerPage() {
   const router = useRouter()
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [loading, setLoading] = useState(true)
+  const [pinProfile, setPinProfile] = useState<Profile | null>(null)
+  const [showNew, setShowNew] = useState(false)
 
-  function pick(u: Universe) {
-    localStorage.setItem('edgescan_universe', u)
+  async function fetchProfiles() {
+    try {
+      const res = await fetch(`${BASE}/api/profiles`, { cache: 'no-store' })
+      if (res.ok) {
+        const data: Profile[] = await res.json()
+        setProfiles(data)
+      }
+    } catch {
+      // backend may not be running locally
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchProfiles()
+  }, [])
+
+  async function unlockProfile(profile: Profile) {
+    if (profile.hasPin) {
+      setPinProfile(profile)
+      return
+    }
+    // No PIN — unlock directly
+    try {
+      const res = await fetch(`${BASE}/api/profiles/${profile.id}/unlock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        sessionStorage.setItem('edgescan_profile_token', data.token)
+        sessionStorage.setItem('edgescan_profile_name', profile.name)
+        router.push('/scanner')
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  function handlePinSuccess(token: string, profileName: string) {
+    sessionStorage.setItem('edgescan_profile_token', token)
+    sessionStorage.setItem('edgescan_profile_name', profileName)
+    setPinProfile(null)
+    router.push('/scanner')
+  }
+
+  function handleNewProfileSuccess(token: string, profileName: string) {
+    sessionStorage.setItem('edgescan_profile_token', token)
+    sessionStorage.setItem('edgescan_profile_name', profileName)
+    setShowNew(false)
     router.push('/scanner')
   }
 
@@ -57,78 +89,116 @@ export default function UniverseSelectPage() {
           <span className="text-3xl font-bold tracking-tight" style={{ color: '#e2e8f8' }}>Scan</span>
         </div>
         <p className="text-sm" style={{ color: '#6b7a99' }}>
-          Technical + Fundamental scoring · Jan 2020 model · Top picks monthly rotation
+          Select your profile to continue
         </p>
       </div>
 
-      <p className="text-base font-semibold mb-6" style={{ color: '#e2e8f8' }}>
-        Select your universe to begin
-      </p>
+      {loading ? (
+        <div className="flex items-center gap-2" style={{ color: '#6b7a99' }}>
+          <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+          </svg>
+          <span className="text-sm">Loading profiles…</span>
+        </div>
+      ) : (
+        <div className="flex flex-wrap justify-center gap-4 max-w-2xl w-full">
+          {profiles.map(profile => (
+            <button
+              key={profile.id}
+              onClick={() => unlockProfile(profile)}
+              className="flex flex-col items-center gap-3 p-5 rounded-2xl transition-all hover:scale-[1.04] active:scale-[0.97]"
+              style={{
+                background: '#0f1521',
+                border: '1px solid rgba(255,255,255,0.08)',
+                width: '130px',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.border = `1px solid ${profile.avatarColour}55`
+                ;(e.currentTarget as HTMLElement).style.boxShadow = `0 0 24px ${profile.avatarColour}22`
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.border = '1px solid rgba(255,255,255,0.08)'
+                ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
+              }}
+            >
+              {/* Avatar circle */}
+              <div
+                className="relative flex items-center justify-center rounded-full text-xl font-bold"
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  background: profile.avatarColour,
+                  color: '#fff',
+                  flexShrink: 0,
+                }}
+              >
+                {profile.name.charAt(0).toUpperCase()}
+                {profile.hasPin && (
+                  <span
+                    className="absolute -bottom-1 -right-1 flex items-center justify-center rounded-full"
+                    style={{ width: '20px', height: '20px', background: '#1a2035', border: '1px solid rgba(255,255,255,0.12)' }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" strokeWidth={2.5}>
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+                  </span>
+                )}
+              </div>
+              <span className="text-sm font-semibold text-center truncate w-full" style={{ color: '#e2e8f8' }}>
+                {profile.name}
+              </span>
+            </button>
+          ))}
 
-      {/* Universe cards */}
-      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl">
-        {UNIVERSES.map(u => (
+          {/* New Profile card */}
           <button
-            key={u.value}
-            onClick={() => pick(u.value)}
-            className="flex-1 text-left rounded-2xl p-6 transition-all hover:scale-[1.02] active:scale-[0.99]"
+            onClick={() => setShowNew(true)}
+            className="flex flex-col items-center gap-3 p-5 rounded-2xl transition-all hover:scale-[1.04] active:scale-[0.97]"
             style={{
               background: '#0f1521',
-              border: `1px solid rgba(255,255,255,0.08)`,
+              border: '1px dashed rgba(255,255,255,0.15)',
+              width: '130px',
               cursor: 'pointer',
             }}
             onMouseEnter={e => {
-              ;(e.currentTarget as HTMLElement).style.border = `1px solid ${u.accent}55`
-              ;(e.currentTarget as HTMLElement).style.background = `rgba(15,21,33,1)`
-              ;(e.currentTarget as HTMLElement).style.boxShadow = `0 0 32px ${u.accent}22`
+              (e.currentTarget as HTMLElement).style.border = '1px dashed rgba(79,142,247,0.5)'
             }}
             onMouseLeave={e => {
-              ;(e.currentTarget as HTMLElement).style.border = `1px solid rgba(255,255,255,0.08)`
-              ;(e.currentTarget as HTMLElement).style.background = '#0f1521'
-              ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
+              (e.currentTarget as HTMLElement).style.border = '1px dashed rgba(255,255,255,0.15)'
             }}
           >
-            {/* Header */}
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <p className="text-xl font-bold" style={{ color: u.accent }}>{u.label}</p>
-                <p className="text-sm mt-0.5" style={{ color: '#6b7a99' }}>{u.subtitle}</p>
-              </div>
-              <svg
-                width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke={u.accent} strokeWidth={2} className="mt-1 flex-shrink-0"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            <div
+              className="flex items-center justify-center rounded-full"
+              style={{ width: '56px', height: '56px', background: 'rgba(79,142,247,0.1)', border: '1px solid rgba(79,142,247,0.25)' }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" strokeWidth={2}>
+                <path strokeLinecap="round" d="M12 4v16M4 12h16" />
               </svg>
             </div>
-
-            {/* Description */}
-            <p className="text-xs mb-4 leading-relaxed" style={{ color: '#8492aa' }}>{u.desc}</p>
-
-            {/* Stats */}
-            <div className="flex gap-4">
-              {u.stats.map(s => (
-                <div key={s.label}>
-                  <p className="text-xs font-bold" style={{ color: '#e2e8f8' }}>{s.value}</p>
-                  <p className="text-[10px]" style={{ color: '#6b7a99' }}>{s.label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* CTA */}
-            <div
-              className="mt-5 text-xs font-semibold px-3 py-1.5 rounded-lg text-center"
-              style={{ background: `${u.accent}18`, color: u.accent, border: `1px solid ${u.accent}30` }}
-            >
-              Launch {UNIVERSE_LABELS[u.value]} →
-            </div>
+            <span className="text-sm font-semibold" style={{ color: '#4f8ef7' }}>New Profile</span>
           </button>
-        ))}
-      </div>
+        </div>
+      )}
 
-      <p className="mt-8 text-xs text-center" style={{ color: '#3a4259' }}>
-        You can switch universes at any time from within the app
-      </p>
+      {/* PIN Modal */}
+      {pinProfile && (
+        <PinModal
+          profileId={pinProfile.id}
+          profileName={pinProfile.name}
+          onSuccess={(token) => handlePinSuccess(token, pinProfile.name)}
+          onClose={() => setPinProfile(null)}
+        />
+      )}
+
+      {/* New Profile Modal */}
+      {showNew && (
+        <NewProfileModal
+          onSuccess={handleNewProfileSuccess}
+          onClose={() => setShowNew(false)}
+        />
+      )}
     </div>
   )
 }

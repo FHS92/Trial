@@ -45,24 +45,8 @@ SP500_TICKERS = [
     "PLD", "AMT", "CCI", "EQIX", "O", "PSA", "SPG", "WELL", "DLR", "VICI",
 ]
 
-# Russell 1000 extension — mid-cap names outside the S&P 500
-RUSSELL_EXT_TICKERS: list[str] = [
-    "ACHC","ACIW","ADMA","AEO","AGIO","AGYS","AIT","ALEX","ALGT","ALKS",
-    "AMBA","AMEH","AMKR","ANET","ANGI","ANF","APLE","ARCH","ARLO","ARWR",
-    "ASTH","ATI","ATKR","AVAV","AVNT","AXNX","AZEK","BANF","BCRX","BDC",
-    "BECN","BFAM","BHF","BHLB","BJRI","BLDR","BLKB","BLD","BMRN","BOOT",
-    "BRBR","BRC","BRSP","BRP","BRX","BSIG","BSM","BURL","BWA","CACC",
-    "CABO","CAKE","CARG","CASH","CATC","CBRL","CBU","CCCS","CCOI","CDAY",
-    "CDP","CENTA","CERT","CHCO","CHX","CIR","CLFD","CLH","CLVT","CMCO",
-    "CMPR","CNA","CNXC","COLB","CONE","COOP","CORE","COUR","CPRI","CPRX",
-    "CRVL","CSGP","CSVI","CTKB","CVBF","CVCO","CWT","DXPE","ECVT","EFC",
-    "EGP","ELME","ENS","EPRT","ESRT","EVRI","EXPO","FBNC","FCNCA","FELE",
-]
-
 def get_universe_tickers(universe: str) -> list[str]:
     """Return the ticker list for the given universe."""
-    if universe == "russell":
-        return SP500_TICKERS + RUSSELL_EXT_TICKERS
     return SP500_TICKERS
 
 # ---------------------------------------------------------------------------

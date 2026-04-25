@@ -14,8 +14,17 @@ import type {
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { cache: 'no-store' })
+function authHeaders(): HeadersInit {
+  if (typeof window === 'undefined') return {}
+  const token = sessionStorage.getItem('edgescan_profile_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+async function get<T>(path: string, extraHeaders?: HeadersInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    cache: 'no-store',
+    headers: { ...extraHeaders },
+  })
   if (!res.ok) {
     throw new Error(`API ${path} → ${res.status} ${res.statusText}`)
   }
@@ -46,13 +55,16 @@ export const api = {
   },
 
   portfolio(username: string): Promise<PortfolioResponse> {
-    return get<PortfolioResponse>(`/api/portfolio/${encodeURIComponent(username)}`)
+    return get<PortfolioResponse>(
+      `/api/portfolio/${encodeURIComponent(username)}`,
+      authHeaders(),
+    )
   },
 
   addHolding(username: string, ticker: string, shares: number, buyPrice: number, buyDate?: string): Promise<{ status: string; ticker: string }> {
     return fetch(`${BASE}/api/portfolio/${encodeURIComponent(username)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ ticker, shares, buy_price: buyPrice, buy_date: buyDate ?? null }),
       cache: 'no-store',
     }).then(r => r.json())
@@ -61,6 +73,7 @@ export const api = {
   deleteHolding(username: string, ticker: string): Promise<{ status: string; ticker: string }> {
     return fetch(`${BASE}/api/portfolio/${encodeURIComponent(username)}/${encodeURIComponent(ticker)}`, {
       method: 'DELETE',
+      headers: { ...authHeaders() },
       cache: 'no-store',
     }).then(r => r.json())
   },
