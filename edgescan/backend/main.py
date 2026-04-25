@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db, init_db, SessionLocal
 from data_fetcher import SP500_TICKERS, fetch_fundamentals, fetch_price_history
-from models import BacktestRun, PriceHistory, PortfolioHolding, Profile, ScanResult, ThesisCache
+from models import BacktestRun, PriceHistory, PortfolioHolding, Profile, ScanResult, ThesisCache, WatchlistItem
 from scanner import scan_tickers, score_stock
 from thesis_generator import generate_thesis
 from analytics import get_sector_heatmap, get_rebalance_suggestions
@@ -797,6 +797,52 @@ import re as _re
 def _slugify(name: str) -> str:
     return _re.sub(r"[^a-z0-9_-]", "", name.lower().replace(" ", "-"))[:40]
 
+
+# ---------------------------------------------------------------------------
+# Watchlist endpoints (profile-scoped, Bearer-token-gated)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/watchlist")
+def get_watchlist(authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+    rows = db.query(WatchlistItem).filter(WatchlistItem.profile_id == profile_id).all()
+    return {"tickers": [r.ticker for r in rows]}
+
+
+@app.post("/api/watchlist/{ticker}", status_code=201)
+def add_to_watchlist(ticker: str, authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+    ticker = ticker.upper().strip()
+    existing = db.query(WatchlistItem).filter(
+        WatchlistItem.profile_id == profile_id,
+        WatchlistItem.ticker == ticker,
+    ).first()
+    if not existing:
+        db.add(WatchlistItem(profile_id=profile_id, ticker=ticker))
+        db.commit()
+    return {"ticker": ticker}
+
+
+@app.delete("/api/watchlist/{ticker}", status_code=204)
+def remove_from_watchlist(ticker: str, authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+    ticker = ticker.upper().strip()
+    db.query(WatchlistItem).filter(
+        WatchlistItem.profile_id == profile_id,
+        WatchlistItem.ticker == ticker,
+    ).delete()
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Portfolio endpoints
+# ---------------------------------------------------------------------------
 
 class HoldingIn(BaseModel):
     ticker: str

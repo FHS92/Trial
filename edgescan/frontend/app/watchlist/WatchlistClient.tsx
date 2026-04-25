@@ -8,6 +8,13 @@ import type { StockResult } from '@/lib/types'
 
 const WL_KEY = 'edgescan_watchlist'
 
+function _token(): string | null {
+  if (typeof window === 'undefined') return null
+  return sessionStorage.getItem('edgescan_profile_token')
+}
+
+// ─── Public helpers (used by WatchStar + other components) ───────────────────
+
 export function loadWatchlist(): string[] {
   if (typeof window === 'undefined') return []
   try {
@@ -22,7 +29,17 @@ export function toggleWatchlist(ticker: string): boolean {
   const exists = list.includes(ticker)
   const next = exists ? list.filter(t => t !== ticker) : [...list, ticker]
   localStorage.setItem(WL_KEY, JSON.stringify(next))
-  return !exists // returns new state (true = added)
+
+  // Fire-and-forget API sync so the change persists server-side
+  const token = _token()
+  if (token) {
+    fetch(`/api/watchlist/${ticker}`, {
+      method: exists ? 'DELETE' : 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {})
+  }
+
+  return !exists
 }
 
 // ─── WatchlistCard ────────────────────────────────────────────────────────────
@@ -84,8 +101,24 @@ export default function WatchlistClient() {
   const [addInput, setAddInput] = useState('')
   const [searchResults, setSearchResults] = useState<string[]>([])
 
+  // On mount: load from API (source of truth), sync to localStorage cache
   useEffect(() => {
-    setTickers(loadWatchlist())
+    const token = _token()
+    if (token) {
+      fetch('/api/watchlist', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => {
+          if (!r.ok) throw new Error('not ok')
+          return r.json()
+        })
+        .then((data: { tickers: string[] }) => {
+          const apiTickers = data.tickers ?? []
+          localStorage.setItem(WL_KEY, JSON.stringify(apiTickers))
+          setTickers(apiTickers)
+        })
+        .catch(() => setTickers(loadWatchlist()))
+    } else {
+      setTickers(loadWatchlist())
+    }
   }, [])
 
   // Fetch stock data for tickers we don't have yet
@@ -102,13 +135,13 @@ export default function WatchlistClient() {
 
   function remove(ticker: string) {
     toggleWatchlist(ticker)
-    setTickers(loadWatchlist())
+    setTickers(prev => prev.filter(t => t !== ticker))
   }
 
   function add(ticker: string) {
     if (!tickers.includes(ticker)) {
       toggleWatchlist(ticker)
-      setTickers(loadWatchlist())
+      setTickers(prev => [...prev, ticker])
     }
     setAddInput('')
     setSearchResults([])

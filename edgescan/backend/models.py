@@ -101,6 +101,19 @@ class ThesisCache(Base):
         return f"<ThesisCache ticker={self.ticker} generated_at={self.generated_at}>"
 
 
+class WatchlistItem(Base):
+    __tablename__ = "watchlist_items"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    profile_id = Column(String, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    ticker     = Column(String(10), nullable=False)
+    added_at   = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("profile_id", "ticker", name="uq_watchlist_profile_ticker"),
+    )
+
+
 class PortfolioHolding(Base):
     __tablename__ = "portfolio_holdings"
 

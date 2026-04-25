@@ -99,6 +99,18 @@ def _run_migrations() -> None:
                 ))
                 conn.commit()
 
+                # Watchlist items table
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS watchlist_items (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+                        ticker TEXT NOT NULL,
+                        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(profile_id, ticker)
+                    )
+                """))
+                conn.commit()
+
             else:
                 conn.execute(text("""
                     DO $$
@@ -150,6 +162,18 @@ def _run_migrations() -> None:
                 conn.execute(text(
                     "UPDATE portfolio_holdings SET profile_id = 'default' WHERE profile_id IS NULL"
                 ))
+                conn.commit()
+
+                # Watchlist items table (PostgreSQL)
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS watchlist_items (
+                        id SERIAL PRIMARY KEY,
+                        profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+                        ticker VARCHAR(10) NOT NULL,
+                        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(profile_id, ticker)
+                    )
+                """))
                 conn.commit()
 
     except Exception as e:
