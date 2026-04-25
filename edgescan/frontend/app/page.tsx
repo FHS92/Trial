@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import PinModal from '@/components/PinModal'
 import NewProfileModal from '@/components/NewProfileModal'
 
@@ -181,6 +182,17 @@ export default function ProfilePickerPage() {
           </button>
         </div>
       )}
+
+      {/* How it works link */}
+      <div className="mt-10">
+        <Link
+          href="/about"
+          className="text-xs transition-colors hover:opacity-80"
+          style={{ color: '#3a4259' }}
+        >
+          How EdgeScan works →
+        </Link>
+      </div>
 
       {/* PIN Modal */}
       {pinProfile && (

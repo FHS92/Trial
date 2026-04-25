@@ -154,6 +154,8 @@ Promote it to a more visible sticky banner with a refresh icon.
 
 ## 🟡 BACKLOG (not yet refined — PM should refine before marking READY)
 
+- **EGX30 universe** — same scanner/watchlist/portfolio/backtest experience for the Egyptian Exchange 30. yfinance supports `.CA` suffix tickers. Degraded fields expected: analyst price targets, forward P/E (sparse coverage). New complexity: EGP currency label in UI, SPY benchmark swap for backtest. Scope: new ticker list in `data_fetcher.py`, new universe option in frontend, currency indicator in StockRow. Decision needed: separate tab vs. separate section.
+
 - One-tap refresh for a single stock: on the stock detail page, add a "Refresh" button that
   re-fetches `GET /api/stock/{ticker}` with a cache-bust query param. Backend already rescores
   on cache miss; `api.stock(ticker)` in `lib/api.ts` is the call to reuse.
