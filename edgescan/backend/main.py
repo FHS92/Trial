@@ -648,8 +648,14 @@ def score_history(ticker: str, db: Session = Depends(get_db)):
 
 @app.get("/api/earnings-calendar")
 def earnings_calendar(db: Session = Depends(get_db)):
-    today = date.today()
-    cutoff = today + timedelta(days=45)
+    # Use the most recent scan timestamp as the reference date.
+    # yfinance returns real-world calendar dates; using date.today() breaks
+    # when the system clock is ahead of the real-world data source.
+    latest_scan_ts = db.query(func.max(ScanResult.scanned_at)).scalar()
+    if latest_scan_ts is None:
+        return {"earnings": []}
+    ref_date = latest_scan_ts.date()
+    cutoff = ref_date + timedelta(days=45)
 
     latest_subq = (
         db.query(ScanResult.ticker, func.max(ScanResult.scanned_at).label("latest"))
@@ -661,7 +667,7 @@ def earnings_calendar(db: Session = Depends(get_db)):
         .join(latest_subq, (ScanResult.ticker == latest_subq.c.ticker) & (ScanResult.scanned_at == latest_subq.c.latest))
         .filter(
             ScanResult.earnings_date.isnot(None),
-            ScanResult.earnings_date >= today,
+            ScanResult.earnings_date >= ref_date,
             ScanResult.earnings_date <= cutoff,
         )
         .order_by(ScanResult.earnings_date.asc())
