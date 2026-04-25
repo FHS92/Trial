@@ -154,7 +154,7 @@ Promote it to a more visible sticky banner with a refresh icon.
 
 ## 🟡 BACKLOG (not yet refined — PM should refine before marking READY)
 
-- **EGX30 universe** — same scanner/watchlist/portfolio/backtest experience for the Egyptian Exchange 30. yfinance supports `.CA` suffix tickers. Degraded fields expected: analyst price targets, forward P/E (sparse coverage). New complexity: EGP currency label in UI, SPY benchmark swap for backtest. Scope: new ticker list in `data_fetcher.py`, new universe option in frontend, currency indicator in StockRow. Decision needed: separate tab vs. separate section.
+- **Portfolio Monte Carlo simulator** — on the Portfolio page, run 1,000 simulated price paths forward 252 trading days using each holding's historical volatility and drift. Render a probability fan chart (median, 10th/90th percentile bands) and surface a single "80% chance above $X in 12 months" number. Backend endpoint `POST /api/portfolio/simulate`; simulation math uses numpy (already installed). Decision needed: confidence interval bands to show, time horizon options. — same scanner/watchlist/portfolio/backtest experience for the Egyptian Exchange 30. yfinance supports `.CA` suffix tickers. Degraded fields expected: analyst price targets, forward P/E (sparse coverage). New complexity: EGP currency label in UI, SPY benchmark swap for backtest. Scope: new ticker list in `data_fetcher.py`, new universe option in frontend, currency indicator in StockRow. Decision needed: separate tab vs. separate section.
 
 - One-tap refresh for a single stock: on the stock detail page, add a "Refresh" button that
   re-fetches `GET /api/stock/{ticker}` with a cache-bust query param. Backend already rescores

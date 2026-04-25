@@ -1097,6 +1097,159 @@ def latest_backtest(hold_months: int = 1, universe: str = "sp500", db: Session =
 
 
 # ---------------------------------------------------------------------------
+# Monte Carlo — stock return distribution
+# ---------------------------------------------------------------------------
+
+@app.get("/api/stock/{ticker}/monte-carlo")
+def stock_monte_carlo(
+    ticker: str,
+    horizon: int = Query(default=30, ge=5, le=252),
+    n_sims: int = Query(default=1000, ge=100, le=5000),
+    db: Session = Depends(get_db),
+):
+    """
+    Monte Carlo return distribution for a single stock.
+    Uses stored 1-year price history to estimate daily drift + volatility,
+    then runs n_sims geometric Brownian motion paths over horizon trading days.
+    """
+    import numpy as np
+
+    ticker = ticker.upper().strip()
+
+    start = date.today() - timedelta(days=400)
+    rows = (
+        db.query(PriceHistory)
+        .filter(PriceHistory.ticker == ticker, PriceHistory.date >= start)
+        .order_by(PriceHistory.date.asc())
+        .all()
+    )
+
+    if not rows:
+        _store_price_history(ticker, db)
+        rows = (
+            db.query(PriceHistory)
+            .filter(PriceHistory.ticker == ticker, PriceHistory.date >= start)
+            .order_by(PriceHistory.date.asc())
+            .all()
+        )
+
+    if len(rows) < 30:
+        raise HTTPException(status_code=404, detail=f"Insufficient price history for {ticker}")
+
+    closes = np.array([r.close for r in rows], dtype=float)
+    log_returns = np.diff(np.log(closes))
+    mu = float(log_returns.mean())
+    sigma = float(log_returns.std())
+    current_price = float(closes[-1])
+
+    rng = np.random.default_rng()
+    daily_log_rets = rng.normal(mu, sigma, (n_sims, horizon))
+    final_log_rets = daily_log_rets.sum(axis=1)
+    final_prices = current_price * np.exp(final_log_rets)
+    returns_pct = (final_prices - current_price) / current_price * 100.0
+
+    percentiles = [5, 25, 50, 75, 95]
+    pct_values = np.percentile(returns_pct, percentiles)
+    hist_counts, hist_edges = np.histogram(returns_pct, bins=40)
+
+    return {
+        "ticker": ticker,
+        "current_price": round(current_price, 2),
+        "horizon_days": horizon,
+        "n_simulations": n_sims,
+        "daily_vol_pct": round(sigma * 100, 3),
+        "percentiles": {str(p): round(float(v), 2) for p, v in zip(percentiles, pct_values)},
+        "prob_positive": round(float((returns_pct > 0).mean() * 100), 1),
+        "prob_gain_10": round(float((returns_pct > 10).mean() * 100), 1),
+        "prob_loss_10": round(float((returns_pct < -10).mean() * 100), 1),
+        "histogram": {
+            "counts": hist_counts.tolist(),
+            "edges": [round(float(e), 2) for e in hist_edges.tolist()],
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Monte Carlo — backtest robustness (bootstrap)
+# ---------------------------------------------------------------------------
+
+@app.post("/api/backtest/robustness")
+def backtest_robustness(
+    hold_months: int = Query(default=1),
+    n_runs: int = Query(default=500, ge=100, le=2000),
+    db: Session = Depends(get_db),
+):
+    """
+    Bootstrap the most recent stored backtest to assess result robustness.
+    Resamples the N monthly returns with replacement n_runs times and
+    reports the distribution of compounded total returns. If the actual
+    result sits near the median of the bootstrap distribution the strategy
+    is robust; if it sits in the top tail the result may be path-dependent.
+    """
+    import numpy as np
+
+    rows = db.query(BacktestRun).order_by(BacktestRun.run_at.desc()).limit(20).all()
+    target = None
+    for row in rows:
+        parsed = _parse_backtest_row(row)
+        if parsed["summary"]["hold_months"] == hold_months:
+            target = parsed
+            break
+
+    if not target:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No {hold_months}-month backtest stored. Run the backtest first.",
+        )
+
+    monthly = target["monthly"]
+    if not monthly:
+        raise HTTPException(status_code=400, detail="Stored backtest has no monthly data.")
+
+    port_rets = np.array([m["port_return_pct"] / 100.0 for m in monthly])
+    spy_rets  = np.array([(m.get("spy_return_pct") or 0) / 100.0 for m in monthly])
+    n_months  = len(port_rets)
+
+    rng = np.random.default_rng()
+    sim_rets: list[float] = []
+    beat_count = 0
+
+    for _ in range(n_runs):
+        idx       = rng.integers(0, n_months, size=n_months)
+        total_ret = (np.prod(1 + port_rets[idx]) - 1) * 100.0
+        spy_total = (np.prod(1 + spy_rets[idx]) - 1) * 100.0
+        sim_rets.append(float(total_ret))
+        if total_ret > spy_total:
+            beat_count += 1
+
+    sim_arr   = np.array(sim_rets)
+    pct_vals  = np.percentile(sim_arr, [5, 25, 50, 75, 95])
+    h_counts, h_edges = np.histogram(sim_arr, bins=30)
+
+    original_ret = target["summary"]["total_return_pct"]
+    # Percentile rank of the actual result in the bootstrap distribution
+    actual_rank = float((sim_arr <= original_ret).mean() * 100)
+
+    return {
+        "original_return_pct":   original_ret,
+        "spy_total_return_pct":  target["summary"]["spy_total_return_pct"],
+        "n_runs":                n_runs,
+        "n_months":              n_months,
+        "actual_rank_pct":       round(actual_rank, 1),
+        "beat_spy_pct":          round(beat_count / n_runs * 100, 1),
+        "prob_positive":         round(float((sim_arr > 0).mean() * 100), 1),
+        "percentiles": {
+            str(p): round(float(v), 2)
+            for p, v in zip([5, 25, 50, 75, 95], pct_vals)
+        },
+        "histogram": {
+            "counts": h_counts.tolist(),
+            "edges":  [round(float(e), 2) for e in h_edges.tolist()],
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Analytics
 # ---------------------------------------------------------------------------
 

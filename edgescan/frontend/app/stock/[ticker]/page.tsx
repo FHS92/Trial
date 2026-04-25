@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { api } from '@/lib/api'
 import DetailPanel from '@/components/DetailPanel'
 import WatchStar from '@/components/WatchStar'
+import MonteCarloPanel from '@/components/MonteCarloPanel'
 import type { OHLCVBar } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -166,6 +167,7 @@ export default async function StockPage({ params }: Props) {
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-4">
         <DetailPanel stock={stock} history={history} />
         {scorePoints.length >= 2 && <ScoreSparkline points={scorePoints} />}
+        <MonteCarloPanel ticker={ticker} />
       </main>
     </div>
   )

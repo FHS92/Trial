@@ -26,6 +26,61 @@ interface Summary {
 }
 interface BacktestData { monthly: MonthResult[]; yearly: YearResult[]; summary: Summary; run_at?: string }
 
+interface RobHistogram { counts: number[]; edges: number[] }
+interface RobustnessData {
+  original_return_pct: number
+  spy_total_return_pct: number
+  n_runs: number
+  n_months: number
+  actual_rank_pct: number
+  beat_spy_pct: number
+  prob_positive: number
+  percentiles: Record<string, number>
+  histogram: RobHistogram
+}
+
+function RobustnessHistogram({ histogram, actualRet }: { histogram: RobHistogram; actualRet: number }) {
+  const { counts, edges } = histogram
+  const maxCount = Math.max(...counts, 1)
+  const H = 72
+  const barW = 100 / counts.length
+  const minEdge = edges[0]
+  const maxEdge = edges[edges.length - 1]
+  const range = maxEdge - minEdge || 1
+  const actualX = ((actualRet - minEdge) / range) * 100
+
+  return (
+    <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" width="100%" height={H} aria-hidden="true">
+      {counts.map((c, i) => {
+        const barH = (c / maxCount) * (H - 4)
+        const x = i * barW
+        const midEdge = (edges[i] + edges[i + 1]) / 2
+        return (
+          <rect
+            key={i}
+            x={x + 0.2}
+            y={H - barH - 2}
+            width={barW - 0.4}
+            height={barH}
+            fill={midEdge >= 0 ? 'rgba(79,142,247,0.45)' : 'rgba(239,68,68,0.45)'}
+          />
+        )
+      })}
+      {actualX >= 0 && actualX <= 100 && (
+        <line x1={actualX} y1={0} x2={actualX} y2={H} stroke="#f59e0b" strokeWidth={1.2} />
+      )}
+    </svg>
+  )
+}
+
+function robustnessVerdict(rank: number) {
+  if (rank >= 40 && rank <= 60) return { label: 'Robust', color: '#22c55e', detail: 'Actual return near bootstrap median — strategy performance is not path-dependent.' }
+  if (rank > 60 && rank <= 80) return { label: 'Slightly elevated', color: '#f59e0b', detail: 'Actual return above median bootstrap resampling — some path sensitivity.' }
+  if (rank > 80) return { label: 'Path-dependent', color: '#ef4444', detail: 'Actual return sits in the upper tail — favourable month ordering may have inflated results.' }
+  if (rank >= 20 && rank < 40) return { label: 'Below median', color: '#f59e0b', detail: 'Actual return below median bootstrap resampling — unfavourable month ordering may have suppressed results.' }
+  return { label: 'Strongly below median', color: '#ef4444', detail: 'Actual return in the lower tail — results may understate true strategy strength.' }
+}
+
 function pct(n: number | null) {
   if (n === null) return '—'
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
@@ -45,6 +100,9 @@ export default function BacktestPage() {
   const [error, setError] = useState('')
   const [elapsed, setElapsed] = useState(0)
   const [holdMonths, setHoldMonths] = useState(1)
+  const [robData, setRobData] = useState<RobustnessData | null>(null)
+  const [robLoading, setRobLoading] = useState(false)
+  const [robError, setRobError] = useState('')
 
   async function loadLatest(hm: number) {
     setLoading(true); setError('')
@@ -76,6 +134,26 @@ export default function BacktestPage() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Run failed')
     } finally { setRunning(false); clearInterval(timer) }
+  }
+
+  async function checkRobustness() {
+    setRobLoading(true)
+    setRobError('')
+    try {
+      const r = await fetch(`${BASE}/api/backtest/robustness?hold_months=${holdMonths}&n_runs=500`, {
+        method: 'POST',
+        cache: 'no-store',
+      })
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        throw new Error(body.detail ?? `Error ${r.status}`)
+      }
+      setRobData(await r.json())
+    } catch (e: unknown) {
+      setRobError(e instanceof Error ? e.message : 'Robustness check failed')
+    } finally {
+      setRobLoading(false)
+    }
   }
 
   const s = data?.summary
@@ -227,6 +305,102 @@ export default function BacktestPage() {
               <p>⚠ Survivorship bias — universe uses current S&P 500 members, not historical composition</p>
               <p>⚠ No transaction costs, slippage, or taxes modeled</p>
               <p>⚠ Past performance does not predict future results</p>
+            </div>
+
+            {/* Robustness check */}
+            <div className="rounded-xl p-4" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>Bootstrap Robustness Check</p>
+                  <p className="text-xs mt-0.5" style={{ color: '#6b7a99' }}>
+                    Re-sample the {holdMonths}-month backtest&apos;s monthly returns 500× to test if results depend on the specific order months occurred.
+                  </p>
+                </div>
+                <button
+                  onClick={checkRobustness}
+                  disabled={robLoading}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 flex items-center gap-2 transition-opacity hover:opacity-90 shrink-0"
+                  style={{ background: '#4f8ef7', color: '#fff' }}
+                >
+                  {robLoading ? (
+                    <>
+                      <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                      </svg>
+                      Bootstrapping…
+                    </>
+                  ) : 'Run Check'}
+                </button>
+              </div>
+
+              {robError && (
+                <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                  {robError}
+                </p>
+              )}
+
+              {robData && !robLoading && (() => {
+                const v = robustnessVerdict(robData.actual_rank_pct)
+                return (
+                  <div className="space-y-4">
+                    {/* Verdict banner */}
+                    <div className="rounded-lg px-4 py-3" style={{ background: `${v.color}14`, border: `1px solid ${v.color}33` }}>
+                      <p className="text-sm font-bold mb-0.5" style={{ color: v.color }}>{v.label}</p>
+                      <p className="text-xs" style={{ color: '#a0aec0' }}>{v.detail}</p>
+                    </div>
+
+                    {/* Histogram */}
+                    <div>
+                      <RobustnessHistogram histogram={robData.histogram} actualRet={robData.original_return_pct} />
+                      <div className="flex justify-between text-xs mt-1" style={{ color: '#3a4259' }}>
+                        <span>{robData.histogram.edges[0].toFixed(0)}%</span>
+                        <span className="flex items-center gap-1">
+                          <span style={{ display: 'inline-block', width: 8, height: 2, background: '#f59e0b', verticalAlign: 'middle' }} />
+                          actual
+                        </span>
+                        <span>+{robData.histogram.edges[robData.histogram.edges.length - 1].toFixed(0)}%</span>
+                      </div>
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Actual rank', value: `${robData.actual_rank_pct}th pct`, color: v.color },
+                        { label: 'Beat SPY (bootstrap)', value: `${robData.beat_spy_pct}%`, color: robData.beat_spy_pct >= 50 ? '#22c55e' : '#ef4444' },
+                        { label: 'Prob. positive', value: `${robData.prob_positive}%`, color: robData.prob_positive >= 50 ? '#22c55e' : '#ef4444' },
+                      ].map(st => (
+                        <div key={st.label} className="rounded-lg px-3 py-2 text-center" style={{ background: '#131720' }}>
+                          <p className="text-xs font-bold mb-0.5" style={{ color: st.color }}>{st.value}</p>
+                          <p className="text-xs leading-tight" style={{ color: '#6b7a99' }}>{st.label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Percentile table */}
+                    <div className="rounded-lg overflow-hidden text-xs" style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div className="grid px-3 py-1.5" style={{ gridTemplateColumns: 'repeat(5, 1fr)', background: '#0a0e17', color: '#3a4259' }}>
+                        {['5th', '25th', 'Median', '75th', '95th'].map(l => (
+                          <span key={l} className="text-center">{l}</span>
+                        ))}
+                      </div>
+                      <div className="grid px-3 py-2" style={{ gridTemplateColumns: 'repeat(5, 1fr)', background: '#0f1521' }}>
+                        {['5', '25', '50', '75', '95'].map(k => {
+                          const val = robData.percentiles[k] ?? 0
+                          return (
+                            <span key={k} className="text-center font-semibold" style={{ color: val >= 0 ? '#22c55e' : '#ef4444' }}>
+                              {val >= 0 ? '+' : ''}{val.toFixed(1)}%
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <p className="text-xs" style={{ color: '#3a4259' }}>
+                      {robData.n_runs.toLocaleString()} bootstrap runs · {robData.n_months} monthly samples · actual {robData.original_return_pct >= 0 ? '+' : ''}{robData.original_return_pct.toFixed(1)}% vs SPY {robData.spy_total_return_pct >= 0 ? '+' : ''}{robData.spy_total_return_pct.toFixed(1)}%
+                    </p>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )}
