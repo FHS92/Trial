@@ -348,14 +348,17 @@ def fetch_fundamentals(ticker: str) -> dict:
 
 
 def _fetch_earnings_date(t: yf.Ticker):
+    # yfinance 1.x returns a dict; older versions returned a DataFrame.
     try:
         cal = t.calendar
-        if cal is not None and not cal.empty:
-            if "Earnings Date" in cal.index:
-                ed = cal.loc["Earnings Date"].iloc[0]
-                if hasattr(ed, "date"):
-                    return ed.date()
-                return ed
+        if isinstance(cal, dict):
+            dates = cal.get("Earnings Date") or []
+            if dates:
+                ed = dates[0]
+                return ed.date() if hasattr(ed, "date") else ed
+        elif cal is not None and not cal.empty and "Earnings Date" in cal.index:
+            ed = cal.loc["Earnings Date"].iloc[0]
+            return ed.date() if hasattr(ed, "date") else ed
     except Exception:
         pass
     return None
