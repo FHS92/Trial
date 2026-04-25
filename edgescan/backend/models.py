@@ -2,21 +2,33 @@
 models.py — SQLAlchemy ORM models for EdgeScan.
 
 Tables:
+  profiles       — user profiles with optional PIN
   scan_results   — composite score + metrics JSON per ticker per scan
   price_history  — daily OHLCV for chart rendering
   thesis_cache   — Claude-generated "Why now" thesis (regenerated if score shifts >5pts)
 """
 
+import uuid
 from datetime import datetime
 from sqlalchemy import (
     Column, String, Integer, Float, DateTime, Text, Date,
-    Boolean, Index, UniqueConstraint,
+    Boolean, Index, UniqueConstraint, ForeignKey,
 )
 from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class Profile(Base):
+    __tablename__ = "profiles"
+
+    id            = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name          = Column(String(64), nullable=False)
+    pin_hash      = Column(Text, nullable=True)   # bcrypt hash, NULL = no PIN
+    avatar_colour = Column(String(7), nullable=False, default="#4F8EF7")
+    created_at    = Column(DateTime, default=datetime.utcnow)
 
 
 class ScanResult(Base):
@@ -94,6 +106,7 @@ class PortfolioHolding(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(60), nullable=False, index=True)
+    profile_id = Column(String, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=True)
     ticker = Column(String(10), nullable=False)
     shares = Column(Float, nullable=False)
     buy_price = Column(Float, nullable=False)

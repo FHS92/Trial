@@ -13,8 +13,10 @@ Run locally:
     uvicorn main:app --reload --port 8000
 """
 
+import hashlib
 import json
 import os
+import secrets
 import threading
 import time
 from datetime import date, datetime, timedelta
@@ -29,12 +31,31 @@ from sqlalchemy.orm import Session
 
 from database import get_db, init_db, SessionLocal
 from data_fetcher import SP500_TICKERS, fetch_fundamentals, fetch_price_history
-from models import BacktestRun, PriceHistory, PortfolioHolding, ScanResult, ThesisCache
+from models import BacktestRun, PriceHistory, PortfolioHolding, Profile, ScanResult, ThesisCache
 from scanner import scan_tickers, score_stock
 from thesis_generator import generate_thesis
 from analytics import get_sector_heatmap, get_rebalance_suggestions
 from chat import answer_question
 from paper_trading import run_monthly_rebalance, get_paper_portfolio
+
+# ---------------------------------------------------------------------------
+# Session store  (token → profile_id, in-memory, cleared on restart)
+# ---------------------------------------------------------------------------
+
+_sessions: dict[str, str] = {}   # token → profile_id
+
+
+def _pin_hash(pin: str) -> str:
+    """SHA-256 hash of the PIN (bcrypt not in requirements; secrets+hashlib used instead)."""
+    return hashlib.sha256(pin.encode()).hexdigest()
+
+
+def _get_profile_id_from_token(authorization: str) -> Optional[str]:
+    """Extract profile_id from 'Bearer <token>' header value, or return None."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization[len("Bearer "):]
+    return _sessions.get(token)
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -83,6 +104,24 @@ SCAN_SECRET = os.getenv("SCAN_SECRET", "edgescan-local-secret")
 _market_pulse_cache: dict = {"data": None, "expires_at": 0}
 
 
+# ---------------------------------------------------------------------------
+# Profile Pydantic models
+# ---------------------------------------------------------------------------
+
+class ProfileCreateIn(BaseModel):
+    name: str
+    pin: Optional[str] = None
+    avatarColour: str = "#4F8EF7"
+
+
+class ProfilePatchIn(BaseModel):
+    name: str
+
+
+class UnlockIn(BaseModel):
+    pin: Optional[str] = None
+
+
 @app.on_event("startup")
 def startup():
     try:
@@ -118,6 +157,97 @@ def startup():
             threading.Thread(target=_initial_scan, daemon=True).start()
     except Exception as e:
         print(f"[main] Startup check skipped: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Profile endpoints
+# ---------------------------------------------------------------------------
+
+def _profile_to_dict(p: Profile) -> dict:
+    return {
+        "id": p.id,
+        "name": p.name,
+        "avatarColour": p.avatar_colour,
+        "hasPin": p.pin_hash is not None,
+        "createdAt": p.created_at.isoformat() if p.created_at else None,
+    }
+
+
+@app.get("/api/profiles")
+def list_profiles(db: Session = Depends(get_db)):
+    profiles = db.query(Profile).order_by(Profile.created_at.asc()).all()
+    return [_profile_to_dict(p) for p in profiles]
+
+
+@app.post("/api/profiles", status_code=201)
+def create_profile(body: ProfileCreateIn, db: Session = Depends(get_db)):
+    p = Profile(
+        name=body.name.strip()[:64],
+        pin_hash=_pin_hash(body.pin) if body.pin else None,
+        avatar_colour=body.avatarColour,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return _profile_to_dict(p)
+
+
+@app.patch("/api/profiles/{profile_id}")
+def patch_profile(
+    profile_id: str,
+    body: ProfilePatchIn,
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    pid = _get_profile_id_from_token(authorization)
+    if pid != profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    p = db.query(Profile).filter(Profile.id == profile_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    p.name = body.name.strip()[:64]
+    db.commit()
+    db.refresh(p)
+    return _profile_to_dict(p)
+
+
+@app.delete("/api/profiles/{profile_id}", status_code=204)
+def delete_profile(
+    profile_id: str,
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    pid = _get_profile_id_from_token(authorization)
+    if pid != profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    p = db.query(Profile).filter(Profile.id == profile_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    db.delete(p)
+    db.commit()
+    # Remove any sessions for this profile
+    for tok, ppid in list(_sessions.items()):
+        if ppid == profile_id:
+            del _sessions[tok]
+
+
+@app.post("/api/profiles/{profile_id}/unlock")
+def unlock_profile(
+    profile_id: str,
+    body: UnlockIn,
+    db: Session = Depends(get_db),
+):
+    p = db.query(Profile).filter(Profile.id == profile_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    if p.pin_hash is not None:
+        if not body.pin or _pin_hash(body.pin) != p.pin_hash:
+            raise HTTPException(status_code=401, detail="Incorrect PIN")
+
+    token = secrets.token_urlsafe(32)
+    _sessions[token] = profile_id
+    return {"token": token}
 
 
 # ---------------------------------------------------------------------------
@@ -676,14 +806,18 @@ class HoldingIn(BaseModel):
 
 
 @app.get("/api/portfolio/{username}")
-def get_portfolio(username: str, db: Session = Depends(get_db)):
+def get_portfolio(username: str, authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+
     username = _slugify(username)
     if not username:
         raise HTTPException(status_code=400, detail="Invalid username")
 
     holdings = (
         db.query(PortfolioHolding)
-        .filter(PortfolioHolding.username == username)
+        .filter(PortfolioHolding.profile_id == profile_id)
         .order_by(PortfolioHolding.added_at.asc())
         .all()
     )

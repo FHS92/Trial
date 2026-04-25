@@ -62,6 +62,43 @@ def _run_migrations() -> None:
                     conn.execute(text("ALTER TABLE scan_results RENAME COLUMN price_target_2m TO price_target_1m"))
                     conn.commit()
                     print("[database] Migrated price_target_2m → price_target_1m (SQLite)")
+
+                # Profiles table
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS profiles (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        pin_hash TEXT,
+                        avatar_colour TEXT NOT NULL DEFAULT '#4F8EF7',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+
+                # Add profile_id to portfolio_holdings if missing
+                ph_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(portfolio_holdings)")).fetchall()]
+                if "profile_id" not in ph_cols:
+                    conn.execute(text(
+                        "ALTER TABLE portfolio_holdings ADD COLUMN profile_id TEXT REFERENCES profiles(id)"
+                    ))
+                    conn.commit()
+                    print("[database] Added profile_id to portfolio_holdings")
+
+                # Insert default profile if none exist
+                count = conn.execute(text("SELECT COUNT(*) FROM profiles")).scalar()
+                if count == 0:
+                    conn.execute(text(
+                        "INSERT INTO profiles (id, name, pin_hash, avatar_colour) VALUES ('default', 'Default', NULL, '#4F8EF7')"
+                    ))
+                    conn.commit()
+                    print("[database] Created default profile")
+
+                # Assign existing portfolio rows to default profile
+                conn.execute(text(
+                    "UPDATE portfolio_holdings SET profile_id = 'default' WHERE profile_id IS NULL"
+                ))
+                conn.commit()
+
             else:
                 conn.execute(text("""
                     DO $$
@@ -75,6 +112,46 @@ def _run_migrations() -> None:
                     END $$;
                 """))
                 conn.commit()
+
+                # Profiles table for PostgreSQL
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS profiles (
+                        id TEXT PRIMARY KEY,
+                        name VARCHAR(64) NOT NULL,
+                        pin_hash TEXT,
+                        avatar_colour VARCHAR(7) NOT NULL DEFAULT '#4F8EF7',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+
+                # Add profile_id to portfolio_holdings if missing (PostgreSQL)
+                conn.execute(text("""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                                       WHERE table_name='portfolio_holdings' AND column_name='profile_id')
+                        THEN
+                            ALTER TABLE portfolio_holdings ADD COLUMN profile_id TEXT REFERENCES profiles(id);
+                        END IF;
+                    END $$;
+                """))
+                conn.commit()
+
+                # Insert default profile if none exist
+                conn.execute(text("""
+                    INSERT INTO profiles (id, name, pin_hash, avatar_colour)
+                    SELECT 'default', 'Default', NULL, '#4F8EF7'
+                    WHERE NOT EXISTS (SELECT 1 FROM profiles)
+                """))
+                conn.commit()
+
+                # Assign existing rows to default profile
+                conn.execute(text(
+                    "UPDATE portfolio_holdings SET profile_id = 'default' WHERE profile_id IS NULL"
+                ))
+                conn.commit()
+
     except Exception as e:
         print(f"[database] Migration skipped (non-fatal): {e}")
 
