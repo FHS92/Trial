@@ -61,11 +61,11 @@ export const api = {
     )
   },
 
-  addHolding(username: string, ticker: string, shares: number, buyPrice: number, buyDate?: string): Promise<{ status: string; ticker: string }> {
+  addHolding(username: string, ticker: string, amount: number, buyPrice: number, buyDate?: string): Promise<{ status: string; ticker: string }> {
     return fetch(`${BASE}/api/portfolio/${encodeURIComponent(username)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ ticker, shares, buy_price: buyPrice, buy_date: buyDate ?? null }),
+      body: JSON.stringify({ ticker, amount, buy_price: buyPrice, buy_date: buyDate ?? null }),
       cache: 'no-store',
     }).then(r => r.json())
   },

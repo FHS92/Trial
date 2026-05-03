@@ -989,8 +989,8 @@ def remove_from_watchlist(ticker: str, authorization: str = Header(default=""), 
 
 class HoldingIn(BaseModel):
     ticker: str
-    shares: float
-    buy_price: float
+    amount: float      # dollar value invested (shares = amount / buy_price)
+    buy_price: float   # price per share at time of purchase
     buy_date: Optional[str] = None  # ISO date string
 
 
@@ -1101,6 +1101,11 @@ def upsert_holding(username: str, holding: HoldingIn, authorization: str = Heade
     ticker = holding.ticker.upper().strip()
     buy_date = date.fromisoformat(holding.buy_date) if holding.buy_date else None
 
+    if holding.buy_price <= 0:
+        raise HTTPException(status_code=400, detail="buy_price must be > 0")
+
+    additional_shares = holding.amount / holding.buy_price
+
     score_row = (
         db.query(ScanResult)
         .filter(ScanResult.ticker == ticker)
@@ -1115,9 +1120,13 @@ def upsert_holding(username: str, holding: HoldingIn, authorization: str = Heade
         .first()
     )
     if existing:
-        existing.shares = holding.shares
-        existing.buy_price = holding.buy_price
-        existing.buy_date = buy_date
+        # Accumulate: weighted average cost basis, never overwrite
+        total_shares = existing.shares + additional_shares
+        avg_price = (existing.shares * existing.buy_price + additional_shares * holding.buy_price) / total_shares
+        existing.shares = round(total_shares, 8)
+        existing.buy_price = round(avg_price, 4)
+        if buy_date:
+            existing.buy_date = buy_date
         if existing.score_at_buy is None and score_now is not None:
             existing.score_at_buy = score_now
     else:
@@ -1125,7 +1134,7 @@ def upsert_holding(username: str, holding: HoldingIn, authorization: str = Heade
             username=username,
             profile_id=profile_id,
             ticker=ticker,
-            shares=holding.shares,
+            shares=round(additional_shares, 8),
             buy_price=holding.buy_price,
             buy_date=buy_date,
             score_at_buy=score_now,

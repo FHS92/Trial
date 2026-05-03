@@ -43,7 +43,7 @@ export default function PortfolioPage() {
 
   const [showForm, setShowForm] = useState(false)
   const [ticker, setTicker] = useState('')
-  const [shares, setShares] = useState('')
+  const [amount, setAmount] = useState('')
   const [buyPrice, setBuyPrice] = useState('')
   const [buyDate, setBuyDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -91,8 +91,8 @@ export default function PortfolioPage() {
     if (!username) return
     setSubmitting(true)
     try {
-      await api.addHolding(username, ticker, parseFloat(shares), parseFloat(buyPrice), buyDate || undefined)
-      setTicker(''); setShares(''); setBuyPrice(''); setBuyDate('')
+      await api.addHolding(username, ticker, parseFloat(amount), parseFloat(buyPrice), buyDate || undefined)
+      setTicker(''); setAmount(''); setBuyPrice(''); setBuyDate('')
       setShowForm(false)
       await loadPortfolio(username)
     } catch {
@@ -174,8 +174,8 @@ export default function PortfolioPage() {
           >
             {[
               { label: 'Ticker', value: ticker, onChange: (v: string) => setTicker(v.toUpperCase()), placeholder: 'AAPL', required: true },
-              { label: 'Shares', value: shares, onChange: setShares, placeholder: '10', required: true, type: 'number' },
-              { label: 'Buy Price ($)', value: buyPrice, onChange: setBuyPrice, placeholder: '150.00', required: true, type: 'number' },
+              { label: 'Amount Invested ($)', value: amount, onChange: setAmount, placeholder: '10000', required: true, type: 'number' },
+              { label: 'Price Per Share ($)', value: buyPrice, onChange: setBuyPrice, placeholder: '150.00', required: true, type: 'number' },
               { label: 'Buy Date', value: buyDate, onChange: setBuyDate, placeholder: '', required: false, type: 'date' },
             ].map(f => (
               <div key={f.label}>
