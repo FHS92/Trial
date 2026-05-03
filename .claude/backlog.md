@@ -152,6 +152,56 @@ Promote it to a more visible sticky banner with a refresh icon.
 
 ---
 
+### [READY-9] Industry multiples section on the stock detail page
+
+Show a valuation-in-context panel on `app/stock/[ticker]/page.tsx` comparing the stock's key multiples (P/E, EV/EBITDA, P/S, P/B) against the median for its sector/industry peers already in the S&P 500 universe. Helps users instantly see whether a stock is cheap or expensive relative to its industry.
+
+- Pull the stock's sector from the already-loaded `stock` object.
+- Filter `ScanResult` rows for same-sector tickers (latest scan only) and compute median multiples from stored fundamental data — no extra yfinance calls.
+- Render as a compact 2-column table: metric name | stock value vs industry median, coloured green if cheaper, red if more expensive.
+- Backend: new `GET /api/stock/{ticker}/industry-multiples` endpoint.
+- Frontend: new `IndustryMultiples` client component rendered below `MonteCarloPanel`.
+**Decision needed:** which multiples to surface (P/E, P/S, EV/EBITDA, P/B suggested). Confirm before implementation.
+
+---
+
+### [READY-10] Newsletter integration
+
+Allow EdgeScan to feed a periodic newsletter (weekly or bi-weekly) with content auto-generated from live scan data. Intended for publishing to subscribers outside the app.
+
+- **Content candidates:** top 5 scanner picks this week, biggest score movers (up/down), sector rotation summary, one featured stock deep-dive (score breakdown + Monte Carlo snapshot).
+- **Delivery options to decide:** (a) generate a static HTML email template that the owner exports manually, (b) integrate with a service like Resend or Buttondown via API, (c) a `/newsletter-preview` page in the app that renders the draft.
+- Backend: `GET /api/newsletter/weekly-digest` endpoint that assembles the data payload.
+- No subscriber management needed in v1 — the publishing platform handles the list.
+**Decision needed:** delivery mechanism (manual export vs. Resend/Buttondown API vs. in-app preview page). Confirm before implementation.
+
+---
+
+### [READY-11] Friends leaderboard with portfolio rankings and rewards
+
+A social leaderboard page where each profile's portfolio performance is ranked against the others. Designed to be fun and competitive for a small group of friends all using the same app instance.
+
+**Visual design:**
+- Top 3 profiles stand on podium pedestals (1st tallest centre, 2nd left, 3rd right) with avatar circles, profile names, and their total portfolio return %.
+- Positions 4 and below rendered as a ranked list underneath the podium with rank number, avatar, name, return %, and portfolio value.
+- Animated confetti or glow effect on the #1 spot.
+
+**Rewards / badges:**
+- Weekly reward: crown badge awarded to the top performer over the rolling 7-day period, shown on their podium/card.
+- Monthly reward: gold medal badge for the month's best return.
+- Badges persist on the profile and display on their leaderboard card and profile picker avatar.
+- "Biggest mover this week" badge for the largest % gain in 7 days regardless of rank.
+
+**Data:**
+- Backend computes each profile's portfolio return % from their `PortfolioHolding` rows using stored price history — no live price fetch on page load.
+- New `GET /api/leaderboard` endpoint returning ranked list with return %, portfolio value, badges earned.
+- Badge logic computed server-side and stored per profile (new `badges_json` column on `Profile`).
+
+**Scope:** new `app/leaderboard/page.tsx`, new `components/Podium.tsx`, backend endpoint + badge logic. Add Leaderboard to the bottom nav (swap into a primary slot or the More tray).
+**Decision needed:** how to handle profiles with no portfolio holdings (show as 0% or exclude). Confirm before implementation.
+
+---
+
 ## 🟡 BACKLOG (not yet refined — PM should refine before marking READY)
 
 - **Portfolio Monte Carlo simulator** — on the Portfolio page, run 1,000 simulated price paths forward 252 trading days using each holding's historical volatility and drift. Render a probability fan chart (median, 10th/90th percentile bands) and surface a single "80% chance above $X in 12 months" number. Backend endpoint `POST /api/portfolio/simulate`; simulation math uses numpy (already installed). Decision needed: confidence interval bands to show, time horizon options. — same scanner/watchlist/portfolio/backtest experience for the Egyptian Exchange 30. yfinance supports `.CA` suffix tickers. Degraded fields expected: analyst price targets, forward P/E (sparse coverage). New complexity: EGP currency label in UI, SPY benchmark swap for backtest. Scope: new ticker list in `data_fetcher.py`, new universe option in frontend, currency indicator in StockRow. Decision needed: separate tab vs. separate section.
