@@ -57,6 +57,16 @@ entirely server-side — no client state, no new hooks, no layout changes.
 
 ---
 
+### ✅ [DONE — Sprint 7] Friends leaderboard with podium + weekly/monthly rewards
+
+Completed 2026-05-03. `/leaderboard` page with gold/silver/bronze podium for top 3, ranked list
+for 4th+, badge system (👑⚡🥇🚀), YOU indicator, stats strip. Backend `GET /api/leaderboard`
+ranks all profiles by portfolio return, computes 7d/30d performance, assigns badges server-side.
+Sessions migrated from in-memory dict to `profile_sessions` DB table — logins now survive
+backend restarts. Leaderboard added to More tray nav.
+
+---
+
 ### [READY-2] Complete touch-target audit: fix X button on WatchlistCard and close button on More tray
 
 Two interactive controls were missed by the Sprint 2 touch-target pass and remain under the
