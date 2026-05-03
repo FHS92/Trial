@@ -31,6 +31,15 @@ class Profile(Base):
     created_at    = Column(DateTime, default=datetime.utcnow)
 
 
+class ProfileSession(Base):
+    """Persistent session store — survives backend restarts."""
+    __tablename__ = "profile_sessions"
+
+    token      = Column(String(64), primary_key=True)
+    profile_id = Column(String, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class ScanResult(Base):
     __tablename__ = "scan_results"
 

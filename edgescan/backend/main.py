@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db, init_db, SessionLocal
 from data_fetcher import SP500_TICKERS, fetch_fundamentals, fetch_price_history
-from models import BacktestRun, PriceHistory, PortfolioHolding, Profile, ScanResult, ThesisCache, WatchlistItem
+from models import BacktestRun, PriceHistory, PortfolioHolding, Profile, ProfileSession, ScanResult, ThesisCache, WatchlistItem
 from scanner import scan_tickers, score_stock
 from thesis_generator import generate_thesis
 from analytics import get_sector_heatmap, get_rebalance_suggestions
@@ -39,15 +39,16 @@ from chat import answer_question
 from paper_trading import run_monthly_rebalance, get_paper_portfolio
 
 # ---------------------------------------------------------------------------
-# Session store  (token → profile_id, in-memory, cleared on restart)
+# Session helpers  (DB-backed — survive backend restarts)
 # ---------------------------------------------------------------------------
 
-_sessions: dict[str, str] = {}   # token → profile_id
-
-
-def _pin_hash(pin: str) -> str:
-    """SHA-256 hash of the PIN (bcrypt not in requirements; secrets+hashlib used instead)."""
-    return hashlib.sha256(pin.encode()).hexdigest()
+def _create_session(token: str, profile_id: str) -> None:
+    db = SessionLocal()
+    try:
+        db.add(ProfileSession(token=token, profile_id=profile_id))
+        db.commit()
+    finally:
+        db.close()
 
 
 def _get_profile_id_from_token(authorization: str) -> Optional[str]:
@@ -55,7 +56,27 @@ def _get_profile_id_from_token(authorization: str) -> Optional[str]:
     if not authorization or not authorization.startswith("Bearer "):
         return None
     token = authorization[len("Bearer "):]
-    return _sessions.get(token)
+    db = SessionLocal()
+    try:
+        row = db.query(ProfileSession).filter(ProfileSession.token == token).first()
+        return row.profile_id if row else None
+    finally:
+        db.close()
+
+
+def _delete_sessions_for_profile(profile_id: str) -> None:
+    db = SessionLocal()
+    try:
+        db.query(ProfileSession).filter(ProfileSession.profile_id == profile_id).delete()
+        db.commit()
+    finally:
+        db.close()
+
+
+def _pin_hash(pin: str) -> str:
+    """SHA-256 hash of the PIN (bcrypt not in requirements; secrets+hashlib used instead)."""
+    return hashlib.sha256(pin.encode()).hexdigest()
+
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -225,10 +246,7 @@ def delete_profile(
         raise HTTPException(status_code=404, detail="Profile not found")
     db.delete(p)
     db.commit()
-    # Remove any sessions for this profile
-    for tok, ppid in list(_sessions.items()):
-        if ppid == profile_id:
-            del _sessions[tok]
+    _delete_sessions_for_profile(profile_id)
 
 
 @app.post("/api/profiles/{profile_id}/unlock")
@@ -246,7 +264,7 @@ def unlock_profile(
             raise HTTPException(status_code=401, detail="Incorrect PIN")
 
     token = secrets.token_urlsafe(32)
-    _sessions[token] = profile_id
+    _create_session(token, profile_id)
     return {"token": token}
 
 

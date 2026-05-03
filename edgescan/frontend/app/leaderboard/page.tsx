@@ -198,11 +198,20 @@ export default function LeaderboardPage() {
     if (!token) { router.replace('/'); return }
 
     fetch(`${BASE}/api/leaderboard`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     })
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then(d => setData(d))
+      .then(r => {
+        if (r.status === 401) {
+          sessionStorage.removeItem('edgescan_profile_token')
+          sessionStorage.removeItem('edgescan_profile_name')
+          router.replace('/')
+          return null
+        }
+        if (!r.ok) return Promise.reject(r.statusText)
+        return r.json()
+      })
+      .then(d => { if (d) setData(d) })
       .catch(() => setError('Could not load leaderboard'))
       .finally(() => setLoading(false))
   }, [router])

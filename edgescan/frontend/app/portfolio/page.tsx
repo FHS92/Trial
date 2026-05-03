@@ -67,12 +67,20 @@ export default function PortfolioPage() {
       const data = await api.portfolio(user)
       setHoldings(data.holdings)
       setSummary(data.summary)
-    } catch {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : ''
+      if (msg.includes('401')) {
+        // Session expired (backend restarted) — send back to profile picker
+        sessionStorage.removeItem('edgescan_profile_token')
+        sessionStorage.removeItem('edgescan_profile_name')
+        router.replace('/')
+        return
+      }
       setError('Could not load portfolio. Is the backend running?')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [router])
 
   useEffect(() => {
     if (username) loadPortfolio(username)
