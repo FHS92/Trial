@@ -762,6 +762,99 @@ def trigger_scan(
 
 
 # ---------------------------------------------------------------------------
+# Industry multiples
+# ---------------------------------------------------------------------------
+
+@app.get("/api/stock/{ticker}/industry-multiples")
+def get_industry_multiples(ticker: str, db: Session = Depends(get_db)):
+    """
+    Compare the stock's valuation multiples (fwd P/E, P/S, EV/EBITDA, P/B) against
+    the sector median from the latest scan results.  No live yfinance calls.
+    """
+    import statistics
+
+    ticker = ticker.upper().strip()
+
+    # Latest scan for this ticker
+    ticker_row = (
+        db.query(ScanResult)
+        .filter(ScanResult.ticker == ticker)
+        .order_by(ScanResult.scanned_at.desc())
+        .first()
+    )
+    if not ticker_row or not ticker_row.sector:
+        raise HTTPException(status_code=404, detail="No sector data for ticker")
+
+    sector = ticker_row.sector
+    stock_metrics = _parse_json_field(ticker_row.metrics_json)
+
+    # Latest scan per peer ticker in the same sector (subquery)
+    from sqlalchemy import func as sqlfunc
+    subq = (
+        db.query(
+            ScanResult.ticker,
+            sqlfunc.max(ScanResult.scanned_at).label("max_at"),
+        )
+        .filter(ScanResult.sector == sector)
+        .group_by(ScanResult.ticker)
+        .subquery()
+    )
+    peers = (
+        db.query(ScanResult)
+        .join(
+            subq,
+            (ScanResult.ticker == subq.c.ticker)
+            & (ScanResult.scanned_at == subq.c.max_at),
+        )
+        .all()
+    )
+
+    MULTIPLES = [
+        ("fwd_pe",        "P/E (Fwd)"),
+        ("price_to_sales","P/S"),
+        ("ev_ebitda",     "EV/EBITDA"),
+        ("price_to_book", "P/B"),
+    ]
+
+    def _safe_median(values: list) -> float | None:
+        clean = [v for v in values if v is not None and 0 < v < 1000]
+        return round(statistics.median(clean), 2) if len(clean) >= 3 else None
+
+    result_multiples = []
+    for key, label in MULTIPLES:
+        peer_values = [
+            _parse_json_field(p.metrics_json).get(key)
+            for p in peers
+        ]
+        median = _safe_median(peer_values)
+        stock_val = stock_metrics.get(key)
+        if stock_val is not None:
+            try:
+                stock_val = round(float(stock_val), 2)
+            except (TypeError, ValueError):
+                stock_val = None
+
+        cheaper = None
+        if stock_val is not None and median is not None:
+            cheaper = stock_val < median
+
+        result_multiples.append({
+            "label":   label,
+            "key":     key,
+            "stock":   stock_val,
+            "median":  median,
+            "cheaper": cheaper,
+        })
+
+    return {
+        "ticker":     ticker,
+        "sector":     sector,
+        "peer_count": len(peers),
+        "multiples":  result_multiples,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Score history
 # ---------------------------------------------------------------------------
 

@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import DetailPanel from '@/components/DetailPanel'
 import WatchStar from '@/components/WatchStar'
 import MonteCarloPanel from '@/components/MonteCarloPanel'
+import IndustryMultiples from '@/components/IndustryMultiples'
 import type { OHLCVBar } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -168,6 +169,7 @@ export default async function StockPage({ params }: Props) {
         <DetailPanel stock={stock} history={history} />
         {scorePoints.length >= 2 && <ScoreSparkline points={scorePoints} />}
         <MonteCarloPanel ticker={ticker} />
+        <IndustryMultiples ticker={ticker} />
       </main>
     </div>
   )

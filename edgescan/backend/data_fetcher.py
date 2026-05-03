@@ -310,7 +310,11 @@ def fetch_fundamentals(ticker: str) -> dict:
         de_val          = _debt_to_equity(annual_bs, q_bs, info)
 
         # These have no reliable free statement equivalent — keep from info
-        fwd_pe        = _safe_info(info, "forwardPE", None)
+        fwd_pe         = _safe_info(info, "forwardPE", None)
+        trailing_pe    = _safe_info(info, "trailingPE", None)
+        price_to_sales = _safe_info(info, "priceToSalesTrailing12Months", None)
+        price_to_book  = _safe_info(info, "priceToBook", None)
+        ev_ebitda      = _safe_info(info, "enterpriseToEbitda", None)
         analyst_target = _safe_info(info, "targetMeanPrice", None)
         current_price  = (_safe_info(info, "currentPrice", None)
                           or _safe_info(info, "regularMarketPrice", None))
@@ -334,6 +338,10 @@ def fetch_fundamentals(ticker: str) -> dict:
             "gross_margin": gross_margin_val,
             "debt_to_equity": de_val,
             "fwd_pe": fwd_pe,
+            "trailing_pe": trailing_pe,
+            "price_to_sales": price_to_sales,
+            "price_to_book": price_to_book,
+            "ev_ebitda": ev_ebitda,
             "analyst_target": analyst_target,
             "week52_high": week52_high,
             "week52_low": week52_low,
@@ -404,6 +412,10 @@ def _empty_fundamentals(ticker: str) -> dict:
         "gross_margin": 0.0,
         "debt_to_equity": 2.0,
         "fwd_pe": None,
+        "trailing_pe": None,
+        "price_to_sales": None,
+        "price_to_book": None,
+        "ev_ebitda": None,
         "analyst_target": None,
         "week52_high": None,
         "week52_low": None,
