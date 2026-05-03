@@ -818,7 +818,7 @@ def get_industry_multiples(ticker: str, db: Session = Depends(get_db)):
 
     def _safe_median(values: list) -> float | None:
         clean = [v for v in values if v is not None and 0 < v < 1000]
-        return round(statistics.median(clean), 2) if len(clean) >= 3 else None
+        return round(statistics.median(clean), 2) if len(clean) >= 1 else None
 
     result_multiples = []
     for key, label in MULTIPLES:
