@@ -251,6 +251,135 @@ def unlock_profile(
 
 
 # ---------------------------------------------------------------------------
+# Leaderboard
+# ---------------------------------------------------------------------------
+
+@app.get("/api/leaderboard")
+def get_leaderboard(
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    """
+    Public leaderboard — ranked by overall portfolio return %.
+    Accepts optional Bearer token to mark the caller's entry as is_me=True.
+    """
+    from datetime import date, timedelta
+
+    my_profile_id = _get_profile_id_from_token(authorization)
+
+    today = date.today()
+    week_ago  = today - timedelta(days=7)
+    month_ago = today - timedelta(days=30)
+
+    profiles = db.query(Profile).order_by(Profile.created_at.asc()).all()
+    if not profiles:
+        return {"entries": [], "updated_at": today.isoformat()}
+
+    # All holdings across all profiles
+    all_holdings = db.query(PortfolioHolding).all()
+    all_tickers = list({h.ticker.upper() for h in all_holdings})
+
+    # Current prices from latest scan result (no live fetch)
+    current_prices: dict[str, float] = {}
+    for ticker in all_tickers:
+        row = (
+            db.query(ScanResult)
+            .filter(ScanResult.ticker == ticker)
+            .order_by(ScanResult.scanned_at.desc())
+            .first()
+        )
+        if row and row.current_price:
+            current_prices[ticker] = float(row.current_price)
+
+    def hist_prices(target: date) -> dict[str, float]:
+        prices: dict[str, float] = {}
+        for ticker in all_tickers:
+            row = (
+                db.query(PriceHistory)
+                .filter(PriceHistory.ticker == ticker, PriceHistory.date <= target)
+                .order_by(PriceHistory.date.desc())
+                .first()
+            )
+            if row and row.close:
+                prices[ticker] = float(row.close)
+        return prices
+
+    weekly_prices  = hist_prices(week_ago)
+    monthly_prices = hist_prices(month_ago)
+
+    # Group holdings by profile
+    by_profile: dict[str, list] = {p.id: [] for p in profiles}
+    for h in all_holdings:
+        if h.profile_id and h.profile_id in by_profile:
+            by_profile[h.profile_id].append(h)
+
+    entries = []
+    for profile in profiles:
+        holdings = by_profile[profile.id]
+
+        total_cost  = sum(h.shares * h.buy_price for h in holdings)
+        total_value = sum(
+            h.shares * current_prices.get(h.ticker.upper(), h.buy_price)
+            for h in holdings
+        )
+
+        def port_val_at(prices: dict[str, float]) -> float:
+            return sum(
+                h.shares * prices.get(
+                    h.ticker.upper(),
+                    current_prices.get(h.ticker.upper(), h.buy_price),
+                )
+                for h in holdings
+            )
+
+        val_week_ago  = port_val_at(weekly_prices)
+        val_month_ago = port_val_at(monthly_prices)
+
+        return_pct        = round((total_value - total_cost) / total_cost * 100, 2) if total_cost > 0 else 0.0
+        weekly_return_pct = round((total_value - val_week_ago) / val_week_ago * 100, 2) if val_week_ago > 0 else 0.0
+        monthly_return_pct = round((total_value - val_month_ago) / val_month_ago * 100, 2) if val_month_ago > 0 else 0.0
+        weekly_gain       = round(total_value - val_week_ago, 2)
+
+        entries.append({
+            "profile_id":          profile.id,
+            "name":                profile.name,
+            "avatar_colour":       profile.avatar_colour,
+            "total_cost":          round(total_cost, 2),
+            "total_value":         round(total_value, 2),
+            "return_pct":          return_pct,
+            "weekly_return_pct":   weekly_return_pct,
+            "monthly_return_pct":  monthly_return_pct,
+            "weekly_gain":         weekly_gain,
+            "n_holdings":          len(holdings),
+            "is_me":               profile.id == my_profile_id,
+            "badges":              [],
+        })
+
+    # Rank by overall return descending
+    entries.sort(key=lambda e: e["return_pct"], reverse=True)
+    for i, e in enumerate(entries):
+        e["rank"] = i + 1
+
+    # Badges — awarded even if all zeros so there's always a leader
+    if entries:
+        entries[0]["badges"].append("crown")
+
+        best_weekly  = max(entries, key=lambda e: e["weekly_return_pct"])
+        best_monthly = max(entries, key=lambda e: e["monthly_return_pct"])
+        best_mover   = max(entries, key=lambda e: e["weekly_gain"])
+
+        if best_weekly["weekly_return_pct"] >= 0:
+            best_weekly["badges"].append("weekly")
+        if best_monthly["monthly_return_pct"] >= 0:
+            best_monthly["badges"].append("monthly")
+        # Rocket badge only if a different person leads by absolute $ weekly gain
+        if best_mover["profile_id"] != best_weekly["profile_id"] and best_mover["weekly_gain"] > 0:
+            best_mover["badges"].append("rocket")
+
+    return {"entries": entries, "updated_at": today.isoformat()}
+
+
+# ---------------------------------------------------------------------------
 # Response helpers
 # ---------------------------------------------------------------------------
 

@@ -45,6 +45,15 @@ const PRIMARY_NAV = [
 
 const MORE_NAV = [
   {
+    href: '/leaderboard',
+    label: 'Leaderboard',
+    icon: (
+      <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V3H8v8H2v10h20V11h-6zM8 21H4v-6h4v6zm6 0h-4v-8h4v8zm6 0h-4v-4h4v4z" />
+      </svg>
+    ),
+  },
+  {
     href: '/backtest',
     label: 'Backtest',
     icon: (
