@@ -41,54 +41,11 @@ backend restarts. Leaderboard added to More tray nav.
 
 ---
 
-### [READY-2] Complete touch-target audit: fix X button on WatchlistCard and close button on More tray
-
-Two interactive controls were missed by the Sprint 2 touch-target pass and remain under the
-44×44 px WCAG 2.5.5 / Apple HIG minimum.
-
-**Sub-task A — Watchlist card X button (~22 px)**
-Each `WatchlistCard` in `app/watchlist/WatchlistClient.tsx` has a remove button with a small
-icon and `p-1` padding. Apply the same `min-w-[44px] min-h-[44px] flex items-center
-justify-center` treatment used on the scanner star button in Sprint 2.
-**Scope:** `app/watchlist/WatchlistClient.tsx`
-
-**Sub-task B — More tray close button (24 px)**
-The close X in `BottomNav.tsx` is `w-6 h-6` (24 px). Expand to `min-w-[44px] min-h-[44px]`
-with `flex items-center justify-center`; the visual circle background can stay at its current
-size by applying it to an inner `<span>` rather than the button itself, or by simply enlarging
-the button hit zone with a negative-margin / padding trick.
-
-Also note the CSS animation bug flagged by the User Tester: both open and closed states share
-`bottom: '4.5rem'`; the closed state relies entirely on a `translateY` transform. While it works
-visually, consider setting `bottom: '4.5rem'` for open and moving to `visibility: hidden` /
-`pointer-events: none` after the close transition completes to prevent interaction with off-screen
-elements on slow browsers.
-**Scope:** `components/BottomNav.tsx`
-
-Ship both sub-tasks as one atomic commit.
-
----
-
 ### ✅ [DONE — Sprint 5] Add watchlist star button to the stock detail page
 
 Completed 2026-04-23. New `WatchStar.tsx` client component added; star appears in the stock
 detail page header with 44px touch target, localStorage sync, and cross-component event dispatch.
 Commits: `0359636` (feat), `ebcc310` (QA sync fix).
-
----
-
-### [READY-4] Toast/snackbar confirmation after starring a stock
-
-After tapping the star on a `StockRow`, users get no feedback that the action succeeded beyond
-the icon fill changing — which is easy to miss mid-scroll. A brief toast ("AAPL added to
-watchlist") closes the loop.
-- Implement a lightweight toast component (fixed bottom-center, above the nav bar, auto-dismisses
-  after ~2 s). Check if a toast utility already exists before creating one.
-- Trigger from `StockRow.tsx` on each `toggleWatchlist` call, passing the ticker and
-  add/remove direction.
-- No external library required; a simple CSS transition with `useState` + `useEffect` timeout
-  is sufficient to keep the bundle lean.
-**Scope:** `components/StockRow.tsx`, new `components/Toast.tsx` (if no existing primitive).
 
 ---
 
@@ -158,31 +115,6 @@ Allow EdgeScan to feed a periodic newsletter (weekly or bi-weekly) with content 
 - Backend: `GET /api/newsletter/weekly-digest` endpoint that assembles the data payload.
 - No subscriber management needed in v1 — the publishing platform handles the list.
 **Decision needed:** delivery mechanism (manual export vs. Resend/Buttondown API vs. in-app preview page). Confirm before implementation.
-
----
-
-### [READY-11] Friends leaderboard with portfolio rankings and rewards
-
-A social leaderboard page where each profile's portfolio performance is ranked against the others. Designed to be fun and competitive for a small group of friends all using the same app instance.
-
-**Visual design:**
-- Top 3 profiles stand on podium pedestals (1st tallest centre, 2nd left, 3rd right) with avatar circles, profile names, and their total portfolio return %.
-- Positions 4 and below rendered as a ranked list underneath the podium with rank number, avatar, name, return %, and portfolio value.
-- Animated confetti or glow effect on the #1 spot.
-
-**Rewards / badges:**
-- Weekly reward: crown badge awarded to the top performer over the rolling 7-day period, shown on their podium/card.
-- Monthly reward: gold medal badge for the month's best return.
-- Badges persist on the profile and display on their leaderboard card and profile picker avatar.
-- "Biggest mover this week" badge for the largest % gain in 7 days regardless of rank.
-
-**Data:**
-- Backend computes each profile's portfolio return % from their `PortfolioHolding` rows using stored price history — no live price fetch on page load.
-- New `GET /api/leaderboard` endpoint returning ranked list with return %, portfolio value, badges earned.
-- Badge logic computed server-side and stored per profile (new `badges_json` column on `Profile`).
-
-**Scope:** new `app/leaderboard/page.tsx`, new `components/Podium.tsx`, backend endpoint + badge logic. Add Leaderboard to the bottom nav (swap into a primary slot or the More tray).
-**Decision needed:** how to handle profiles with no portfolio holdings (show as 0% or exclude). Confirm before implementation.
 
 ---
 
