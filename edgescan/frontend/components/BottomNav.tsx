@@ -184,12 +184,18 @@ export default function BottomNav() {
           </div>
           <button
             onClick={() => setOpen(false)}
-            className="w-6 h-6 flex items-center justify-center rounded-full transition-colors"
-            style={{ background: 'rgba(255,255,255,0.07)', color: '#6b7a99' }}
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors hover:bg-white/[0.05]"
+            style={{ color: '#6b7a99' }}
+            aria-label="Close menu"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <span
+              className="w-6 h-6 flex items-center justify-center rounded-full"
+              style={{ background: 'rgba(255,255,255,0.07)' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </span>
           </button>
         </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import ScoreRing from './ScoreRing'
 import Sparkline from './Sparkline'
+import Toast from './Toast'
 import type { StockResult, OHLCVBar } from '@/lib/types'
 import { getServerWatchlist, toggleWatchlist } from '@/app/watchlist/WatchlistClient'
 import { api } from '@/lib/api'
@@ -39,6 +40,7 @@ export default function StockRow({ stock, rank }: Props) {
 
   const [history, setHistory] = useState<OHLCVBar[]>([])
   const [starred, setStarred] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   const sparkData = history.slice(-7).map(b => ({ close: b.close }))
   const isPositive =
@@ -59,6 +61,7 @@ export default function StockRow({ stock, rank }: Props) {
       e.stopPropagation()
       const next = toggleWatchlist(stock.ticker)
       setStarred(next)
+      setToast(next ? `${stock.ticker} added to watchlist` : `${stock.ticker} removed from watchlist`)
     },
     [stock.ticker],
   )
@@ -147,6 +150,8 @@ export default function StockRow({ stock, rank }: Props) {
           </svg>
         )}
       </button>
+
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   )
 }

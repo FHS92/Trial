@@ -7,53 +7,27 @@ After completing an item, move it to Done and promote the next item.
 
 ## 🔴 READY (pick from top)
 
-### [READY-1] Fix 7-day sparkline: pass OHLCV history to StockRow on the scanner page (Sprint 3 top item)
+### ✅ [DONE — Sprint 8] Fix 7-day sparkline on scanner page
 
-The 7-day sparkline column rendered on every `StockRow` has been permanently empty since it
-shipped. `StockRow` accepts a `history?: OHLCVBar[]` prop and correctly slices the last 7 bars,
-but `scanner/page.tsx` never passes that prop — every card renders an invisible 80×32 px blank
-area instead of a price line. This is a broken UI element visible to 100% of scanner users on
-every page load and must be fixed before any cosmetic enhancements.
+Completed 2026-05-03. Root cause was `Sparkline.tsx` using recharts `ResponsiveContainer` which
+caused SSR hydration mismatches preventing the chart from ever mounting. Fixed by replacing with a
+pure SVG polyline — no external library, no SSR issues. `StockRow.tsx` already fetched price
+history client-side via `api.priceHistory`; sparklines now render correctly on desktop.
 
-**Root cause (confirmed by code review):**
-`scanner/page.tsx` line 129:
-```tsx
-<StockRow key={stock.ticker} stock={stock} rank={i + 1} />
-```
-The `history` prop is absent. `StockRow` defaults to `history = []`, so `sparkData` is always
-empty and `Sparkline` returns a blank `<div>`.
+---
 
-**Approach — parallel server-side fetch for the displayed stocks only:**
-`scanner/page.tsx` is an `async` server component (already `force-dynamic`). The fix stays
-entirely server-side — no client state, no new hooks, no layout changes.
+### ✅ [DONE — Sprint 8] Touch-target audit: watchlist X + More tray close button
 
-1. After `getTopStocks()` resolves, take `displayed` (the top 10 or sector-filtered list, max
-   10 by default).
-2. Fetch `api.priceHistory(ticker, '1w')` for each ticker in `displayed` in parallel using
-   `Promise.allSettled` (so a single bad ticker does not break the whole page).
-3. Build a `Map<string, OHLCVBar[]>` keyed by ticker from the settled results (skip rejected
-   promises silently — `StockRow` already handles an empty array gracefully).
-4. Pass `history={historyMap.get(stock.ticker) ?? []}` on each `<StockRow>`.
+Completed 2026-05-03. Watchlist card X button expanded to `min-w-[44px] min-h-[44px]`.
+More tray close button expanded to 44px hit zone with visual circle on inner `<span>`.
 
-**Important constraints:**
-- Fetch only for `displayed` (≤10 tickers by default, ≤ full filtered set when "show all" is
-  active). Do NOT fetch history for every result in `results` (up to 100 rows) — that would
-  fire 100 parallel requests on every page load.
-- `api.priceHistory` already exists in `lib/api.ts` and returns `PriceHistoryResponse` with
-  `data: OHLCVBar[]`. The `OHLCVBar` type is in `lib/types.ts`. No backend changes needed.
-- Keep `getTopStocks()` as a pure helper that returns `StockResult[]`; the history fetching
-  belongs in the page component body, not inside that helper.
-- The sparkline renders on `md:` and above (`hidden md:block` wrapper in `StockRow`). No change
-  to that visibility rule is needed.
+---
 
-**Scope:** `app/scanner/page.tsx` only. No other files require changes.
+### ✅ [DONE — Sprint 8] Toast/snackbar after starring a stock
 
-**Acceptance criteria:**
-- On a desktop viewport (≥768 px) each stock card in the scanner shows a coloured 7-day price
-  line (green if net positive over the week, red if net negative).
-- A ticker whose history fetch fails (network error, 404) still renders a blank sparkline slot —
-  no error boundary or console crash.
-- TypeScript compiles clean (`tsc --noEmit`).
+Completed 2026-05-03. New `Toast.tsx` component (fixed-position, CSS fade in/out, auto-dismiss
+after 2s). Wired into `StockRow.tsx` — each star tap shows "AAPL added to watchlist" or
+"AAPL removed from watchlist".
 
 ---
 

@@ -109,9 +109,10 @@ function WatchlistCard({ stock, onRemove }: { stock: StockResult; onRemove: () =
 
       <button
         onClick={e => { e.stopPropagation(); onRemove() }}
-        className="flex-shrink-0 p-1 rounded transition-colors hover:bg-white/[0.08]"
+        className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors hover:bg-white/[0.08]"
         style={{ color: '#6b7a99' }}
         title="Remove from watchlist"
+        aria-label="Remove from watchlist"
       >
         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
