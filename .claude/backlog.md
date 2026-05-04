@@ -29,6 +29,15 @@ Sparkline hidden on mobile, tighter gap/padding, score ring 44px, price label sh
 ### ✅ [DONE] Stock chart hover fix
 XAxis keyed on raw ISO date; tooltip shows correct bar at cursor.
 
+### ✅ [DONE] Earnings calendar
+`/earnings` page + nav entry already existed; data from `scan_results.earnings_date`.
+
+### ✅ [DONE] Head-to-head profile compare
+`/leaderboard/vs/[a]/[b]` — fetches both profiles + holdings; stat table with winner highlighting; shared picks + unique picks as ticker pills. VS link on each non-self RankRow.
+
+### ✅ [DONE] Mobile-friendly comparison page
+`MetricRow` already had `sm:hidden` mobile and `hidden sm:grid` desktop variants; header cards use `flex flex-col sm:grid`. No overflow on phones.
+
 ---
 
 ## READY

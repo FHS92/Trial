@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -506,77 +507,95 @@ function RankRow({
   entry,
   onSelect,
   window: win,
+  myProfileId,
 }: {
   entry: RankedEntry
   onSelect: (e: Entry) => void
   window: TimeWindow
+  myProfileId?: string
 }) {
   const gain = entry.total_value - entry.total_cost
+  const showVs = myProfileId && myProfileId !== entry.profile_id
+
   return (
-    <button
-      className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl transition-colors hover:brightness-110 active:scale-[0.99]"
-      style={{
-        background: entry.is_me ? 'rgba(79,142,247,0.08)' : '#0f1521',
-        border: `1px solid ${entry.is_me ? 'rgba(79,142,247,0.25)' : 'rgba(255,255,255,0.05)'}`,
-      }}
-      onClick={() => onSelect(entry)}
-      aria-label={`View ${entry.name}'s portfolio`}
-    >
-      <span className="text-sm font-bold w-6 text-center shrink-0" style={{ color: '#3a4259' }}>
-        {entry.display_rank}
-      </span>
-
-      <div className="relative shrink-0">
-        <Avatar name={entry.name} colour={entry.avatar_colour} size={36} />
-        {entry.is_me && (
-          <div className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center"
-            style={{ width: 16, height: 16, background: '#4f8ef7', fontSize: 7, color: '#fff', fontWeight: 700 }}>
-            YOU
-          </div>
-        )}
-      </div>
-
-      {/* Name + badges */}
-      <div className="flex-1 min-w-0 text-left">
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-sm font-semibold truncate" style={{ color: '#e2e8f8' }}>{entry.name}</span>
-          {entry.badges.map(b => <BadgeChip key={b} badgeKey={b} small />)}
-        </div>
-        <span className="text-xs" style={{ color: '#6b7a99' }}>
-          {entry.n_holdings} holding{entry.n_holdings !== 1 ? 's' : ''} · tap to view
+    <div className="flex items-center gap-2">
+      <div
+        role="button"
+        tabIndex={0}
+        className="flex-1 text-left flex items-center gap-3 px-4 py-3 rounded-xl transition-colors hover:brightness-110 cursor-pointer"
+        style={{
+          background: entry.is_me ? 'rgba(79,142,247,0.08)' : '#0f1521',
+          border: `1px solid ${entry.is_me ? 'rgba(79,142,247,0.25)' : 'rgba(255,255,255,0.05)'}`,
+        }}
+        onClick={() => onSelect(entry)}
+        onKeyDown={e => e.key === 'Enter' && onSelect(entry)}
+        aria-label={`View ${entry.name}'s portfolio`}
+      >
+        <span className="text-sm font-bold w-6 text-center shrink-0" style={{ color: '#3a4259' }}>
+          {entry.display_rank}
         </span>
-      </div>
 
-      {/* Returns column */}
-      <div className="text-right shrink-0">
-        {/* Primary % for active window */}
-        <ReturnPct pct={entry.display_pct} className="text-sm" />
-
-        {/* Secondary context */}
-        <div className="flex gap-2 justify-end mt-0.5">
-          {win !== 'alltime' && (
-            <span className="text-xs" style={{ color: '#3a4259' }}>
-              all <ReturnPct pct={entry.return_pct} className="text-xs" />
-            </span>
-          )}
-          {win !== 'weekly' && (
-            <span className="text-xs" style={{ color: '#3a4259' }}>
-              7d <ReturnPct pct={entry.weekly_return_pct} className="text-xs" />
-            </span>
-          )}
-          {win !== 'monthly' && (
-            <span className="text-xs" style={{ color: '#3a4259' }}>
-              30d <ReturnPct pct={entry.monthly_return_pct} className="text-xs" />
-            </span>
-          )}
-          {win === 'alltime' && (
-            <span className="text-xs" style={{ color: entry.total_value - entry.total_cost >= 0 ? '#22c55e66' : '#ef444466' }}>
-              {gain >= 0 ? '+' : ''}{fmtDollar(gain)}
-            </span>
+        <div className="relative shrink-0">
+          <Avatar name={entry.name} colour={entry.avatar_colour} size={36} />
+          {entry.is_me && (
+            <div className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center"
+              style={{ width: 16, height: 16, background: '#4f8ef7', fontSize: 7, color: '#fff', fontWeight: 700 }}>
+              YOU
+            </div>
           )}
         </div>
+
+        {/* Name + badges */}
+        <div className="flex-1 min-w-0 text-left">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-sm font-semibold truncate" style={{ color: '#e2e8f8' }}>{entry.name}</span>
+            {entry.badges.map(b => <BadgeChip key={b} badgeKey={b} small />)}
+          </div>
+          <span className="text-xs" style={{ color: '#6b7a99' }}>
+            {entry.n_holdings} holding{entry.n_holdings !== 1 ? 's' : ''} · tap to view
+          </span>
+        </div>
+
+        {/* Returns column */}
+        <div className="text-right shrink-0">
+          <ReturnPct pct={entry.display_pct} className="text-sm" />
+          <div className="flex gap-2 justify-end mt-0.5">
+            {win !== 'alltime' && (
+              <span className="text-xs" style={{ color: '#3a4259' }}>
+                all <ReturnPct pct={entry.return_pct} className="text-xs" />
+              </span>
+            )}
+            {win !== 'weekly' && (
+              <span className="text-xs" style={{ color: '#3a4259' }}>
+                7d <ReturnPct pct={entry.weekly_return_pct} className="text-xs" />
+              </span>
+            )}
+            {win !== 'monthly' && (
+              <span className="text-xs" style={{ color: '#3a4259' }}>
+                30d <ReturnPct pct={entry.monthly_return_pct} className="text-xs" />
+              </span>
+            )}
+            {win === 'alltime' && (
+              <span className="text-xs" style={{ color: gain >= 0 ? '#22c55e66' : '#ef444466' }}>
+                {gain >= 0 ? '+' : ''}{fmtDollar(gain)}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
-    </button>
+
+      {/* VS link — only for other players when logged in */}
+      {showVs && (
+        <Link
+          href={`/leaderboard/vs/${myProfileId}/${entry.profile_id}`}
+          className="flex-shrink-0 text-xs font-bold px-2 py-1.5 rounded-lg transition-colors hover:brightness-110"
+          style={{ background: 'rgba(79,142,247,0.1)', color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.2)' }}
+          title={`Compare you vs ${entry.name}`}
+        >
+          VS
+        </Link>
+      )}
+    </div>
   )
 }
 
@@ -623,6 +642,7 @@ export default function LeaderboardPage() {
 
   const podiumEntries = rankedEntries.slice(0, 3)
   const restEntries   = rankedEntries.slice(3)
+  const myProfileId   = rankedEntries.find(e => e.is_me)?.profile_id
 
   const windowLabel = timeWindow === 'weekly' ? '7-day' : timeWindow === 'monthly' ? '30-day' : 'all-time'
 
@@ -681,7 +701,7 @@ export default function LeaderboardPage() {
               <div className="space-y-2 mt-4">
                 <p className="text-xs font-semibold mb-3" style={{ color: '#3a4259' }}>REST OF THE FIELD</p>
                 {restEntries.map(entry => (
-                  <RankRow key={entry.profile_id} entry={entry} onSelect={handleSelect} window={timeWindow} />
+                  <RankRow key={entry.profile_id} entry={entry} onSelect={handleSelect} window={timeWindow} myProfileId={myProfileId} />
                 ))}
               </div>
             )}
