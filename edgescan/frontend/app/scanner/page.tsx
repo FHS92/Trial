@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import StockRow from '@/components/StockRow'
 import MarketStrip from '@/components/MarketStrip'
 import UniverseBadge from '@/components/UniverseBadge'
+import ScanButton from '@/components/ScanButton'
 import type { StockResult } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -87,7 +88,8 @@ export default async function ScannerPage({
           <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>
             Top Opportunities
           </h1>
-          {/* Last-scanned banner */}
+          {/* Last-scanned banner + scan button */}
+          <div className="flex items-center gap-3 flex-wrap">
           <div
             className="inline-flex items-center gap-2 px-3 py-1 rounded-pill"
             style={{
@@ -119,6 +121,8 @@ export default async function ScannerPage({
                     ? `Last scanned ${Math.round(lastScannedMinutesAgo / 60)}h ago · ${totalScanned} stocks`
                     : `Last scanned ${Math.round(lastScannedMinutesAgo / 1440)}d ago · ${totalScanned} stocks`}
             </span>
+          </div>
+          <ScanButton />
           </div>
         </div>
 

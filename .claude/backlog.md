@@ -7,6 +7,23 @@ After completing an item, move it to Done and promote the next item.
 
 ## 🔴 READY (pick from top)
 
+### ✅ [DONE — Sprint 10] Score trend arrow on scanner stock cards
+
+Completed 2026-05-04. New `TrendArrow.tsx` component. Green ↑ if score improved >3 pts vs
+previous scan, red ↓ if dropped >3 pts, grey → if stable. Fetched lazily in `StockRow`
+alongside price history — non-blocking, no crash on missing history.
+
+---
+
+### ✅ [DONE — Sprint 10] On-demand Scan Now button on scanner page
+
+Completed 2026-05-04. New `POST /api/scan/request` endpoint (Bearer-token auth, returns
+immediately) fires a background thread scanning all S&P 500 tickers. New `GET /api/scan/status`
+returns in-progress flag + last_scanned_at. `ScanButton` client component polls every 8s, shows
+Starting → Scanning → Done states, then calls `router.refresh()` when the new scan lands.
+
+---
+
 ### ✅ [DONE — Sprint 8] Fix 7-day sparkline on scanner page
 
 Completed 2026-05-03. Root cause was `Sparkline.tsx` using recharts `ResponsiveContainer` which

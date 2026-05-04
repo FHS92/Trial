@@ -774,6 +774,71 @@ def _fetch_market_pulse() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Scan state (in-memory, per-instance)
+# ---------------------------------------------------------------------------
+
+_scan_lock = threading.Lock()
+_scan_in_progress: bool = False
+
+
+def _background_scan() -> None:
+    global _scan_in_progress
+    try:
+        results = scan_tickers(SP500_TICKERS)
+        db = SessionLocal()
+        try:
+            for r in results:
+                _store_scan_result(r, db)
+        finally:
+            db.close()
+    finally:
+        with _scan_lock:
+            _scan_in_progress = False
+
+
+# ---------------------------------------------------------------------------
+# GET /api/scan/status
+# ---------------------------------------------------------------------------
+
+@app.get("/api/scan/status")
+def get_scan_status(db: Session = Depends(get_db)):
+    """Lightweight poll endpoint — returns last scan timestamp and in-progress flag."""
+    row = db.query(ScanResult).order_by(ScanResult.scanned_at.desc()).first()
+    with _scan_lock:
+        in_progress = _scan_in_progress
+    return {
+        "in_progress": in_progress,
+        "last_scanned_at": row.scanned_at.isoformat() if row else None,
+        "total_scanned": db.query(func.count(ScanResult.ticker.distinct())).scalar(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# POST /api/scan/request  (user-initiated, auth via Bearer token)
+# ---------------------------------------------------------------------------
+
+@app.post("/api/scan/request")
+def request_scan(authorization: str = Header(default="")):
+    """
+    Any authenticated profile can trigger a background scan.
+    Returns immediately — poll GET /api/scan/status for completion.
+    """
+    global _scan_in_progress
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+
+    with _scan_lock:
+        if _scan_in_progress:
+            return {"status": "already_running", "message": "A scan is already in progress"}
+        _scan_in_progress = True
+
+    t = threading.Thread(target=_background_scan, daemon=True)
+    t.start()
+    return {"status": "started", "message": f"Scanning {len(SP500_TICKERS)} stocks in background"}
+
+
+# ---------------------------------------------------------------------------
 # POST /api/scan/trigger
 # ---------------------------------------------------------------------------
 
