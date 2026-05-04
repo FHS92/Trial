@@ -10,8 +10,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        {/* Apply saved theme before first paint to avoid flash */}
+        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem('edgescan_theme')==='light')document.documentElement.classList.add('light')}catch(e){}` }} />
+      </head>
       <body>
-        {/* Extra bottom padding so content clears the fixed nav bar */}
         <div style={{ paddingBottom: '4.5rem' }}>{children}</div>
         <BottomNav />
       </body>

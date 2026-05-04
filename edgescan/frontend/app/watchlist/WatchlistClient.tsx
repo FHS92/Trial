@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import ScoreRing from '@/components/ScoreRing'
@@ -8,6 +8,7 @@ import TickerSearch from '@/components/TickerSearch'
 import type { StockResult, SearchResult } from '@/lib/types'
 
 const WL_KEY = 'edgescan_watchlist'
+const MAX_WATCHLIST = 50
 
 function _token(): string | null {
   if (typeof window === 'undefined') return null
@@ -77,48 +78,91 @@ export function toggleWatchlist(ticker: string): boolean {
 function WatchlistCard({ stock, onRemove }: { stock: StockResult; onRemove: () => void }) {
   const router = useRouter()
   const upside = stock.upside_pct ?? 0
+  const [swipeX, setSwipeX] = useState(0)
+  const touchStartRef = useRef(0)
+
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartRef.current = e.touches[0].clientX
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const delta = e.touches[0].clientX - touchStartRef.current
+    setSwipeX(Math.max(0, Math.min(delta, 120)))
+  }
+  function onTouchEnd() {
+    if (swipeX > 80) {
+      onRemove()
+    } else {
+      setSwipeX(0)
+    }
+  }
 
   return (
-    <div
-      className="flex items-center gap-4 px-4 py-3 rounded-cell cursor-pointer hover:bg-white/[0.03] transition-colors"
-      style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
-      onClick={() => router.push(`/stock/${stock.ticker}`)}
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-sm" style={{ color: '#e2e8f8' }}>{stock.ticker}</span>
-          {stock.sector && (
-            <span className="text-xs px-2 py-0.5 rounded-pill hidden sm:inline"
-              style={{ background: 'rgba(79,142,247,0.1)', color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.2)' }}>
-              {stock.sector}
-            </span>
-          )}
-        </div>
-        <p className="text-xs mt-0.5 truncate" style={{ color: '#6b7a99' }}>{stock.name}</p>
-      </div>
-
-      <div className="text-right flex-shrink-0">
-        <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>
-          {stock.current_price != null ? `$${stock.current_price.toFixed(2)}` : '—'}
-        </p>
-        <p className="text-xs" style={{ color: upside >= 0 ? '#22d47e' : '#f75f5f' }}>
-          {upside >= 0 ? '+' : ''}{upside.toFixed(1)}%
-        </p>
-      </div>
-
-      <ScoreRing score={stock.score} size={44} />
-
-      <button
-        onClick={e => { e.stopPropagation(); onRemove() }}
-        className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors hover:bg-white/[0.08]"
-        style={{ color: '#6b7a99' }}
-        title="Remove from watchlist"
-        aria-label="Remove from watchlist"
+    <div className="relative overflow-hidden" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      {/* Red delete zone revealed under the card */}
+      <div
+        className="absolute inset-y-0 left-0 flex items-center justify-center"
+        style={{
+          width: swipeX,
+          background: 'rgba(247,95,95,0.18)',
+          transition: swipeX === 0 ? 'width 0.2s' : 'none',
+        }}
       >
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+        {swipeX > 40 && (
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#f75f5f" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        )}
+      </div>
+
+      {/* Card content */}
+      <div
+        className="flex items-center gap-4 px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-colors"
+        style={{
+          background: '#0f1420',
+          transform: `translateX(${swipeX}px)`,
+          transition: swipeX === 0 ? 'transform 0.2s' : 'none',
+        }}
+        onClick={() => { if (swipeX < 10) router.push(`/stock/${stock.ticker}`) }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-sm" style={{ color: '#e2e8f8' }}>{stock.ticker}</span>
+            {stock.sector && (
+              <span className="text-xs px-2 py-0.5 rounded-pill hidden sm:inline"
+                style={{ background: 'rgba(79,142,247,0.1)', color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.2)' }}>
+                {stock.sector}
+              </span>
+            )}
+          </div>
+          <p className="text-xs mt-0.5 truncate" style={{ color: '#6b7a99' }}>{stock.name}</p>
+        </div>
+
+        <div className="text-right flex-shrink-0">
+          <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>
+            {stock.current_price != null ? `$${stock.current_price.toFixed(2)}` : '—'}
+          </p>
+          <p className="text-xs" style={{ color: upside >= 0 ? '#22d47e' : '#f75f5f' }}>
+            {upside >= 0 ? '+' : ''}{upside.toFixed(1)}%
+          </p>
+        </div>
+
+        <ScoreRing score={stock.score} size={44} />
+
+        <button
+          onClick={e => { e.stopPropagation(); onRemove() }}
+          className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors hover:bg-white/[0.08]"
+          style={{ color: '#6b7a99' }}
+          title="Remove from watchlist"
+          aria-label="Remove from watchlist"
+        >
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
     </div>
   )
 }
@@ -168,6 +212,7 @@ export default function WatchlistClient() {
   }
 
   function add(ticker: string) {
+    if (tickers.length >= MAX_WATCHLIST) return
     if (!tickers.includes(ticker)) {
       toggleWatchlist(ticker)
       setTickers(prev => [...prev, ticker])
@@ -194,6 +239,13 @@ export default function WatchlistClient() {
             placeholder="Add by ticker or company name…"
           />
         </div>
+        {tickers.length >= MAX_WATCHLIST - 5 && (
+          <p className="text-xs mt-2 text-center" style={{ color: tickers.length >= MAX_WATCHLIST ? '#f75f5f' : '#f5a623' }}>
+            {tickers.length >= MAX_WATCHLIST
+              ? 'Watchlist full (50 stocks). Remove one to add another.'
+              : `${MAX_WATCHLIST - tickers.length} slots remaining`}
+          </p>
+        )}
       </div>
 
       {/* List */}

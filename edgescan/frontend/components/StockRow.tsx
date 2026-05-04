@@ -63,6 +63,17 @@ export default function StockRow({ stock, rank }: Props) {
         }
       })
       .catch(() => {})
+
+    function onStorage(e: StorageEvent) {
+      if (e.key === 'edgescan_watchlist') {
+        try {
+          const list: string[] = JSON.parse(e.newValue ?? '[]')
+          setStarred(list.includes(stock.ticker))
+        } catch { /* ignore */ }
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
   }, [stock.ticker])
 
   const handleStar = useCallback(
@@ -102,7 +113,7 @@ export default function StockRow({ stock, rank }: Props) {
             {stock.ticker}
           </span>
           <span
-            className="text-xs px-2 py-0.5 rounded-pill hidden sm:inline"
+            className="text-xs px-2 py-0.5 rounded-pill"
             style={{
               background: `${sectorColor}18`,
               color: sectorColor,

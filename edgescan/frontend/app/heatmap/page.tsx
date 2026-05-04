@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import UniverseBadge from '@/components/UniverseBadge'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -36,6 +37,7 @@ function formatMonth(m: string): string {
 }
 
 export default function HeatmapPage() {
+  const router = useRouter()
   const [data, setData] = useState<HeatmapData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -221,8 +223,10 @@ export default function HeatmapPage() {
                           background: rowBg,
                         }}
                       >
-                        {/* Sector name cell */}
+                        {/* Sector name cell — click → scanner filtered by sector */}
                         <td
+                          onClick={() => router.push(`/scanner?sector=${encodeURIComponent(row.sector)}`)}
+                          title={`View ${row.sector} stocks in scanner`}
                           style={{
                             padding: '10px 16px',
                             position: 'sticky',
@@ -230,6 +234,7 @@ export default function HeatmapPage() {
                             background: rowBg,
                             zIndex: 1,
                             borderRight: '1px solid rgba(255,255,255,0.06)',
+                            cursor: 'pointer',
                           }}
                         >
                           <span
@@ -247,11 +252,11 @@ export default function HeatmapPage() {
                             style={{
                               display: 'block',
                               fontSize: 11,
-                              color: '#6b7a99',
+                              color: '#4f8ef7',
                               marginTop: 2,
                             }}
                           >
-                            {row.stock_count} stocks
+                            {row.stock_count} stocks →
                           </span>
                         </td>
 
@@ -278,10 +283,13 @@ export default function HeatmapPage() {
                           return (
                             <td
                               key={m}
+                              onClick={() => router.push(`/scanner?sector=${encodeURIComponent(row.sector)}`)}
+                              title={`View ${row.sector} stocks in scanner`}
                               style={{
                                 padding: '8px',
                                 textAlign: 'center',
                                 borderRight: '1px solid rgba(255,255,255,0.04)',
+                                cursor: 'pointer',
                               }}
                             >
                               <span

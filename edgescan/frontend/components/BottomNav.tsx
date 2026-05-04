@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import ThemeToggle from './ThemeToggle'
 
 const PRIMARY_NAV = [
   {
@@ -218,6 +219,8 @@ export default function BottomNav() {
               </Link>
             )
           })}
+          <ThemeToggle />
+
           {/* Switch Profile */}
           <button
             onClick={handleSwitchProfile}

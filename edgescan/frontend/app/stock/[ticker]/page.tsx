@@ -5,6 +5,7 @@ import DetailPanel from '@/components/DetailPanel'
 import WatchStar from '@/components/WatchStar'
 import MonteCarloPanel from '@/components/MonteCarloPanel'
 import IndustryMultiples from '@/components/IndustryMultiples'
+import RefreshButton from '@/components/RefreshButton'
 import type { OHLCVBar } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -160,7 +161,8 @@ export default async function StockPage({ params }: Props) {
         </Link>
         <span style={{ color: 'rgba(255,255,255,0.12)' }}>/</span>
         <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>{ticker}</span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <RefreshButton />
           <WatchStar ticker={ticker} />
         </div>
       </header>
