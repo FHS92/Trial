@@ -1,49 +1,67 @@
-# Cloud Scheduler — Daily Scan Setup
+# Cloud Scheduler — Scan Schedule Setup
 
-Run this once from your terminal (replace the two placeholder values).
+Runs every 15 minutes between 9:00 and 16:45 UTC, Monday–Friday.
+
+---
+
+## Option A: Google Cloud Console (no CLI needed)
+
+1. Go to **Google Cloud Console → Cloud Scheduler → Create Job**
+2. Fill in:
+
+| Field | Value |
+|---|---|
+| Name | `edgescan-scan-15min` |
+| Region | `europe-west1` |
+| Frequency | `*/15 9-16 * * 1-5` |
+| Timezone | `Coordinated Universal Time (UTC)` |
+| Target type | `HTTP` |
+| URL | `https://edgescan-754322842495.europe-west1.run.app/api/scan/trigger` |
+| HTTP method | `POST` |
+| Body | `{}` |
+| Timeout (optional settings) | `600` seconds |
+
+3. Under **Auth header**, add two HTTP headers:
+   - `X-Scan-Secret` = `edgescan-local-secret`
+   - `Content-Type` = `application/json`
+
+4. Click **Create**.
+
+---
+
+## Option B: gcloud CLI
 
 ```bash
-# 1. Set your values
-export CLOUD_RUN_URL="https://YOUR_SERVICE_URL"   # e.g. https://edgescan-abc123-ew.a.run.app
-export SCAN_SECRET="YOUR_SCAN_SECRET"              # value of SCAN_SECRET env var in Cloud Run
-
-# 2. Create the scheduler job (runs Mon–Fri at 21:00 UTC = 4 pm ET after market close)
-gcloud scheduler jobs create http edgescan-daily-scan \
+gcloud scheduler jobs create http edgescan-scan-15min \
   --location=europe-west1 \
-  --schedule="0 21 * * 1-5" \
-  --uri="${CLOUD_RUN_URL}/api/scan/trigger" \
+  --schedule="*/15 9-16 * * 1-5" \
+  --uri="https://edgescan-754322842495.europe-west1.run.app/api/scan/trigger" \
   --http-method=POST \
-  --headers="X-Scan-Secret=${SCAN_SECRET},Content-Type=application/json" \
+  --headers="X-Scan-Secret=edgescan-local-secret,Content-Type=application/json" \
   --message-body='{}' \
   --attempt-deadline=600s \
   --time-zone="UTC" \
-  --description="EdgeScan daily S&P 500 scan after market close"
+  --description="EdgeScan 15-min scan Mon-Fri 9am-4pm UTC"
 ```
 
-**Notes:**
-- `attempt-deadline=600s` gives the scan 10 minutes to complete (full S&P 500 takes ~2-4 min).
-- Change `--location` to match your Cloud Run region.
-- `0 21 * * 1-5` = 9 pm UTC weekdays. Adjust to taste:
-  - `0 21 * * *` to include weekends
-  - `0 16 * * 1-5` for 4 pm UTC (noon ET)
-- The endpoint `/api/scan/trigger` is synchronous — Cloud Scheduler waits for the 200 response before marking the job successful.
+---
 
-**To update the schedule later:**
-```bash
-gcloud scheduler jobs update http edgescan-daily-scan \
-  --schedule="0 21 * * 1-5" \
-  --location=europe-west1
-```
+## Security note
 
-**To run it manually right now:**
-```bash
-gcloud scheduler jobs run edgescan-daily-scan --location=europe-west1
-```
+`edgescan-local-secret` is the hardcoded default — visible in the source code.
+To harden it, add a `SCAN_SECRET` environment variable in Cloud Run with a strong
+random value (e.g. a UUID), then update the header above to match.
 
-**Or trigger directly without Cloud Scheduler:**
+---
+
+## Manual trigger (test it immediately)
+
 ```bash
-curl -X POST "${CLOUD_RUN_URL}/api/scan/trigger" \
-  -H "X-Scan-Secret: ${SCAN_SECRET}" \
+curl -X POST \
+  "https://edgescan-754322842495.europe-west1.run.app/api/scan/trigger" \
+  -H "X-Scan-Secret: edgescan-local-secret" \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
+
+Or from Cloud Console: **Cloud Scheduler → edgescan-scan-15min → Force run**.
