@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
-const BADGE_META: Record<string, { emoji: string; label: string }> = {
-  crown:   { emoji: '👑', label: 'Overall #1' },
-  weekly:  { emoji: '⚡', label: 'Weekly Champion' },
-  monthly: { emoji: '🥇', label: 'Monthly Champion' },
-  rocket:  { emoji: '🚀', label: 'Biggest Weekly Mover' },
+const BADGE_META: Record<string, { emoji: string; label: string; desc: string }> = {
+  crown:   { emoji: '👑', label: 'Overall #1',           desc: 'Highest total return since cost basis' },
+  weekly:  { emoji: '⚡', label: 'Weekly Champion',      desc: 'Best 7-day return % this week' },
+  monthly: { emoji: '🥇', label: 'Monthly Champion',     desc: 'Best 30-day return % this month' },
+  rocket:  { emoji: '🚀', label: 'Biggest Weekly Mover', desc: 'Largest $ gain in the last 7 days' },
 }
 
 interface Entry {
@@ -32,6 +32,39 @@ interface LeaderboardData {
   updated_at: string
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1)  return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24)  return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
+function fmtDollar(n: number): string {
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000) return `${n < 0 ? '-' : ''}$${(abs / 1_000_000).toFixed(1)}M`
+  if (abs >= 1_000)     return `${n < 0 ? '-' : ''}$${(abs / 1_000).toFixed(1)}K`
+  return `${n < 0 ? '-$' : '$'}${abs.toFixed(0)}`
+}
+
+function pctColor(pct: number) {
+  return pct > 0 ? '#22c55e' : pct < 0 ? '#ef4444' : '#6b7a99'
+}
+
+function ReturnPct({ pct, className = '' }: { pct: number; className?: string }) {
+  return (
+    <span className={`font-bold ${className}`} style={{ color: pctColor(pct) }}>
+      {pct > 0 ? '+' : ''}{pct.toFixed(2)}%
+    </span>
+  )
+}
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+
 function Avatar({ name, colour, size = 48 }: { name: string; colour: string; size?: number }) {
   return (
     <div
@@ -43,89 +76,156 @@ function Avatar({ name, colour, size = 48 }: { name: string; colour: string; siz
   )
 }
 
-function ReturnPct({ pct, className = '' }: { pct: number; className?: string }) {
-  const color = pct > 0 ? '#22c55e' : pct < 0 ? '#ef4444' : '#6b7a99'
+// ─── Badge chip (inline, with label) ─────────────────────────────────────────
+
+function BadgeChip({ badgeKey, small }: { badgeKey: string; small?: boolean }) {
+  const meta = BADGE_META[badgeKey]
+  if (!meta) return null
   return (
-    <span className={`font-bold ${className}`} style={{ color }}>
-      {pct > 0 ? '+' : ''}{pct.toFixed(2)}%
+    <span
+      title={`${meta.label}: ${meta.desc}`}
+      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs"
+      style={{
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        fontSize: small ? 10 : 11,
+        color: '#a0aec0',
+      }}
+    >
+      <span style={{ fontSize: small ? 11 : 13 }}>{meta.emoji}</span>
+      {!small && <span className="hidden sm:inline">{meta.label}</span>}
     </span>
   )
 }
 
-const PODIUM_ORDER = [1, 0, 2] // entries index → left, centre, right
-const PODIUM_HEIGHT = [72, 108, 52]
+// ─── "How it works" strip ────────────────────────────────────────────────────
+
+function HowItWorks({ updatedAt }: { updatedAt: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div
+      className="rounded-xl mb-4"
+      style={{ background: '#0d1220', border: '1px solid rgba(255,255,255,0.07)' }}
+    >
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-xs"
+        style={{ color: '#6b7a99' }}
+      >
+        <span className="flex items-center gap-1.5">
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 8v4m0 4h.01" />
+          </svg>
+          How rankings are calculated
+        </span>
+        <svg
+          width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-3 text-xs" style={{ color: '#8492aa' }}>
+          <div className="pt-1 pb-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <p className="font-semibold mb-1" style={{ color: '#a0aec0' }}>Return %</p>
+            <p>( Current portfolio value − Amount invested ) ÷ Amount invested</p>
+            <p className="mt-1" style={{ color: '#4a556b' }}>
+              Prices are from the last EdgeScan scan · updated {timeAgo(updatedAt)}
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold mb-2" style={{ color: '#a0aec0' }}>7-day & 30-day return</p>
+            <p>Compares each holding's current price to its price 7 or 30 days ago in the scan history. Weighted by position size.</p>
+          </div>
+
+          <div>
+            <p className="font-semibold mb-2" style={{ color: '#a0aec0' }}>Badges</p>
+            <div className="space-y-1.5">
+              {Object.values(BADGE_META).map(m => (
+                <div key={m.label} className="flex items-start gap-2">
+                  <span style={{ fontSize: 14, lineHeight: 1.4 }}>{m.emoji}</span>
+                  <span><span style={{ color: '#c0cce0' }}>{m.label}</span> — {m.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Podium ───────────────────────────────────────────────────────────────────
+
+const PODIUM_ORDER       = [1, 0, 2]
+const PODIUM_HEIGHT      = [72, 108, 52]
 const PODIUM_MEDAL_COLOR = ['#9ca3af', '#f59e0b', '#b45212']
-const PODIUM_GLOW = ['rgba(156,163,175,0.15)', 'rgba(245,158,11,0.18)', 'rgba(180,82,18,0.15)']
+const PODIUM_GLOW        = ['rgba(156,163,175,0.15)', 'rgba(245,158,11,0.18)', 'rgba(180,82,18,0.15)']
 
 function Podium({ entries }: { entries: Entry[] }) {
   return (
-    <div className="flex items-end justify-center gap-2 sm:gap-4 mb-6 pt-6">
+    <div className="flex items-end justify-center gap-2 sm:gap-4 mb-4 pt-4">
       {PODIUM_ORDER.map((entryIdx, posIdx) => {
         const entry = entries[entryIdx]
-        if (!entry) return <div key={posIdx} className="w-24" />
-        const pedH   = PODIUM_HEIGHT[posIdx]
-        const medal  = PODIUM_MEDAL_COLOR[posIdx]
-        const glow   = PODIUM_GLOW[posIdx]
-        const isTop  = posIdx === 1
+        if (!entry) return <div key={posIdx} style={{ width: 80 }} />
+        const pedH  = PODIUM_HEIGHT[posIdx]
+        const medal = PODIUM_MEDAL_COLOR[posIdx]
+        const glow  = PODIUM_GLOW[posIdx]
+        const isTop = posIdx === 1
+        const gain  = entry.total_value - entry.total_cost
 
         return (
           <div key={entry.profile_id} className="flex flex-col items-center" style={{ width: isTop ? 96 : 80 }}>
             {/* Badges */}
-            <div className="flex gap-0.5 justify-center mb-1 h-6">
+            <div className="flex gap-0.5 justify-center mb-1 flex-wrap">
               {entry.badges.map(b => (
-                <span key={b} title={BADGE_META[b]?.label} style={{ fontSize: isTop ? 18 : 15 }}>
+                <span key={b} title={`${BADGE_META[b]?.label}: ${BADGE_META[b]?.desc}`} style={{ fontSize: isTop ? 17 : 14 }}>
                   {BADGE_META[b]?.emoji}
                 </span>
               ))}
             </div>
 
-            {/* Avatar with glow for top spot */}
+            {/* Avatar */}
             <div className="relative mb-1">
               <Avatar name={entry.name} colour={entry.avatar_colour} size={isTop ? 64 : 50} />
               {isTop && (
                 <div
                   className="absolute inset-0 rounded-full"
-                  style={{
-                    boxShadow: `0 0 28px 6px ${entry.avatar_colour}66`,
-                    borderRadius: '50%',
-                    animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite',
-                  }}
+                  style={{ boxShadow: `0 0 28px 6px ${entry.avatar_colour}66`, borderRadius: '50%', animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' }}
                 />
               )}
               {entry.is_me && (
-                <div
-                  className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center"
-                  style={{ width: 18, height: 18, background: '#4f8ef7', fontSize: 8, color: '#fff', fontWeight: 700 }}
-                >
+                <div className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center"
+                  style={{ width: 18, height: 18, background: '#4f8ef7', fontSize: 8, color: '#fff', fontWeight: 700 }}>
                   YOU
                 </div>
               )}
             </div>
 
             {/* Name */}
-            <p
-              className="text-center font-semibold truncate w-full mb-0.5"
-              style={{ color: '#e2e8f8', fontSize: isTop ? 13 : 11 }}
-            >
+            <p className="text-center font-semibold truncate w-full mb-0.5"
+              style={{ color: '#e2e8f8', fontSize: isTop ? 13 : 11 }}>
               {entry.name}
             </p>
 
-            {/* Return % */}
-            <ReturnPct pct={entry.return_pct} className={isTop ? 'text-base' : 'text-xs'} />
+            {/* Return % + $ gain */}
+            <ReturnPct pct={entry.return_pct} className={isTop ? 'text-sm' : 'text-xs'} />
+            <p className="text-xs mt-0.5" style={{ color: gain >= 0 ? '#22c55e88' : '#ef444488' }}>
+              {gain >= 0 ? '+' : ''}{fmtDollar(gain)}
+            </p>
+
+            {/* 7d line */}
+            <p className="text-xs mt-0.5" style={{ color: '#4a556b' }}>
+              7d <ReturnPct pct={entry.weekly_return_pct} className="text-xs" />
+            </p>
 
             {/* Pedestal */}
-            <div
-              className="w-full rounded-t-xl mt-2 flex items-center justify-center"
-              style={{
-                height: pedH,
-                background: `linear-gradient(180deg, ${glow} 0%, transparent 100%)`,
-                border: `1px solid ${medal}44`,
-                borderBottom: 'none',
-              }}
-            >
-              <span className="font-black text-2xl" style={{ color: medal }}>
-                {entry.rank}
-              </span>
+            <div className="w-full rounded-t-xl mt-2 flex items-center justify-center"
+              style={{ height: pedH, background: `linear-gradient(180deg, ${glow} 0%, transparent 100%)`, border: `1px solid ${medal}44`, borderBottom: 'none' }}>
+              <span className="font-black text-2xl" style={{ color: medal }}>{entry.rank}</span>
             </div>
           </div>
         )
@@ -134,7 +234,10 @@ function Podium({ entries }: { entries: Entry[] }) {
   )
 }
 
+// ─── Rank row ─────────────────────────────────────────────────────────────────
+
 function RankRow({ entry }: { entry: Entry }) {
+  const gain = entry.total_value - entry.total_cost
   return (
     <div
       className="flex items-center gap-3 px-4 py-3 rounded-xl"
@@ -143,19 +246,15 @@ function RankRow({ entry }: { entry: Entry }) {
         border: `1px solid ${entry.is_me ? 'rgba(79,142,247,0.25)' : 'rgba(255,255,255,0.05)'}`,
       }}
     >
-      {/* Rank */}
       <span className="text-sm font-bold w-6 text-center shrink-0" style={{ color: '#3a4259' }}>
         {entry.rank}
       </span>
 
-      {/* Avatar */}
       <div className="relative shrink-0">
         <Avatar name={entry.name} colour={entry.avatar_colour} size={36} />
         {entry.is_me && (
-          <div
-            className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center"
-            style={{ width: 16, height: 16, background: '#4f8ef7', fontSize: 7, color: '#fff', fontWeight: 700 }}
-          >
+          <div className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center"
+            style={{ width: 16, height: 16, background: '#4f8ef7', fontSize: 7, color: '#fff', fontWeight: 700 }}>
             YOU
           </div>
         )}
@@ -163,29 +262,39 @@ function RankRow({ entry }: { entry: Entry }) {
 
       {/* Name + badges */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 flex-wrap">
           <span className="text-sm font-semibold truncate" style={{ color: '#e2e8f8' }}>{entry.name}</span>
-          {entry.badges.map(b => (
-            <span key={b} title={BADGE_META[b]?.label} style={{ fontSize: 13 }}>{BADGE_META[b]?.emoji}</span>
-          ))}
+          {entry.badges.map(b => <BadgeChip key={b} badgeKey={b} small />)}
         </div>
         <span className="text-xs" style={{ color: '#6b7a99' }}>
           {entry.n_holdings} holding{entry.n_holdings !== 1 ? 's' : ''}
         </span>
       </div>
 
-      {/* Returns */}
+      {/* Returns column */}
       <div className="text-right shrink-0">
-        <ReturnPct pct={entry.return_pct} className="text-sm" />
+        {/* Overall % + $ */}
+        <div className="flex items-baseline gap-1 justify-end">
+          <ReturnPct pct={entry.return_pct} className="text-sm" />
+          <span className="text-xs" style={{ color: gain >= 0 ? '#22c55e66' : '#ef444466' }}>
+            ({gain >= 0 ? '+' : ''}{fmtDollar(gain)})
+          </span>
+        </div>
+        {/* 7d + 30d */}
         <div className="flex gap-2 justify-end mt-0.5">
           <span className="text-xs" style={{ color: '#3a4259' }}>
             7d <ReturnPct pct={entry.weekly_return_pct} className="text-xs" />
+          </span>
+          <span className="text-xs" style={{ color: '#3a4259' }}>
+            30d <ReturnPct pct={entry.monthly_return_pct} className="text-xs" />
           </span>
         </div>
       </div>
     </div>
   )
 }
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LeaderboardPage() {
   const router = useRouter()
@@ -216,39 +325,29 @@ export default function LeaderboardPage() {
       .finally(() => setLoading(false))
   }, [router])
 
-  const entries = data?.entries ?? []
-  const podiumEntries = entries.slice(0, 3)
-  const restEntries   = entries.slice(3)
+  const entries        = data?.entries ?? []
+  const podiumEntries  = entries.slice(0, 3)
+  const restEntries    = entries.slice(3)
 
   return (
     <div className="min-h-screen pb-24" style={{ background: '#080b12' }}>
-      {/* Header */}
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-14"
-        style={{
-          background: 'rgba(8,11,18,0.92)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-        }}
+        style={{ background: 'rgba(8,11,18,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
       >
-        <div>
-          <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>Leaderboard</span>
-        </div>
+        <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>Leaderboard</span>
         {data?.updated_at && (
           <span className="text-xs" style={{ color: '#3a4259' }}>
-            Updated {data.updated_at}
+            Updated {timeAgo(data.updated_at)}
           </span>
         )}
       </header>
 
       <main className="max-w-lg mx-auto px-4 sm:px-6 py-4">
-        {/* Title */}
-        <div className="text-center mb-2">
-          <h1 className="text-2xl font-black" style={{ color: '#e2e8f8' }}>
-            Portfolio Battle
-          </h1>
+        <div className="text-center mb-4">
+          <h1 className="text-2xl font-black" style={{ color: '#e2e8f8' }}>Portfolio Battle</h1>
           <p className="text-xs mt-1" style={{ color: '#6b7a99' }}>
-            Ranked by total portfolio return vs. cost basis
+            Return = (current value − invested) ÷ invested · last-scan prices
           </p>
         </div>
 
@@ -261,9 +360,7 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {error && (
-          <p className="text-sm text-center py-8" style={{ color: '#ef4444' }}>{error}</p>
-        )}
+        {error && <p className="text-sm text-center py-8" style={{ color: '#ef4444' }}>{error}</p>}
 
         {!loading && !error && entries.length === 0 && (
           <p className="text-sm text-center py-16" style={{ color: '#6b7a99' }}>
@@ -273,55 +370,38 @@ export default function LeaderboardPage() {
 
         {!loading && entries.length > 0 && (
           <>
-            {/* Podium — top 3 */}
+            {/* How it works */}
+            {data && <HowItWorks updatedAt={data.updated_at} />}
+
+            {/* Podium */}
             <Podium entries={podiumEntries} />
 
             {/* Ranks 4+ */}
             {restEntries.length > 0 && (
               <div className="space-y-2 mt-4">
-                <p className="text-xs font-semibold mb-3" style={{ color: '#3a4259' }}>
-                  REST OF THE FIELD
-                </p>
-                {restEntries.map(entry => (
-                  <RankRow key={entry.profile_id} entry={entry} />
-                ))}
+                <p className="text-xs font-semibold mb-3" style={{ color: '#3a4259' }}>REST OF THE FIELD</p>
+                {restEntries.map(entry => <RankRow key={entry.profile_id} entry={entry} />)}
               </div>
             )}
 
-            {/* Badge legend */}
-            <div
-              className="mt-6 rounded-xl px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-1.5"
-              style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.05)' }}
-            >
-              {Object.entries(BADGE_META).map(([, { emoji, label }]) => (
-                <div key={label} className="flex items-center gap-2 text-xs" style={{ color: '#6b7a99' }}>
-                  <span style={{ fontSize: 14 }}>{emoji}</span>
-                  <span>{label}</span>
-                </div>
-              ))}
-            </div>
-
             {/* Stats strip */}
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-5 grid grid-cols-3 gap-2">
               {[
-                { label: 'Players', value: entries.length },
+                { label: 'Players', value: String(entries.length) },
                 {
                   label: 'Best overall',
                   value: `${entries[0]?.return_pct >= 0 ? '+' : ''}${entries[0]?.return_pct.toFixed(1)}%`,
                 },
                 {
-                  label: 'Best this week',
+                  label: 'Best 7-day',
                   value: (() => {
                     const best = [...entries].sort((a, b) => b.weekly_return_pct - a.weekly_return_pct)[0]
                     return `${best?.weekly_return_pct >= 0 ? '+' : ''}${best?.weekly_return_pct.toFixed(1)}%`
                   })(),
                 },
               ].map(s => (
-                <div
-                  key={s.label}
-                  className="rounded-xl px-3 py-2 text-center"
-                  style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.05)' }}
-                >
+                <div key={s.label} className="rounded-xl px-3 py-2 text-center"
+                  style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.05)' }}>
                   <p className="text-sm font-bold" style={{ color: '#e2e8f8' }}>{s.value}</p>
                   <p className="text-xs mt-0.5" style={{ color: '#6b7a99' }}>{s.label}</p>
                 </div>
