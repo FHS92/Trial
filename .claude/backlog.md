@@ -82,6 +82,19 @@ Commits: `0359636` (feat), `ebcc310` (QA sync fix).
 
 ---
 
+### ✅ [DONE — Sprint 10] Score trend arrow on scanner stock cards (was READY-6)
+
+Completed 2026-05-04. See Sprint 10 entry above.
+
+---
+
+### ✅ [DONE — Sprint 10] Last-scanned timestamp banner (was READY-8)
+
+Completed 2026-05-04. Clock icon + "Last scanned Xm/Xh/Xd ago · N stocks" banner built into
+the scanner page header alongside the Scan Now button. See Sprint 10 entry above.
+
+---
+
 ### [READY-5] Mobile-friendly comparison page
 
 The compare page table (`app/compare/page.tsx`) uses a CSS grid with fixed pixel columns
@@ -90,17 +103,6 @@ The compare page table (`app/compare/page.tsx`) uses a CSS grid with fixed pixel
 - The `MetricRow` component should collapse to a labelled list item per stock on mobile.
 - Use Tailwind responsive prefixes (`sm:`) and existing dark-palette CSS variables — no new colours.
 **Scope:** `app/compare/page.tsx` only.
-
----
-
-### [READY-6] Score trend arrow on stock cards
-
-Show a small ↑ ↓ → indicator next to each score on the scanner page comparing the current score
-to the most recent previous score (via `api.scoreHistory(ticker)`).
-- Green ↑ if score improved > 3 pts, red ↓ if dropped > 3 pts, grey → otherwise.
-- Fetch score history per-ticker client-side in `StockRow` (lazy, non-blocking).
-- `api.scoreHistory` already exists in `lib/api.ts`; `ScoreHistoryResponse` type is in `lib/types.ts`.
-**Scope:** `components/StockRow.tsx`, possibly a new small `components/TrendArrow.tsx`.
 
 ---
 
@@ -117,12 +119,55 @@ Replace blank/spinner states with animated skeleton placeholder cards while the 
 
 ---
 
-### [READY-8] Last-scanned timestamp banner
+### [READY-10] Newsletter integration
 
-Show a subtle banner at the top of the scanner page: "Last scanned 42 min ago · 47 stocks".
-The `meta` string is already computed in `getTopStocks()` and rendered as a `<p>` subtitle.
-Promote it to a more visible sticky banner with a refresh icon.
-**Scope:** `app/scanner/page.tsx` only.
+Allow EdgeScan to feed a periodic newsletter (weekly or bi-weekly) with content auto-generated from live scan data. Intended for publishing to subscribers outside the app.
+
+- **Content candidates:** top 5 scanner picks this week, biggest score movers (up/down), sector rotation summary, one featured stock deep-dive (score breakdown + Monte Carlo snapshot).
+- **Delivery options to decide:** (a) generate a static HTML email template that the owner exports manually, (b) integrate with a service like Resend or Buttondown via API, (c) a `/newsletter-preview` page in the app that renders the draft.
+- Backend: `GET /api/newsletter/weekly-digest` endpoint that assembles the data payload.
+- No subscriber management needed in v1 — the publishing platform handles the list.
+**Decision needed:** delivery mechanism (manual export vs. Resend/Buttondown API vs. in-app preview page). Confirm before implementation.
+
+---
+
+### [READY-11] Portfolio delete holding
+
+There is currently no way to remove a position from a portfolio — a critical missing CRUD op.
+- Backend: `DELETE /api/portfolio/{ticker}` (auth required, scoped to the caller's profile).
+- Frontend: trash icon button on each holding card in `app/portfolio/page.tsx`.
+- Confirmation: either an inline confirm ("tap again to remove") or a small modal — no accidental deletes.
+**Scope:** `app/portfolio/page.tsx`, `edgescan/backend/main.py`.
+
+---
+
+### [READY-12] Similar stocks panel on stock detail
+
+Below the Industry Multiples panel, show "You might also like" — 3–5 stocks with the same sector and the closest score to the current ticker.
+- Backend: `GET /api/stock/{ticker}/similar` — pure DB query on latest `scan_results` filtering by sector + ordering by `ABS(score - this_score)`.
+- Frontend: new `SimilarStocks.tsx` client component, each result is a tappable pill/card linking to that ticker's detail page.
+- No yfinance calls, no extra cost.
+**Scope:** new endpoint in `main.py`, new `components/SimilarStocks.tsx`, wired into `app/stock/[ticker]/page.tsx`.
+
+---
+
+### [READY-13] Portfolio value history chart
+
+Show how the total portfolio value has changed over time as a line chart on the Portfolio page.
+- Backend: `GET /api/portfolio/history` — for each date in `price_history`, compute `SUM(shares × close)` across all holdings. Returns `[{date, value}]` array.
+- Frontend: SVG polyline chart (same pattern as the sparkline — no recharts SSR issues). Show below the summary strip in `app/portfolio/page.tsx`.
+- No new data needed — `price_history` already exists from scans.
+**Scope:** new endpoint in `main.py`, chart component in `app/portfolio/page.tsx`.
+
+---
+
+### [READY-14] Score distribution histogram on scanner
+
+Give users a sense of calibration: show a small histogram of all current scores so "72" has context against the full S&P 500 distribution.
+- Derive from the already-loaded `results` array on the scanner page — no extra API call.
+- Render as a small inline bar chart (10 buckets: 0–10, 10–20 … 90–100), with the user's currently visible sector highlighted.
+- Place below the sector pills, collapsed by default (expandable chevron).
+**Scope:** `app/scanner/page.tsx` only — client-side derivation from existing data.
 
 ---
 
@@ -167,33 +212,26 @@ Allow EdgeScan to feed a periodic newsletter (weekly or bi-weekly) with content 
 
 ## 🟡 BACKLOG (not yet refined — PM should refine before marking READY)
 
-- **Portfolio Monte Carlo simulator** — on the Portfolio page, run 1,000 simulated price paths forward 252 trading days using each holding's historical volatility and drift. Render a probability fan chart (median, 10th/90th percentile bands) and surface a single "80% chance above $X in 12 months" number. Backend endpoint `POST /api/portfolio/simulate`; simulation math uses numpy (already installed). Decision needed: confidence interval bands to show, time horizon options. — same scanner/watchlist/portfolio/backtest experience for the Egyptian Exchange 30. yfinance supports `.CA` suffix tickers. Degraded fields expected: analyst price targets, forward P/E (sparse coverage). New complexity: EGP currency label in UI, SPY benchmark swap for backtest. Scope: new ticker list in `data_fetcher.py`, new universe option in frontend, currency indicator in StockRow. Decision needed: separate tab vs. separate section.
-
-- One-tap refresh for a single stock: on the stock detail page, add a "Refresh" button that
-  re-fetches `GET /api/stock/{ticker}` with a cache-bust query param. Backend already rescores
-  on cache miss; `api.stock(ticker)` in `lib/api.ts` is the call to reuse.
-  **Scope:** `app/stock/[ticker]/page.tsx`
-- Sector badge score average: each sector filter pill on the scanner page should show the average
-  score of stocks in that sector in small text (e.g. "Technology · avg 61"). Derive from the
-  already-loaded `results` array — no extra API call. **Scope:** `app/scanner/page.tsx` only.
-- Watchlist size guard + lazy loading: cap at ~50 tickers with a user-facing warning; or switch
-  watchlist page to paginated/virtualised loading so large lists do not fire dozens of simultaneous
-  `api.stock()` calls on mount (flagged by User Tester, Sprint 1)
-- Star state cross-tab reactivity: `StockRow` and `DetailPanel` both init starred state once in
-  `useEffect` and drift when both open simultaneously — fix with a `storage` event listener
-- Sector badge hidden on mobile: `StockRow` hides the sector pill with `hidden sm:inline`; reconsider
-  layout so the sector is visible on phones (primary use case)
-- Watchlist count badge on nav entry (can be added once Watchlist is in primary nav — already done)
-- Historical score chart on the stock detail page (data already available via `api.scoreHistory`)
-- Alert / push notification when a watchlisted stock's score changes > 5 pts
-- Dark/light theme toggle
-- Sector rotation heatmap improvements (click cell to see stocks in that sector/month)
-- Russell 1000 scanner results page (separate from S&P 500 tab)
-- PDF export of backtest results
-- Portfolio import via CSV
-- News sentiment overlay on price chart
-- Swipe-to-remove on watchlist cards (right-swipe gesture revealing delete action)
-- Live watchlist badge count on the Watchlist nav tab (number bubble showing saved ticker count)
+- **Earnings calendar** — `/earnings` page (or scanner sidebar) listing upcoming earnings in the next 30 days for watchlisted and top-scoring stocks. `earnings_date` is already stored in `scan_results`. Pure DB query, no yfinance calls.
+- **Head-to-head profile compare** — shareable `/leaderboard/vs/[a]/[b]` page comparing two profiles: overall + 7d/30d return side-by-side, holdings they share vs. differ, who's ahead in each metric. Extends the leaderboard momentum with zero new backend data.
+- **Share a stock card** — on stock detail, a "Share" button that triggers the Web Share API (mobile) or copies a pre-formatted text snippet: "AAPL · Score 78 · +14.2% upside via EdgeScan". No backend needed.
+- **Scheduled scan (Cloud Scheduler)** — add a Cloud Scheduler job that POSTs to `/api/scan/request` daily at market close (~4 pm ET). No code change — deployment config only. Ensures the data stays fresh without manual "Scan Now" triggers.
+- **Portfolio Monte Carlo simulator** — on the Portfolio page, run 1,000 simulated price paths forward 252 trading days using each holding's historical volatility and drift. Render a probability fan chart (median, 10th/90th percentile bands) and surface a single "80% chance above $X in 12 months" number. Backend endpoint `POST /api/portfolio/simulate`; simulation math uses numpy (already installed). Decision needed: confidence interval bands to show, time horizon options.
+- **Egyptian Exchange 30 universe** — same scanner/watchlist/portfolio/backtest experience for the EGX30. yfinance supports these tickers. Degraded fields expected: analyst price targets, forward P/E (sparse coverage). New complexity: EGP currency label in UI, SPY benchmark swap for backtest. Decision needed: separate tab vs. separate section.
+- **Historical score chart on stock detail** — line chart of score over time using `api.scoreHistory` data already available. Small SVG polyline, placed in the score breakdown section.
+- **One-tap refresh for a single stock** — on the stock detail page, add a "Refresh" button that re-fetches `GET /api/stock/{ticker}` with a cache-bust query param. Backend already rescores on cache miss. **Scope:** `app/stock/[ticker]/page.tsx`
+- **Sector badge score average** — each sector filter pill on the scanner page shows the average score of stocks in that sector in small text (e.g. "Technology · avg 61"). Derive from the already-loaded `results` array — no extra API call. **Scope:** `app/scanner/page.tsx` only.
+- **Watchlist size guard + lazy loading** — cap at ~50 tickers with a user-facing warning; or switch watchlist page to paginated/virtualised loading so large lists do not fire dozens of simultaneous `api.stock()` calls on mount.
+- **Star state cross-tab reactivity** — `StockRow` and `DetailPanel` both init starred state once in `useEffect` and drift when both open simultaneously — fix with a `storage` event listener.
+- **Sector badge hidden on mobile** — `StockRow` hides the sector pill with `hidden sm:inline`; reconsider layout so the sector is visible on phones (primary use case).
+- **Alert / push notification** — when a watchlisted stock's score changes > 5 pts between scans. Requires a web push setup or email hook.
+- **Dark/light theme toggle** — CSS variable swap; all colours are already in variables.
+- **Sector rotation heatmap improvements** — click a cell to see the stocks in that sector/month.
+- **Russell 1000 scanner results page** — separate from the S&P 500 tab.
+- **PDF export of backtest results** — browser print-to-PDF or a server-side PDF generation endpoint.
+- **Portfolio import via CSV** — bulk upload holdings from a broker export.
+- **News sentiment overlay on price chart** — annotate the sparkline/detail chart with news events and their sentiment score.
+- **Swipe-to-remove on watchlist cards** — right-swipe gesture revealing a delete action (mobile UX pattern).
 
 ---
 
