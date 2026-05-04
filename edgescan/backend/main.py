@@ -397,6 +397,80 @@ def get_leaderboard(
     return {"entries": entries, "updated_at": today.isoformat()}
 
 
+@app.get("/api/leaderboard/profile/{profile_id}/holdings")
+def get_leaderboard_profile_holdings(
+    profile_id: str,
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    """Return the holdings breakdown for any profile (auth required — must be logged in)."""
+    caller_id = _get_profile_id_from_token(authorization)
+    if not caller_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+
+    holdings = (
+        db.query(PortfolioHolding)
+        .filter(PortfolioHolding.profile_id == profile_id)
+        .order_by(PortfolioHolding.added_at.asc())
+        .all()
+    )
+
+    items = []
+    total_cost = 0.0
+    total_value = 0.0
+
+    for h in holdings:
+        ticker = h.ticker.upper()
+        current_price = None
+        name = None
+
+        row = (
+            db.query(ScanResult)
+            .filter(ScanResult.ticker == ticker)
+            .order_by(ScanResult.scanned_at.desc())
+            .first()
+        )
+        if row:
+            current_price = float(row.current_price) if row.current_price else None
+            name = row.name
+
+        cost_basis = h.shares * h.buy_price
+        current_val = (h.shares * current_price) if current_price else None
+        pnl = (current_val - cost_basis) if current_val is not None else None
+        pnl_pct = ((pnl / cost_basis) * 100) if (pnl is not None and cost_basis) else None
+
+        total_cost += cost_basis
+        if current_val is not None:
+            total_value += current_val
+
+        items.append({
+            "ticker": ticker,
+            "name": name,
+            "shares": round(h.shares, 4),
+            "avg_price": round(h.buy_price, 2),
+            "cost_basis": round(cost_basis, 2),
+            "current_price": round(current_price, 2) if current_price else None,
+            "current_value": round(current_val, 2) if current_val is not None else None,
+            "pnl": round(pnl, 2) if pnl is not None else None,
+            "pnl_pct": round(pnl_pct, 2) if pnl_pct is not None else None,
+        })
+
+    # Sort by current value descending (largest position first)
+    items.sort(key=lambda x: x["current_value"] or 0, reverse=True)
+
+    total_pnl = total_value - total_cost if total_value else None
+    total_pnl_pct = ((total_pnl / total_cost) * 100) if (total_pnl is not None and total_cost) else None
+
+    return {
+        "profile_id": profile_id,
+        "holdings": items,
+        "total_cost": round(total_cost, 2),
+        "total_value": round(total_value, 2),
+        "total_pnl": round(total_pnl, 2) if total_pnl is not None else None,
+        "total_pnl_pct": round(total_pnl_pct, 2) if total_pnl_pct is not None else None,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Response helpers
 # ---------------------------------------------------------------------------

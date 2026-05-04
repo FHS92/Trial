@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -30,6 +30,27 @@ interface Entry {
 interface LeaderboardData {
   entries: Entry[]
   updated_at: string
+}
+
+interface HoldingItem {
+  ticker: string
+  name: string | null
+  shares: number
+  avg_price: number
+  cost_basis: number
+  current_price: number | null
+  current_value: number | null
+  pnl: number | null
+  pnl_pct: number | null
+}
+
+interface ProfileHoldings {
+  profile_id: string
+  holdings: HoldingItem[]
+  total_cost: number
+  total_value: number
+  total_pnl: number | null
+  total_pnl_pct: number | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -158,6 +179,189 @@ function HowItWorks({ updatedAt }: { updatedAt: string }) {
   )
 }
 
+// ─── Holdings modal ───────────────────────────────────────────────────────────
+
+function HoldingsModal({
+  entry,
+  onClose,
+}: {
+  entry: Entry
+  onClose: () => void
+}) {
+  const [holdings, setHoldings] = useState<ProfileHoldings | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const token = sessionStorage.getItem('edgescan_profile_token')
+    if (!token) return
+    fetch(`${BASE}/api/leaderboard/profile/${entry.profile_id}/holdings`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
+      .then(d => setHoldings(d))
+      .catch(() => setError('Could not load holdings'))
+      .finally(() => setLoading(false))
+  }, [entry.profile_id])
+
+  // Close on backdrop click
+  function handleBackdrop(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.target === e.currentTarget) onClose()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      onClick={handleBackdrop}
+    >
+      <div
+        className="w-full sm:max-w-md max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl"
+        style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.08)' }}
+      >
+        {/* Header */}
+        <div
+          className="sticky top-0 flex items-center justify-between px-5 py-4"
+          style={{ background: '#0f1521', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <div className="flex items-center gap-3">
+            <Avatar name={entry.name} colour={entry.avatar_colour} size={36} />
+            <div>
+              <p className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>{entry.name}</p>
+              <div className="flex items-center gap-1.5">
+                <ReturnPct pct={entry.return_pct} className="text-xs" />
+                <span className="text-xs" style={{ color: '#3a4259' }}>overall</span>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center rounded-full"
+            style={{ width: 32, height: 32, background: 'rgba(255,255,255,0.06)', color: '#6b7a99' }}
+            aria-label="Close"
+          >
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4">
+          {loading && (
+            <div className="flex justify-center items-center gap-2 py-10" style={{ color: '#6b7a99' }}>
+              <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+              <span className="text-sm">Loading holdings…</span>
+            </div>
+          )}
+
+          {error && <p className="text-sm text-center py-8" style={{ color: '#ef4444' }}>{error}</p>}
+
+          {!loading && !error && holdings && (
+            <>
+              {/* Summary strip */}
+              {holdings.total_pnl !== null && (
+                <div
+                  className="flex items-center justify-between px-4 py-3 rounded-xl mb-4"
+                  style={{ background: '#080b12', border: '1px solid rgba(255,255,255,0.05)' }}
+                >
+                  <div>
+                    <p className="text-xs" style={{ color: '#6b7a99' }}>Invested</p>
+                    <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>{fmtDollar(holdings.total_cost)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs" style={{ color: '#6b7a99' }}>Current value</p>
+                    <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>{fmtDollar(holdings.total_value)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs" style={{ color: '#6b7a99' }}>Gain / Loss</p>
+                    <p className="text-sm font-semibold" style={{ color: pctColor(holdings.total_pnl) }}>
+                      {holdings.total_pnl >= 0 ? '+' : ''}{fmtDollar(holdings.total_pnl)}
+                      {holdings.total_pnl_pct !== null && (
+                        <span className="text-xs ml-1" style={{ color: pctColor(holdings.total_pnl_pct) }}>
+                          ({holdings.total_pnl_pct >= 0 ? '+' : ''}{holdings.total_pnl_pct.toFixed(1)}%)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Holdings list */}
+              {holdings.holdings.length === 0 ? (
+                <p className="text-sm text-center py-6" style={{ color: '#6b7a99' }}>No holdings yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {holdings.holdings.map(h => {
+                    const weight = holdings.total_value > 0 && h.current_value
+                      ? (h.current_value / holdings.total_value) * 100
+                      : null
+                    return (
+                      <div
+                        key={h.ticker}
+                        className="px-4 py-3 rounded-xl"
+                        style={{ background: '#080b12', border: '1px solid rgba(255,255,255,0.05)' }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold" style={{ color: '#e2e8f8' }}>{h.ticker}</span>
+                              {weight !== null && (
+                                <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(79,142,247,0.12)', color: '#4f8ef7' }}>
+                                  {weight.toFixed(0)}%
+                                </span>
+                              )}
+                            </div>
+                            {h.name && (
+                              <p className="text-xs truncate mt-0.5" style={{ color: '#6b7a99' }}>{h.name}</p>
+                            )}
+                            <p className="text-xs mt-1" style={{ color: '#3a4259' }}>
+                              {h.shares.toFixed(2)} sh · avg ${h.avg_price.toFixed(2)}
+                              {h.current_price !== null && (
+                                <span> → ${h.current_price.toFixed(2)}</span>
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            {h.current_value !== null ? (
+                              <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>{fmtDollar(h.current_value)}</p>
+                            ) : (
+                              <p className="text-sm" style={{ color: '#3a4259' }}>—</p>
+                            )}
+                            {h.pnl !== null && h.pnl_pct !== null && (
+                              <p className="text-xs mt-0.5" style={{ color: pctColor(h.pnl) }}>
+                                {h.pnl >= 0 ? '+' : ''}{fmtDollar(h.pnl)} ({h.pnl_pct >= 0 ? '+' : ''}{h.pnl_pct.toFixed(1)}%)
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Weight bar */}
+                        {weight !== null && (
+                          <div className="mt-2 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                            <div
+                              className="h-full rounded-full"
+                              style={{ width: `${Math.min(weight, 100)}%`, background: '#4f8ef7' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Podium ───────────────────────────────────────────────────────────────────
 
 const PODIUM_ORDER       = [1, 0, 2]
@@ -165,7 +369,7 @@ const PODIUM_HEIGHT      = [72, 108, 52]
 const PODIUM_MEDAL_COLOR = ['#9ca3af', '#f59e0b', '#b45212']
 const PODIUM_GLOW        = ['rgba(156,163,175,0.15)', 'rgba(245,158,11,0.18)', 'rgba(180,82,18,0.15)']
 
-function Podium({ entries }: { entries: Entry[] }) {
+function Podium({ entries, onSelect }: { entries: Entry[]; onSelect: (e: Entry) => void }) {
   return (
     <div className="flex items-end justify-center gap-2 sm:gap-4 mb-4 pt-4">
       {PODIUM_ORDER.map((entryIdx, posIdx) => {
@@ -178,7 +382,13 @@ function Podium({ entries }: { entries: Entry[] }) {
         const gain  = entry.total_value - entry.total_cost
 
         return (
-          <div key={entry.profile_id} className="flex flex-col items-center" style={{ width: isTop ? 96 : 80 }}>
+          <button
+            key={entry.profile_id}
+            className="flex flex-col items-center cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            style={{ width: isTop ? 96 : 80, background: 'none', border: 'none', padding: 0 }}
+            onClick={() => onSelect(entry)}
+            aria-label={`View ${entry.name}'s portfolio`}
+          >
             {/* Badges */}
             <div className="flex gap-0.5 justify-center mb-1 flex-wrap">
               {entry.badges.map(b => (
@@ -227,7 +437,7 @@ function Podium({ entries }: { entries: Entry[] }) {
               style={{ height: pedH, background: `linear-gradient(180deg, ${glow} 0%, transparent 100%)`, border: `1px solid ${medal}44`, borderBottom: 'none' }}>
               <span className="font-black text-2xl" style={{ color: medal }}>{entry.rank}</span>
             </div>
-          </div>
+          </button>
         )
       })}
     </div>
@@ -236,15 +446,17 @@ function Podium({ entries }: { entries: Entry[] }) {
 
 // ─── Rank row ─────────────────────────────────────────────────────────────────
 
-function RankRow({ entry }: { entry: Entry }) {
+function RankRow({ entry, onSelect }: { entry: Entry; onSelect: (e: Entry) => void }) {
   const gain = entry.total_value - entry.total_cost
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-3 rounded-xl"
+    <button
+      className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl transition-colors hover:brightness-110 active:scale-[0.99]"
       style={{
         background: entry.is_me ? 'rgba(79,142,247,0.08)' : '#0f1521',
         border: `1px solid ${entry.is_me ? 'rgba(79,142,247,0.25)' : 'rgba(255,255,255,0.05)'}`,
       }}
+      onClick={() => onSelect(entry)}
+      aria-label={`View ${entry.name}'s portfolio`}
     >
       <span className="text-sm font-bold w-6 text-center shrink-0" style={{ color: '#3a4259' }}>
         {entry.rank}
@@ -261,13 +473,13 @@ function RankRow({ entry }: { entry: Entry }) {
       </div>
 
       {/* Name + badges */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 text-left">
         <div className="flex items-center gap-1 flex-wrap">
           <span className="text-sm font-semibold truncate" style={{ color: '#e2e8f8' }}>{entry.name}</span>
           {entry.badges.map(b => <BadgeChip key={b} badgeKey={b} small />)}
         </div>
         <span className="text-xs" style={{ color: '#6b7a99' }}>
-          {entry.n_holdings} holding{entry.n_holdings !== 1 ? 's' : ''}
+          {entry.n_holdings} holding{entry.n_holdings !== 1 ? 's' : ''} · tap to view
         </span>
       </div>
 
@@ -290,7 +502,7 @@ function RankRow({ entry }: { entry: Entry }) {
           </span>
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -301,6 +513,7 @@ export default function LeaderboardPage() {
   const [data, setData] = useState<LeaderboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
 
   useEffect(() => {
     const token = sessionStorage.getItem('edgescan_profile_token')
@@ -325,6 +538,9 @@ export default function LeaderboardPage() {
       .finally(() => setLoading(false))
   }, [router])
 
+  const handleSelect = useCallback((entry: Entry) => setSelectedEntry(entry), [])
+  const handleClose  = useCallback(() => setSelectedEntry(null), [])
+
   const entries        = data?.entries ?? []
   const podiumEntries  = entries.slice(0, 3)
   const restEntries    = entries.slice(3)
@@ -347,7 +563,7 @@ export default function LeaderboardPage() {
         <div className="text-center mb-4">
           <h1 className="text-2xl font-black" style={{ color: '#e2e8f8' }}>Portfolio Battle</h1>
           <p className="text-xs mt-1" style={{ color: '#6b7a99' }}>
-            Return = (current value − invested) ÷ invested · last-scan prices
+            Return = (current value − invested) ÷ invested · last-scan prices · tap any player to see their portfolio
           </p>
         </div>
 
@@ -374,13 +590,13 @@ export default function LeaderboardPage() {
             {data && <HowItWorks updatedAt={data.updated_at} />}
 
             {/* Podium */}
-            <Podium entries={podiumEntries} />
+            <Podium entries={podiumEntries} onSelect={handleSelect} />
 
             {/* Ranks 4+ */}
             {restEntries.length > 0 && (
               <div className="space-y-2 mt-4">
                 <p className="text-xs font-semibold mb-3" style={{ color: '#3a4259' }}>REST OF THE FIELD</p>
-                {restEntries.map(entry => <RankRow key={entry.profile_id} entry={entry} />)}
+                {restEntries.map(entry => <RankRow key={entry.profile_id} entry={entry} onSelect={handleSelect} />)}
               </div>
             )}
 
@@ -410,6 +626,11 @@ export default function LeaderboardPage() {
           </>
         )}
       </main>
+
+      {/* Holdings modal */}
+      {selectedEntry && (
+        <HoldingsModal entry={selectedEntry} onClose={handleClose} />
+      )}
     </div>
   )
 }
