@@ -12,14 +12,14 @@ function slugify(name: string) {
 }
 
 function scoreColor(score: number | null) {
-  if (score === null) return '#6b7a99'
+  if (score === null) return 'var(--color-text-2)'
   if (score >= 70) return '#22c55e'
   if (score >= 50) return '#f59e0b'
   return '#ef4444'
 }
 
 function pnlColor(val: number | null) {
-  if (val === null) return '#6b7a99'
+  if (val === null) return 'var(--color-text-2)'
   return val >= 0 ? '#22c55e' : '#ef4444'
 }
 
@@ -61,10 +61,10 @@ function PortfolioChart({ history }: { history: HistoryPoint[] }) {
   return (
     <div
       className="rounded-xl p-4 mb-6"
-      style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}
+      style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
     >
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b7a99' }}>
+        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-2)' }}>
           Portfolio Value — since {history[0].date}
         </span>
         <span
@@ -92,8 +92,8 @@ function PortfolioChart({ history }: { history: HistoryPoint[] }) {
         />
       </svg>
       <div className="flex justify-between mt-1">
-        <span className="text-xs" style={{ color: '#3a4259' }}>{history[0].date}</span>
-        <span className="text-xs" style={{ color: '#3a4259' }}>{history[history.length - 1].date}</span>
+        <span className="text-xs" style={{ color: 'var(--color-text-3)' }}>{history[0].date}</span>
+        <span className="text-xs" style={{ color: 'var(--color-text-3)' }}>{history[history.length - 1].date}</span>
       </div>
     </div>
   )
@@ -189,23 +189,23 @@ export default function PortfolioPage() {
 
   // Blank screen while session check is in flight
   if (!username) {
-    return <div style={{ position: 'fixed', inset: 0, background: '#080b12' }} />
+    return <div style={{ position: 'fixed', inset: 0, background: 'var(--color-bg)' }} />
   }
 
   return (
-    <div className="min-h-screen" style={{ background: '#080b12' }}>
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
       {/* Header */}
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-14 gap-4"
         style={{
-          background: 'rgba(8,11,18,0.92)',
+          background: 'var(--color-header)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
         <Link href="/" className="flex items-center gap-2 flex-shrink-0">
           <span className="text-base font-bold tracking-tight" style={{ color: '#4f8ef7' }}>Edge</span>
-          <span className="text-base font-bold tracking-tight" style={{ color: '#e2e8f8' }}>Scan</span>
+          <span className="text-base font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>Scan</span>
         </Link>
         <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(79,142,247,0.12)', color: '#4f8ef7' }}>
           {profileName}
@@ -217,13 +217,13 @@ export default function PortfolioPage() {
         {summary && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             {[
-              { label: 'Invested', value: fmt(summary.total_cost), color: '#e2e8f8' },
-              { label: 'Current Value', value: fmt(summary.total_value), color: '#e2e8f8' },
+              { label: 'Invested', value: fmt(summary.total_cost), color: 'var(--color-text)' },
+              { label: 'Current Value', value: fmt(summary.total_value), color: 'var(--color-text)' },
               { label: 'Total P&L', value: `${summary.total_pnl !== null && summary.total_pnl >= 0 ? '+' : ''}${fmt(summary.total_pnl)}`, color: pnlColor(summary.total_pnl) },
               { label: 'Return', value: fmtPct(summary.total_pnl_pct), color: pnlColor(summary.total_pnl_pct) },
             ].map(card => (
-              <div key={card.label} className="rounded-xl p-4" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <p className="text-xs mb-1" style={{ color: '#6b7a99' }}>{card.label}</p>
+              <div key={card.label} className="rounded-xl p-4" style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+                <p className="text-xs mb-1" style={{ color: 'var(--color-text-2)' }}>{card.label}</p>
                 <p className="text-lg font-bold" style={{ color: card.color }}>{card.value}</p>
               </div>
             ))}
@@ -235,7 +235,7 @@ export default function PortfolioPage() {
 
         {/* Header row */}
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-bold" style={{ color: '#e2e8f8' }}>
+          <h1 className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>
             Holdings {summary ? `(${summary.positions})` : ''}
           </h1>
           <button
@@ -252,14 +252,14 @@ export default function PortfolioPage() {
           <form
             onSubmit={handleAddHolding}
             className="rounded-xl p-4 mb-4 space-y-3"
-            style={{ background: '#0f1521', border: '1px solid rgba(79,142,247,0.2)' }}
+            style={{ background: 'var(--color-card)', border: '1px solid rgba(79,142,247,0.2)' }}
           >
             {/* Ticker search */}
             <div>
-              <label className="block text-xs mb-1" style={{ color: '#6b7a99' }}>Stock</label>
+              <label className="block text-xs mb-1" style={{ color: 'var(--color-text-2)' }}>Stock</label>
               <div
                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
-                style={{ background: '#131720', border: '1px solid rgba(255,255,255,0.08)' }}
+                style={{ background: '#131720', border: '1px solid var(--color-border-2)' }}
               >
                 <TickerSearch
                   onSelect={handleStockSelect}
@@ -279,7 +279,7 @@ export default function PortfolioPage() {
                 { label: 'Buy Date', value: buyDate, onChange: setBuyDate, placeholder: '', required: false, type: 'date' },
               ].map(f => (
                 <div key={f.label}>
-                  <label className="block text-xs mb-1" style={{ color: '#6b7a99' }}>{f.label}</label>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--color-text-2)' }}>{f.label}</label>
                   <input
                     required={f.required}
                     type={f.type}
@@ -288,7 +288,7 @@ export default function PortfolioPage() {
                     placeholder={f.placeholder}
                     step="any"
                     className="w-full px-2 py-1.5 rounded-lg text-sm outline-none"
-                    style={{ background: '#131720', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f8' }}
+                    style={{ background: '#131720', border: '1px solid var(--color-border-2)', color: 'var(--color-text)' }}
                   />
                 </div>
               ))}
@@ -312,11 +312,11 @@ export default function PortfolioPage() {
         )}
 
         {loading && (
-          <p className="text-sm text-center py-12" style={{ color: '#6b7a99' }}>Loading portfolio…</p>
+          <p className="text-sm text-center py-12" style={{ color: 'var(--color-text-2)' }}>Loading portfolio…</p>
         )}
 
         {!loading && holdings.length === 0 && (
-          <div className="text-center py-16" style={{ color: '#6b7a99' }}>
+          <div className="text-center py-16" style={{ color: 'var(--color-text-2)' }}>
             <p className="text-sm">No positions yet.</p>
             <p className="text-xs mt-1">Add your first holding above.</p>
           </div>
@@ -324,14 +324,14 @@ export default function PortfolioPage() {
 
         {/* Holdings table */}
         {holdings.length > 0 && (
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
             <div
               className="hidden sm:grid text-xs px-4 py-2"
               style={{
                 gridTemplateColumns: '1fr 80px 80px 80px 90px 90px 60px 36px',
-                background: '#0a0e17',
-                color: '#6b7a99',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                background: 'var(--color-card-alt)',
+                color: 'var(--color-text-2)',
+                borderBottom: '1px solid var(--color-border)',
               }}
             >
               <span>Stock</span>
@@ -350,22 +350,22 @@ export default function PortfolioPage() {
                 className="grid px-4 py-3 items-center gap-2 text-sm"
                 style={{
                   gridTemplateColumns: '1fr 80px 80px 80px 90px 90px 60px 36px',
-                  background: i % 2 === 0 ? '#0f1521' : '#0b1019',
-                  borderBottom: i < holdings.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                  background: i % 2 === 0 ? 'var(--color-card)' : '#0b1019',
+                  borderBottom: i < holdings.length - 1 ? '1px solid var(--color-border)' : 'none',
                 }}
               >
                 <div>
-                  <Link href={`/stock/${h.ticker}`} className="font-bold hover:underline" style={{ color: '#e2e8f8' }}>
+                  <Link href={`/stock/${h.ticker}`} className="font-bold hover:underline" style={{ color: 'var(--color-text)' }}>
                     {h.ticker}
                   </Link>
-                  {h.name && <p className="text-xs truncate" style={{ color: '#6b7a99' }}>{h.name}</p>}
+                  {h.name && <p className="text-xs truncate" style={{ color: 'var(--color-text-2)' }}>{h.name}</p>}
                 </div>
                 <span className="text-right" style={{ color: '#a0aec0' }}>{h.shares}</span>
                 <span className="text-right" style={{ color: '#a0aec0' }}>${h.buy_price.toFixed(2)}</span>
-                <span className="text-right" style={{ color: '#e2e8f8' }}>
+                <span className="text-right" style={{ color: 'var(--color-text)' }}>
                   {h.current_price ? `$${h.current_price.toFixed(2)}` : '—'}
                 </span>
-                <span className="text-right font-medium" style={{ color: '#e2e8f8' }}>{fmt(h.current_value)}</span>
+                <span className="text-right font-medium" style={{ color: 'var(--color-text)' }}>{fmt(h.current_value)}</span>
                 <div className="text-right">
                   <span className="font-medium" style={{ color: pnlColor(h.pnl) }}>
                     {h.pnl !== null ? `${h.pnl >= 0 ? '+' : ''}${fmt(h.pnl)}` : '—'}
@@ -382,12 +382,12 @@ export default function PortfolioPage() {
                     >
                       {h.score}
                     </span>
-                  ) : <span style={{ color: '#6b7a99' }}>—</span>}
+                  ) : <span style={{ color: 'var(--color-text-2)' }}>—</span>}
                 </div>
                 <button
                   onClick={() => handleDelete(h.ticker)}
                   className="text-right text-xs transition-colors hover:text-red-400"
-                  style={{ color: '#6b7a99' }}
+                  style={{ color: 'var(--color-text-2)' }}
                 >
                   ✕
                 </button>
@@ -396,14 +396,14 @@ export default function PortfolioPage() {
           </div>
         )}
 
-        <p className="text-xs mt-4 text-center" style={{ color: '#3a4259' }}>
+        <p className="text-xs mt-4 text-center" style={{ color: 'var(--color-text-3)' }}>
           Prices & scores from last EdgeScan · 15-min delayed
         </p>
 
         {/* Risk view */}
         {holdings.length > 0 && (
           <div className="mt-8 space-y-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: '#6b7a99' }}>Risk View</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-2)' }}>Risk View</h2>
 
             {(() => {
               const alerts = holdings.filter(h => h.score !== null && h.score_at_buy !== null && h.score_delta !== null && h.score_delta <= -10)
@@ -412,7 +412,7 @@ export default function PortfolioPage() {
                   <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#ef4444' }}>⚠ Score Drop Alerts</p>
                   {alerts.map(h => (
                     <div key={h.ticker} className="flex items-center justify-between">
-                      <Link href={`/stock/${h.ticker}`} className="text-sm font-bold hover:underline" style={{ color: '#e2e8f8' }}>{h.ticker}</Link>
+                      <Link href={`/stock/${h.ticker}`} className="text-sm font-bold hover:underline" style={{ color: 'var(--color-text)' }}>{h.ticker}</Link>
                       <span className="text-xs" style={{ color: '#ef4444' }}>
                         Score dropped {h.score_delta} pts ({h.score_at_buy} → {h.score})
                       </span>
@@ -431,15 +431,15 @@ export default function PortfolioPage() {
               })
               const sectors = Object.entries(sectorMap).map(([s, v]) => ({ sector: s, pct: (v / total) * 100 })).sort((a, b) => b.pct - a.pct)
               return sectors.length > 1 ? (
-                <div className="rounded-xl p-4" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#6b7a99' }}>Sector Concentration</p>
+                <div className="rounded-xl p-4" style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--color-text-2)' }}>Sector Concentration</p>
                   {sectors.map(({ sector, pct }) => (
                     <div key={sector} className="flex items-center gap-3 mb-2">
                       <span className="text-xs w-32 truncate" style={{ color: '#a0aec0' }}>{sector}</span>
-                      <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                      <div className="flex-1 h-1.5 rounded-full" style={{ background: 'var(--color-border)' }}>
                         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#4f8ef7' }} />
                       </div>
-                      <span className="text-xs w-10 text-right" style={{ color: '#6b7a99' }}>{pct.toFixed(0)}%</span>
+                      <span className="text-xs w-10 text-right" style={{ color: 'var(--color-text-2)' }}>{pct.toFixed(0)}%</span>
                     </div>
                   ))}
                 </div>
@@ -451,12 +451,12 @@ export default function PortfolioPage() {
               if (scored.length === 0) return null
               const avg = scored.reduce((sum, h) => sum + h.score!, 0) / scored.length
               return (
-                <div className="rounded-xl p-4 flex items-center justify-between" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="rounded-xl p-4 flex items-center justify-between" style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
                   <div>
-                    <p className="text-xs" style={{ color: '#6b7a99' }}>Portfolio Avg Score</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Portfolio Avg Score</p>
                     <p className="text-2xl font-black mt-0.5" style={{ color: scoreColor(avg) }}>{avg.toFixed(1)}</p>
                   </div>
-                  <p className="text-xs text-right" style={{ color: '#6b7a99' }}>Based on {scored.length} position{scored.length > 1 ? 's' : ''}<br />with EdgeScan data</p>
+                  <p className="text-xs text-right" style={{ color: 'var(--color-text-2)' }}>Based on {scored.length} position{scored.length > 1 ? 's' : ''}<br />with EdgeScan data</p>
                 </div>
               )
             })()}

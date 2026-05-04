@@ -87,7 +87,7 @@ function fmtDollar(n: number): string {
 }
 
 function pctColor(pct: number) {
-  return pct > 0 ? '#22c55e' : pct < 0 ? '#ef4444' : '#6b7a99'
+  return pct > 0 ? '#22c55e' : pct < 0 ? '#ef4444' : 'var(--color-text-2)'
 }
 
 function ReturnPct({ pct, className = '' }: { pct: number; className?: string }) {
@@ -136,8 +136,8 @@ function BadgeChip({ badgeKey, small }: { badgeKey: string; small?: boolean }) {
       title={`${meta.label}: ${meta.desc}`}
       className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs"
       style={{
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.1)',
+        background: 'var(--color-border)',
+        border: '1px solid var(--color-border-2)',
         fontSize: small ? 10 : 11,
         color: '#a0aec0',
       }}
@@ -154,7 +154,7 @@ function WindowTabs({ active, onChange }: { active: TimeWindow; onChange: (w: Ti
   return (
     <div
       className="flex gap-1 p-1 rounded-xl mb-4"
-      style={{ background: '#0d1220', border: '1px solid rgba(255,255,255,0.07)' }}
+      style={{ background: '#0d1220', border: '1px solid var(--color-border)' }}
     >
       {WINDOWS.map(({ key, label }) => {
         const isActive = key === active
@@ -165,7 +165,7 @@ function WindowTabs({ active, onChange }: { active: TimeWindow; onChange: (w: Ti
             className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors"
             style={{
               background: isActive ? '#4f8ef7' : 'transparent',
-              color: isActive ? '#fff' : '#6b7a99',
+              color: isActive ? '#fff' : 'var(--color-text-2)',
             }}
           >
             {label}
@@ -183,12 +183,12 @@ function HowItWorks({ updatedAt }: { updatedAt: string }) {
   return (
     <div
       className="rounded-xl mb-4"
-      style={{ background: '#0d1220', border: '1px solid rgba(255,255,255,0.07)' }}
+      style={{ background: '#0d1220', border: '1px solid var(--color-border)' }}
     >
       <button
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-4 py-3 text-xs"
-        style={{ color: '#6b7a99' }}
+        style={{ color: 'var(--color-text-2)' }}
       >
         <span className="flex items-center gap-1.5">
           <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -206,7 +206,7 @@ function HowItWorks({ updatedAt }: { updatedAt: string }) {
 
       {open && (
         <div className="px-4 pb-4 space-y-3 text-xs" style={{ color: '#8492aa' }}>
-          <div className="pt-1 pb-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="pt-1 pb-2" style={{ borderTop: '1px solid var(--color-border)' }}>
             <p className="font-semibold mb-1" style={{ color: '#a0aec0' }}>All-time return %</p>
             <p>( Current portfolio value − Amount invested ) ÷ Amount invested</p>
             <p className="mt-1" style={{ color: '#4a556b' }}>
@@ -268,27 +268,27 @@ function HoldingsModal({ entry, onClose }: { entry: Entry; onClose: () => void }
     >
       <div
         className="w-full sm:max-w-md max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl"
-        style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.08)' }}
+        style={{ background: 'var(--color-card)', border: '1px solid var(--color-border-2)' }}
       >
         {/* Header */}
         <div
           className="sticky top-0 flex items-center justify-between px-5 py-4"
-          style={{ background: '#0f1521', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'var(--color-card)', borderBottom: '1px solid var(--color-border)' }}
         >
           <div className="flex items-center gap-3">
             <Avatar name={entry.name} colour={entry.avatar_colour} size={36} />
             <div>
-              <p className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>{entry.name}</p>
+              <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>{entry.name}</p>
               <div className="flex items-center gap-1.5">
                 <ReturnPct pct={entry.return_pct} className="text-xs" />
-                <span className="text-xs" style={{ color: '#3a4259' }}>overall</span>
+                <span className="text-xs" style={{ color: 'var(--color-text-3)' }}>overall</span>
               </div>
             </div>
           </div>
           <button
             onClick={onClose}
             className="flex items-center justify-center rounded-full"
-            style={{ width: 32, height: 32, background: 'rgba(255,255,255,0.06)', color: '#6b7a99' }}
+            style={{ width: 32, height: 32, background: 'var(--color-border)', color: 'var(--color-text-2)' }}
             aria-label="Close"
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -300,7 +300,7 @@ function HoldingsModal({ entry, onClose }: { entry: Entry; onClose: () => void }
         {/* Body */}
         <div className="px-5 py-4">
           {loading && (
-            <div className="flex justify-center items-center gap-2 py-10" style={{ color: '#6b7a99' }}>
+            <div className="flex justify-center items-center gap-2 py-10" style={{ color: 'var(--color-text-2)' }}>
               <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
               </svg>
@@ -315,18 +315,18 @@ function HoldingsModal({ entry, onClose }: { entry: Entry; onClose: () => void }
               {holdings.total_pnl !== null && (
                 <div
                   className="flex items-center justify-between px-4 py-3 rounded-xl mb-4"
-                  style={{ background: '#080b12', border: '1px solid rgba(255,255,255,0.05)' }}
+                  style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
                 >
                   <div>
-                    <p className="text-xs" style={{ color: '#6b7a99' }}>Invested</p>
-                    <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>{fmtDollar(holdings.total_cost)}</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Invested</p>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{fmtDollar(holdings.total_cost)}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs" style={{ color: '#6b7a99' }}>Current value</p>
-                    <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>{fmtDollar(holdings.total_value)}</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Current value</p>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{fmtDollar(holdings.total_value)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs" style={{ color: '#6b7a99' }}>Gain / Loss</p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Gain / Loss</p>
                     <p className="text-sm font-semibold" style={{ color: pctColor(holdings.total_pnl) }}>
                       {holdings.total_pnl >= 0 ? '+' : ''}{fmtDollar(holdings.total_pnl)}
                       {holdings.total_pnl_pct !== null && (
@@ -340,7 +340,7 @@ function HoldingsModal({ entry, onClose }: { entry: Entry; onClose: () => void }
               )}
 
               {holdings.holdings.length === 0 ? (
-                <p className="text-sm text-center py-6" style={{ color: '#6b7a99' }}>No holdings yet.</p>
+                <p className="text-sm text-center py-6" style={{ color: 'var(--color-text-2)' }}>No holdings yet.</p>
               ) : (
                 <div className="space-y-2">
                   {holdings.holdings.map(h => {
@@ -351,12 +351,12 @@ function HoldingsModal({ entry, onClose }: { entry: Entry; onClose: () => void }
                       <div
                         key={h.ticker}
                         className="px-4 py-3 rounded-xl"
-                        style={{ background: '#080b12', border: '1px solid rgba(255,255,255,0.05)' }}
+                        style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold" style={{ color: '#e2e8f8' }}>{h.ticker}</span>
+                              <span className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{h.ticker}</span>
                               {weight !== null && (
                                 <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(79,142,247,0.12)', color: '#4f8ef7' }}>
                                   {weight.toFixed(0)}%
@@ -364,9 +364,9 @@ function HoldingsModal({ entry, onClose }: { entry: Entry; onClose: () => void }
                               )}
                             </div>
                             {h.name && (
-                              <p className="text-xs truncate mt-0.5" style={{ color: '#6b7a99' }}>{h.name}</p>
+                              <p className="text-xs truncate mt-0.5" style={{ color: 'var(--color-text-2)' }}>{h.name}</p>
                             )}
-                            <p className="text-xs mt-1" style={{ color: '#3a4259' }}>
+                            <p className="text-xs mt-1" style={{ color: 'var(--color-text-3)' }}>
                               {h.shares.toFixed(2)} sh · avg ${h.avg_price.toFixed(2)}
                               {h.current_price !== null && <span> → ${h.current_price.toFixed(2)}</span>}
                             </p>
@@ -374,9 +374,9 @@ function HoldingsModal({ entry, onClose }: { entry: Entry; onClose: () => void }
 
                           <div className="text-right shrink-0">
                             {h.current_value !== null ? (
-                              <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>{fmtDollar(h.current_value)}</p>
+                              <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{fmtDollar(h.current_value)}</p>
                             ) : (
-                              <p className="text-sm" style={{ color: '#3a4259' }}>—</p>
+                              <p className="text-sm" style={{ color: 'var(--color-text-3)' }}>—</p>
                             )}
                             {h.pnl !== null && h.pnl_pct !== null && (
                               <p className="text-xs mt-0.5" style={{ color: pctColor(h.pnl) }}>
@@ -387,7 +387,7 @@ function HoldingsModal({ entry, onClose }: { entry: Entry; onClose: () => void }
                         </div>
 
                         {weight !== null && (
-                          <div className="mt-2 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                          <div className="mt-2 h-1 rounded-full" style={{ background: 'var(--color-border)' }}>
                             <div
                               className="h-full rounded-full"
                               style={{ width: `${Math.min(weight, 100)}%`, background: '#4f8ef7' }}
@@ -472,7 +472,7 @@ function Podium({
 
             {/* Name */}
             <p className="text-center font-semibold truncate w-full mb-0.5"
-              style={{ color: '#e2e8f8', fontSize: isTop ? 13 : 11 }}>
+              style={{ color: 'var(--color-text)', fontSize: isTop ? 13 : 11 }}>
               {entry.name}
             </p>
 
@@ -524,14 +524,14 @@ function RankRow({
         tabIndex={0}
         className="flex-1 text-left flex items-center gap-3 px-4 py-3 rounded-xl transition-colors hover:brightness-110 cursor-pointer"
         style={{
-          background: entry.is_me ? 'rgba(79,142,247,0.08)' : '#0f1521',
-          border: `1px solid ${entry.is_me ? 'rgba(79,142,247,0.25)' : 'rgba(255,255,255,0.05)'}`,
+          background: entry.is_me ? 'rgba(79,142,247,0.08)' : 'var(--color-card)',
+          border: `1px solid ${entry.is_me ? 'rgba(79,142,247,0.25)' : 'var(--color-border)'}`,
         }}
         onClick={() => onSelect(entry)}
         onKeyDown={e => e.key === 'Enter' && onSelect(entry)}
         aria-label={`View ${entry.name}'s portfolio`}
       >
-        <span className="text-sm font-bold w-6 text-center shrink-0" style={{ color: '#3a4259' }}>
+        <span className="text-sm font-bold w-6 text-center shrink-0" style={{ color: 'var(--color-text-3)' }}>
           {entry.display_rank}
         </span>
 
@@ -548,10 +548,10 @@ function RankRow({
         {/* Name + badges */}
         <div className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-sm font-semibold truncate" style={{ color: '#e2e8f8' }}>{entry.name}</span>
+            <span className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{entry.name}</span>
             {entry.badges.map(b => <BadgeChip key={b} badgeKey={b} small />)}
           </div>
-          <span className="text-xs" style={{ color: '#6b7a99' }}>
+          <span className="text-xs" style={{ color: 'var(--color-text-2)' }}>
             {entry.n_holdings} holding{entry.n_holdings !== 1 ? 's' : ''} · tap to view
           </span>
         </div>
@@ -561,17 +561,17 @@ function RankRow({
           <ReturnPct pct={entry.display_pct} className="text-sm" />
           <div className="flex gap-2 justify-end mt-0.5">
             {win !== 'alltime' && (
-              <span className="text-xs" style={{ color: '#3a4259' }}>
+              <span className="text-xs" style={{ color: 'var(--color-text-3)' }}>
                 all <ReturnPct pct={entry.return_pct} className="text-xs" />
               </span>
             )}
             {win !== 'weekly' && (
-              <span className="text-xs" style={{ color: '#3a4259' }}>
+              <span className="text-xs" style={{ color: 'var(--color-text-3)' }}>
                 7d <ReturnPct pct={entry.weekly_return_pct} className="text-xs" />
               </span>
             )}
             {win !== 'monthly' && (
-              <span className="text-xs" style={{ color: '#3a4259' }}>
+              <span className="text-xs" style={{ color: 'var(--color-text-3)' }}>
                 30d <ReturnPct pct={entry.monthly_return_pct} className="text-xs" />
               </span>
             )}
@@ -647,14 +647,14 @@ export default function LeaderboardPage() {
   const windowLabel = timeWindow === 'weekly' ? '7-day' : timeWindow === 'monthly' ? '30-day' : 'all-time'
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: '#080b12' }}>
+    <div className="min-h-screen pb-24" style={{ background: 'var(--color-bg)' }}>
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-14"
-        style={{ background: 'rgba(8,11,18,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ background: 'var(--color-header)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--color-border)' }}
       >
-        <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>Leaderboard</span>
+        <span className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Leaderboard</span>
         {data?.updated_at && (
-          <span className="text-xs" style={{ color: '#3a4259' }}>
+          <span className="text-xs" style={{ color: 'var(--color-text-3)' }}>
             Updated {timeAgo(data.updated_at)}
           </span>
         )}
@@ -662,14 +662,14 @@ export default function LeaderboardPage() {
 
       <main className="max-w-lg mx-auto px-4 sm:px-6 py-4">
         <div className="text-center mb-4">
-          <h1 className="text-2xl font-black" style={{ color: '#e2e8f8' }}>Portfolio Battle</h1>
-          <p className="text-xs mt-1" style={{ color: '#6b7a99' }}>
+          <h1 className="text-2xl font-black" style={{ color: 'var(--color-text)' }}>Portfolio Battle</h1>
+          <p className="text-xs mt-1" style={{ color: 'var(--color-text-2)' }}>
             Ranked by {windowLabel} return · last-scan prices · tap any player to see their portfolio
           </p>
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center gap-2 py-16" style={{ color: '#6b7a99' }}>
+          <div className="flex items-center justify-center gap-2 py-16" style={{ color: 'var(--color-text-2)' }}>
             <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
             </svg>
@@ -680,7 +680,7 @@ export default function LeaderboardPage() {
         {error && <p className="text-sm text-center py-8" style={{ color: '#ef4444' }}>{error}</p>}
 
         {!loading && !error && rankedEntries.length === 0 && (
-          <p className="text-sm text-center py-16" style={{ color: '#6b7a99' }}>
+          <p className="text-sm text-center py-16" style={{ color: 'var(--color-text-2)' }}>
             No profiles with portfolios yet. Add holdings to get on the board!
           </p>
         )}
@@ -699,7 +699,7 @@ export default function LeaderboardPage() {
             {/* Ranks 4+ */}
             {restEntries.length > 0 && (
               <div className="space-y-2 mt-4">
-                <p className="text-xs font-semibold mb-3" style={{ color: '#3a4259' }}>REST OF THE FIELD</p>
+                <p className="text-xs font-semibold mb-3" style={{ color: 'var(--color-text-3)' }}>REST OF THE FIELD</p>
                 {restEntries.map(entry => (
                   <RankRow key={entry.profile_id} entry={entry} onSelect={handleSelect} window={timeWindow} myProfileId={myProfileId} />
                 ))}
@@ -723,9 +723,9 @@ export default function LeaderboardPage() {
                 },
               ].map(s => (
                 <div key={s.label} className="rounded-xl px-3 py-2 text-center"
-                  style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <p className="text-sm font-bold" style={{ color: '#e2e8f8' }}>{s.value}</p>
-                  <p className="text-xs mt-0.5" style={{ color: '#6b7a99' }}>{s.label}</p>
+                  style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+                  <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{s.value}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-2)' }}>{s.label}</p>
                 </div>
               ))}
             </div>

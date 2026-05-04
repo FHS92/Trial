@@ -112,11 +112,11 @@ export default function DetailPanel({ stock, history }: Props) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold" style={{ color: '#e2e8f8' }}>{stock.ticker}
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>{stock.ticker}
             <button
               onClick={handleWatch}
               className="ml-2 text-sm font-normal px-2 py-0.5 rounded-pill transition-colors"
-              style={{ background: watched ? 'rgba(34,212,126,0.12)' : 'rgba(255,255,255,0.06)', color: watched ? '#22d47e' : '#6b7a99', border: `1px solid ${watched ? 'rgba(34,212,126,0.3)' : 'rgba(255,255,255,0.1)'}` }}
+              style={{ background: watched ? 'rgba(34,212,126,0.12)' : 'var(--color-border)', color: watched ? '#22d47e' : 'var(--color-text-2)', border: `1px solid ${watched ? 'rgba(34,212,126,0.3)' : 'var(--color-border-2)'}` }}
             >
               {watched ? '★ Watching' : '☆ Watch'}
             </button>
@@ -130,10 +130,10 @@ export default function DetailPanel({ stock, history }: Props) {
               </span>
             )}
           </div>
-          <p className="text-sm mt-0.5" style={{ color: '#6b7a99' }}>{stock.name}</p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-2)' }}>{stock.name}</p>
           {stock.current_price != null && (
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-xl font-semibold" style={{ color: '#e2e8f8' }}>
+              <span className="text-xl font-semibold" style={{ color: 'var(--color-text)' }}>
                 ${stock.current_price.toFixed(2)}
               </span>
               {priceChange != null && (
@@ -154,19 +154,19 @@ export default function DetailPanel({ stock, history }: Props) {
           style={{ background: 'rgba(34,212,126,0.08)', border: '1px solid rgba(34,212,126,0.2)' }}
         >
           <div>
-            <p className="text-xs" style={{ color: '#6b7a99' }}>1-Month Price Target</p>
+            <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>1-Month Price Target</p>
             <p className="text-2xl font-bold" style={{ color: '#22d47e' }}>
               ${stock.price_target_1m.toFixed(2)}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs" style={{ color: '#6b7a99' }}>Upside</p>
+            <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Upside</p>
             <p className="text-xl font-bold" style={{ color: upsideColor }}>
               {upside >= 0 ? '+' : ''}{upside.toFixed(1)}%
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs" style={{ color: '#6b7a99' }}>Composite Score</p>
+            <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Composite Score</p>
             <p className="text-xl font-bold" style={{ color: scoreColor }}>{stock.score}/100</p>
           </div>
         </div>
@@ -174,17 +174,17 @@ export default function DetailPanel({ stock, history }: Props) {
 
       {/* Score breakdown pills */}
       <div className="flex gap-3">
-        <div className="flex-1 rounded-cell p-3 text-center" style={{ background: '#161c2e' }}>
-          <p className="text-xs" style={{ color: '#6b7a99' }}>Fundamental</p>
+        <div className="flex-1 rounded-cell p-3 text-center" style={{ background: 'var(--surf2)' }}>
+          <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Fundamental</p>
           <p className="text-lg font-bold" style={{ color: '#4f8ef7' }}>{stock.fundamental_score}<span className="text-xs text-muted">/60</span></p>
         </div>
-        <div className="flex-1 rounded-cell p-3 text-center" style={{ background: '#161c2e' }}>
-          <p className="text-xs" style={{ color: '#6b7a99' }}>Technical</p>
+        <div className="flex-1 rounded-cell p-3 text-center" style={{ background: 'var(--surf2)' }}>
+          <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Technical</p>
           <p className="text-lg font-bold" style={{ color: '#4f8ef7' }}>{stock.technical_score}<span className="text-xs text-muted">/40</span></p>
         </div>
         {stock.earnings_date && (
-          <div className="flex-1 rounded-cell p-3 text-center" style={{ background: '#161c2e' }}>
-            <p className="text-xs" style={{ color: '#6b7a99' }}>Earnings</p>
+          <div className="flex-1 rounded-cell p-3 text-center" style={{ background: 'var(--surf2)' }}>
+            <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Earnings</p>
             <p className="text-sm font-semibold" style={{ color: '#f5a623' }}>{stock.earnings_date}</p>
           </div>
         )}
@@ -193,7 +193,7 @@ export default function DetailPanel({ stock, history }: Props) {
       {/* Price chart */}
       <div
         className="rounded-card p-4"
-        style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
       >
         <PriceChart allHistory={history} />
       </div>
@@ -201,7 +201,7 @@ export default function DetailPanel({ stock, history }: Props) {
       {/* Metrics grid */}
       {stock.metrics && Object.keys(stock.metrics).length > 0 && (
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#6b7a99' }}>
+          <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-2)' }}>
             Key Metrics
           </h2>
           <MetricsGrid metrics={stock.metrics} />
@@ -212,7 +212,7 @@ export default function DetailPanel({ stock, history }: Props) {
       {stock.thesis && (
         <div
           className="rounded-card p-4"
-          style={{ background: '#161c2e', border: '1px solid rgba(79,142,247,0.15)' }}
+          style={{ background: 'var(--surf2)', border: '1px solid rgba(79,142,247,0.15)' }}
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#4f8ef7' }}>
@@ -222,18 +222,18 @@ export default function DetailPanel({ stock, history }: Props) {
               AI
             </span>
           </div>
-          <p className="text-sm leading-relaxed" style={{ color: '#e2e8f8' }}>{stock.thesis}</p>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text)' }}>{stock.thesis}</p>
         </div>
       )}
 
       {/* Technical signals */}
       <div>
-        <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#6b7a99' }}>
+        <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-2)' }}>
           Technical Signals
         </h2>
         <div
           className="rounded-card px-4"
-          style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
         >
           {signals.map(sig => (
             <SignalRow key={sig.label} signal={sig} />
@@ -244,17 +244,17 @@ export default function DetailPanel({ stock, history }: Props) {
       {/* Score history */}
       {scoreHistory.length >= 2 && (
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#6b7a99' }}>
+          <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-2)' }}>
             Score History
           </h2>
-          <div className="rounded-card p-4" style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="rounded-card p-4" style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
             <ResponsiveContainer width="100%" height={120}>
               <LineChart data={scoreHistory} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: '#6b7a99', fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                <YAxis domain={['auto', 'auto']} tick={{ fill: '#6b7a99', fontSize: 10 }} tickLine={false} axisLine={false} />
+                <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fill: 'var(--color-text-2)', fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                <YAxis domain={['auto', 'auto']} tick={{ fill: 'var(--color-text-2)', fontSize: 10 }} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ background: '#131720', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8 }}
-                  labelStyle={{ color: '#6b7a99', fontSize: 11 }}
+                  contentStyle={{ background: '#131720', border: '1px solid var(--color-border-2)', borderRadius: 8 }}
+                  labelStyle={{ color: 'var(--color-text-2)', fontSize: 11 }}
                   itemStyle={{ color: '#4f8ef7', fontSize: 12 }}
                 />
                 <ReferenceLine y={70} stroke="rgba(34,212,126,0.2)" strokeDasharray="3 3" />
@@ -269,7 +269,7 @@ export default function DetailPanel({ stock, history }: Props) {
       {/* News */}
       {news.length > 0 && (
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#6b7a99' }}>
+          <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-2)' }}>
             Latest News
           </h2>
           <div className="space-y-2">
@@ -280,10 +280,10 @@ export default function DetailPanel({ stock, history }: Props) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block rounded-card p-3 transition-colors hover:bg-white/[0.03]"
-                style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}
+                style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
               >
-                <p className="text-sm font-medium leading-snug" style={{ color: '#e2e8f8' }}>{item.title}</p>
-                <p className="text-xs mt-1" style={{ color: '#6b7a99' }}>{item.publisher}</p>
+                <p className="text-sm font-medium leading-snug" style={{ color: 'var(--color-text)' }}>{item.title}</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--color-text-2)' }}>{item.publisher}</p>
               </a>
             ))}
           </div>

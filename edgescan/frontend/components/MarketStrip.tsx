@@ -12,9 +12,9 @@ function fmt(n: number | null, decimals = 2) {
 function Chip({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center gap-2 px-3 py-1 rounded-pill"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-      <span className="text-xs" style={{ color: '#6b7a99' }}>{label}</span>
-      <span className="text-xs font-semibold" style={{ color: '#e2e8f8' }}>{value}</span>
+      style={{ background: 'var(--color-border)', border: '1px solid var(--color-border)' }}>
+      <span className="text-xs" style={{ color: 'var(--color-text-2)' }}>{label}</span>
+      <span className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>{value}</span>
     </div>
   )
 }
@@ -43,7 +43,7 @@ export default function MarketStrip() {
     return (
       <div className="flex gap-2">
         {[indexLabel, 'VIX', '10Y'].map(l => (
-          <div key={l} className="h-6 w-20 rounded-pill animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          <div key={l} className="h-6 w-20 rounded-pill animate-pulse" style={{ background: 'var(--color-border)' }} />
         ))}
       </div>
     )

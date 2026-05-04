@@ -64,12 +64,12 @@ function StatRow({
   const aWins = higherIsBetter ? aRaw > bRaw : aRaw < bRaw
   const bWins = higherIsBetter ? bRaw > aRaw : bRaw < aRaw
   return (
-    <div className="flex items-center px-4 py-2.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-      <span className="flex-1 text-xs" style={{ color: '#6b7a99' }}>{label}</span>
-      <span className="w-28 text-center text-sm font-bold" style={{ color: aWins ? '#22c55e' : bWins ? '#ef4444' : '#e2e8f8' }}>
+    <div className="flex items-center px-4 py-2.5" style={{ borderBottom: '1px solid var(--color-border)' }}>
+      <span className="flex-1 text-xs" style={{ color: 'var(--color-text-2)' }}>{label}</span>
+      <span className="w-28 text-center text-sm font-bold" style={{ color: aWins ? '#22c55e' : bWins ? '#ef4444' : 'var(--color-text)' }}>
         {aVal}{aWins && <span className="ml-1 text-xs opacity-70">✓</span>}
       </span>
-      <span className="w-28 text-center text-sm font-bold" style={{ color: bWins ? '#22c55e' : aWins ? '#ef4444' : '#e2e8f8' }}>
+      <span className="w-28 text-center text-sm font-bold" style={{ color: bWins ? '#22c55e' : aWins ? '#ef4444' : 'var(--color-text)' }}>
         {bVal}{bWins && <span className="ml-1 text-xs opacity-70">✓</span>}
       </span>
     </div>
@@ -89,7 +89,7 @@ function TickerPills({ tickers, label, colour }: { tickers: HoldingItem[]; label
             key={h.ticker}
             href={`/stock/${h.ticker}`}
             className="px-2.5 py-1 rounded-lg text-xs font-bold transition-colors hover:brightness-110"
-            style={{ background: 'rgba(255,255,255,0.06)', color: '#e2e8f8', border: '1px solid rgba(255,255,255,0.1)' }}
+            style={{ background: 'var(--color-border)', color: 'var(--color-text)', border: '1px solid var(--color-border-2)' }}
           >
             {h.ticker}
           </Link>
@@ -141,24 +141,24 @@ export default function VsPage({ params }: { params: { a: string; b: string } })
   const uniqueB   = holdingsB.filter(h => !tickersA.has(h.ticker))
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: '#080b12' }}>
+    <div className="min-h-screen pb-24" style={{ background: 'var(--color-bg)' }}>
       <header
         className="sticky top-0 z-40 flex items-center gap-3 px-4 sm:px-6 h-14"
-        style={{ background: 'rgba(8,11,18,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ background: 'var(--color-header)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--color-border)' }}
       >
-        <Link href="/leaderboard" className="flex items-center gap-1 text-sm hover:opacity-80" style={{ color: '#6b7a99' }}>
+        <Link href="/leaderboard" className="flex items-center gap-1 text-sm hover:opacity-80" style={{ color: 'var(--color-text-2)' }}>
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
           Leaderboard
         </Link>
-        <span style={{ color: 'rgba(255,255,255,0.12)' }}>/</span>
-        <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>Head to Head</span>
+        <span style={{ color: 'var(--color-border-3)' }}>/</span>
+        <span className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Head to Head</span>
       </header>
 
       <main className="max-w-lg mx-auto px-4 sm:px-6 py-6">
         {loading && (
-          <div className="flex items-center justify-center gap-2 py-16" style={{ color: '#6b7a99' }}>
+          <div className="flex items-center justify-center gap-2 py-16" style={{ color: 'var(--color-text-2)' }}>
             <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
             </svg>
@@ -169,7 +169,7 @@ export default function VsPage({ params }: { params: { a: string; b: string } })
         {error && <p className="text-sm text-center py-8" style={{ color: '#ef4444' }}>{error}</p>}
 
         {!loading && !error && (!entryA || !entryB) && (
-          <p className="text-sm text-center py-8" style={{ color: '#6b7a99' }}>
+          <p className="text-sm text-center py-8" style={{ color: 'var(--color-text-2)' }}>
             One or both profiles not found on the leaderboard.
           </p>
         )}
@@ -180,7 +180,7 @@ export default function VsPage({ params }: { params: { a: string; b: string } })
             <div className="flex items-center gap-4">
               <div className="flex-1 flex flex-col items-center gap-1.5 text-center">
                 <Avatar name={entryA.name} colour={entryA.avatar_colour} size={56} />
-                <p className="font-bold text-sm" style={{ color: '#e2e8f8' }}>{entryA.name}</p>
+                <p className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>{entryA.name}</p>
                 <div className="flex gap-0.5 justify-center min-h-[20px]">
                   {entryA.badges.map(b => (
                     <span key={b} title={BADGE_META[b]?.label} style={{ fontSize: 14 }}>{BADGE_META[b]?.emoji}</span>
@@ -190,14 +190,14 @@ export default function VsPage({ params }: { params: { a: string; b: string } })
 
               <div
                 className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-sm font-black"
-                style={{ background: '#161c2e', border: '1px solid rgba(255,255,255,0.1)', color: '#4f8ef7' }}
+                style={{ background: 'var(--surf2)', border: '1px solid var(--color-border-2)', color: '#4f8ef7' }}
               >
                 VS
               </div>
 
               <div className="flex-1 flex flex-col items-center gap-1.5 text-center">
                 <Avatar name={entryB.name} colour={entryB.avatar_colour} size={56} />
-                <p className="font-bold text-sm" style={{ color: '#e2e8f8' }}>{entryB.name}</p>
+                <p className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>{entryB.name}</p>
                 <div className="flex gap-0.5 justify-center min-h-[20px]">
                   {entryB.badges.map(b => (
                     <span key={b} title={BADGE_META[b]?.label} style={{ fontSize: 14 }}>{BADGE_META[b]?.emoji}</span>
@@ -207,13 +207,13 @@ export default function VsPage({ params }: { params: { a: string; b: string } })
             </div>
 
             {/* Stats comparison table */}
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
               {/* Column headers */}
               <div
                 className="flex items-center px-4 py-2"
-                style={{ background: '#0a0e17', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                style={{ background: 'var(--color-card-alt)', borderBottom: '1px solid var(--color-border)' }}
               >
-                <span className="flex-1 text-xs font-semibold uppercase tracking-wider" style={{ color: '#3a4259' }}>Stat</span>
+                <span className="flex-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-3)' }}>Stat</span>
                 <span className="w-28 text-center text-xs font-bold truncate" style={{ color: entryA.avatar_colour }}>{entryA.name}</span>
                 <span className="w-28 text-center text-xs font-bold truncate" style={{ color: entryB.avatar_colour }}>{entryB.name}</span>
               </div>
@@ -230,7 +230,7 @@ export default function VsPage({ params }: { params: { a: string; b: string } })
               <div className="space-y-4">
                 {shared.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#6b7a99' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-2)' }}>
                       Both own ({shared.length})
                     </p>
                     <div className="flex flex-wrap gap-1.5">

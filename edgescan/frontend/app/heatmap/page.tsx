@@ -75,17 +75,17 @@ export default function HeatmapPage() {
   const avgColWidth = 80
 
   return (
-    <div className="min-h-screen" style={{ background: '#080b12' }}>
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
       {/* Sticky header */}
       <header
         className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 sm:px-6 h-14"
         style={{
-          background: 'rgba(8,11,18,0.92)',
+          background: 'var(--color-header)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
-        <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>
+        <span className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
           Sector Heatmap
         </span>
         <UniverseBadge />
@@ -94,10 +94,10 @@ export default function HeatmapPage() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {/* Page title */}
         <div className="mb-5">
-          <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>
+          <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--color-text)' }}>
             Sector Rotation Heatmap
           </h1>
-          <p className="text-sm" style={{ color: '#6b7a99' }}>
+          <p className="text-sm" style={{ color: 'var(--color-text-2)' }}>
             Average composite score by sector over recent months
           </p>
         </div>
@@ -146,12 +146,12 @@ export default function HeatmapPage() {
           <div className="space-y-4">
             <div
               className="rounded-xl overflow-auto"
-              style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+              style={{ border: '1px solid var(--color-border)' }}
             >
               <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: sectorColWidth + months.length * monthColWidth + avgColWidth }}>
                 {/* Header row */}
                 <thead>
-                  <tr style={{ background: '#0a0e17', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <tr style={{ background: 'var(--color-card-alt)', borderBottom: '1px solid var(--color-border)' }}>
                     <th
                       style={{
                         width: sectorColWidth,
@@ -160,14 +160,14 @@ export default function HeatmapPage() {
                         textAlign: 'left',
                         fontSize: 11,
                         fontWeight: 600,
-                        color: '#6b7a99',
+                        color: 'var(--color-text-2)',
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
                         position: 'sticky',
                         left: 0,
-                        background: '#0a0e17',
+                        background: 'var(--color-card-alt)',
                         zIndex: 2,
-                        borderRight: '1px solid rgba(255,255,255,0.06)',
+                        borderRight: '1px solid var(--color-border)',
                       }}
                     >
                       Sector
@@ -182,10 +182,10 @@ export default function HeatmapPage() {
                           textAlign: 'center',
                           fontSize: 11,
                           fontWeight: 600,
-                          color: '#6b7a99',
+                          color: 'var(--color-text-2)',
                           letterSpacing: '0.04em',
                           textTransform: 'uppercase',
-                          borderRight: '1px solid rgba(255,255,255,0.04)',
+                          borderRight: '1px solid var(--color-border)',
                         }}
                       >
                         {formatMonth(m)}
@@ -199,10 +199,10 @@ export default function HeatmapPage() {
                         textAlign: 'center',
                         fontSize: 11,
                         fontWeight: 600,
-                        color: '#6b7a99',
+                        color: 'var(--color-text-2)',
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
-                        borderLeft: '1px solid rgba(255,255,255,0.08)',
+                        borderLeft: '1px solid var(--color-border-2)',
                       }}
                     >
                       Avg
@@ -214,12 +214,12 @@ export default function HeatmapPage() {
                 <tbody>
                   {sectors.map((row, i) => {
                     const avgC = avgColor(row.avg_score)
-                    const rowBg = i % 2 === 0 ? '#0f1521' : '#0b1019'
+                    const rowBg = i % 2 === 0 ? 'var(--color-card)' : '#0b1019'
                     return (
                       <tr
                         key={row.sector}
                         style={{
-                          borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          borderBottom: '1px solid var(--color-border)',
                           background: rowBg,
                         }}
                       >
@@ -233,7 +233,7 @@ export default function HeatmapPage() {
                             left: 0,
                             background: rowBg,
                             zIndex: 1,
-                            borderRight: '1px solid rgba(255,255,255,0.06)',
+                            borderRight: '1px solid var(--color-border)',
                             cursor: 'pointer',
                           }}
                         >
@@ -242,7 +242,7 @@ export default function HeatmapPage() {
                               display: 'block',
                               fontSize: 13,
                               fontWeight: 600,
-                              color: '#e2e8f8',
+                              color: 'var(--color-text)',
                               whiteSpace: 'nowrap',
                             }}
                           >
@@ -270,9 +270,9 @@ export default function HeatmapPage() {
                                 style={{
                                   padding: '8px',
                                   textAlign: 'center',
-                                  borderRight: '1px solid rgba(255,255,255,0.04)',
+                                  borderRight: '1px solid var(--color-border)',
                                   fontSize: 13,
-                                  color: '#3a4259',
+                                  color: 'var(--color-text-3)',
                                 }}
                               >
                                 —
@@ -288,7 +288,7 @@ export default function HeatmapPage() {
                               style={{
                                 padding: '8px',
                                 textAlign: 'center',
-                                borderRight: '1px solid rgba(255,255,255,0.04)',
+                                borderRight: '1px solid var(--color-border)',
                                 cursor: 'pointer',
                               }}
                             >
@@ -316,7 +316,7 @@ export default function HeatmapPage() {
                           style={{
                             padding: '8px 12px',
                             textAlign: 'center',
-                            borderLeft: '1px solid rgba(255,255,255,0.08)',
+                            borderLeft: '1px solid var(--color-border-2)',
                           }}
                         >
                           <span
@@ -346,9 +346,9 @@ export default function HeatmapPage() {
             <div
               className="flex flex-wrap items-center gap-4 px-4 py-3 rounded-xl text-xs"
               style={{
-                background: '#0f1521',
-                border: '1px solid rgba(255,255,255,0.06)',
-                color: '#6b7a99',
+                background: 'var(--color-card)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-2)',
               }}
             >
               <span style={{ fontWeight: 600, color: '#a0aec0' }}>Legend:</span>
@@ -406,9 +406,9 @@ export default function HeatmapPage() {
           <div
             className="flex flex-col items-center justify-center rounded-xl py-16"
             style={{
-              background: '#0f1521',
-              border: '1px solid rgba(255,255,255,0.06)',
-              color: '#6b7a99',
+              background: 'var(--color-card)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-2)',
             }}
           >
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} style={{ marginBottom: 12, opacity: 0.4 }}>

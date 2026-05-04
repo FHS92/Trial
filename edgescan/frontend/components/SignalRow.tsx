@@ -24,9 +24,9 @@ export default function SignalRow({ signal }: Props) {
     <div className="flex items-center justify-between py-2 border-b border-white/[0.05] last:border-0">
       <div className="flex items-center gap-2">
         <SignalDot status={signal.status} />
-        <span className="text-sm" style={{ color: '#6b7a99' }}>{signal.label}</span>
+        <span className="text-sm" style={{ color: 'var(--color-text-2)' }}>{signal.label}</span>
       </div>
-      <span className="text-sm font-medium" style={{ color: '#e2e8f8' }}>{signal.value}</span>
+      <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{signal.value}</span>
     </div>
   )
 }

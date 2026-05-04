@@ -81,21 +81,21 @@ export default function ProfilePickerPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-4"
-      style={{ background: '#080b12' }}
+      style={{ background: 'var(--color-bg)' }}
     >
       {/* Logo */}
       <div className="mb-10 text-center">
         <div className="flex items-center justify-center gap-1 mb-3">
           <span className="text-3xl font-bold tracking-tight" style={{ color: '#4f8ef7' }}>Edge</span>
-          <span className="text-3xl font-bold tracking-tight" style={{ color: '#e2e8f8' }}>Scan</span>
+          <span className="text-3xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>Scan</span>
         </div>
-        <p className="text-sm" style={{ color: '#6b7a99' }}>
+        <p className="text-sm" style={{ color: 'var(--color-text-2)' }}>
           Select your profile to continue
         </p>
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2" style={{ color: '#6b7a99' }}>
+        <div className="flex items-center gap-2" style={{ color: 'var(--color-text-2)' }}>
           <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
           </svg>
@@ -109,8 +109,8 @@ export default function ProfilePickerPage() {
               onClick={() => unlockProfile(profile)}
               className="flex flex-col items-center gap-3 p-5 rounded-2xl transition-all hover:scale-[1.04] active:scale-[0.97]"
               style={{
-                background: '#0f1521',
-                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'var(--color-card)',
+                border: '1px solid var(--color-border-2)',
                 width: '130px',
                 cursor: 'pointer',
               }}
@@ -119,7 +119,7 @@ export default function ProfilePickerPage() {
                 ;(e.currentTarget as HTMLElement).style.boxShadow = `0 0 24px ${profile.avatarColour}22`
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.border = '1px solid rgba(255,255,255,0.08)'
+                (e.currentTarget as HTMLElement).style.border = '1px solid var(--color-border-2)'
                 ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
               }}
             >
@@ -138,16 +138,16 @@ export default function ProfilePickerPage() {
                 {profile.hasPin && (
                   <span
                     className="absolute -bottom-1 -right-1 flex items-center justify-center rounded-full"
-                    style={{ width: '20px', height: '20px', background: '#1a2035', border: '1px solid rgba(255,255,255,0.12)' }}
+                    style={{ width: '20px', height: '20px', background: 'var(--surf2)', border: '1px solid var(--color-border-3)' }}
                   >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6b7a99" strokeWidth={2.5}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-2)" strokeWidth={2.5}>
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                       <path d="M7 11V7a5 5 0 0110 0v4" />
                     </svg>
                   </span>
                 )}
               </div>
-              <span className="text-sm font-semibold text-center truncate w-full" style={{ color: '#e2e8f8' }}>
+              <span className="text-sm font-semibold text-center truncate w-full" style={{ color: 'var(--color-text)' }}>
                 {profile.name}
               </span>
             </button>
@@ -158,8 +158,8 @@ export default function ProfilePickerPage() {
             onClick={() => setShowNew(true)}
             className="flex flex-col items-center gap-3 p-5 rounded-2xl transition-all hover:scale-[1.04] active:scale-[0.97]"
             style={{
-              background: '#0f1521',
-              border: '1px dashed rgba(255,255,255,0.15)',
+              background: 'var(--color-card)',
+              border: '1px dashed var(--color-border-3)',
               width: '130px',
               cursor: 'pointer',
             }}
@@ -167,7 +167,7 @@ export default function ProfilePickerPage() {
               (e.currentTarget as HTMLElement).style.border = '1px dashed rgba(79,142,247,0.5)'
             }}
             onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.border = '1px dashed rgba(255,255,255,0.15)'
+              (e.currentTarget as HTMLElement).style.border = '1px dashed var(--color-border-3)'
             }}
           >
             <div
@@ -188,7 +188,7 @@ export default function ProfilePickerPage() {
         <Link
           href="/about"
           className="text-xs transition-colors hover:opacity-80"
-          style={{ color: '#3a4259' }}
+          style={{ color: 'var(--color-text-3)' }}
         >
           How EdgeScan works →
         </Link>

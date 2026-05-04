@@ -80,13 +80,13 @@ function PickCard({
         gap: 4,
         padding: '10px 12px',
         borderRadius: 10,
-        background: dimmed ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: dimmed ? 'var(--color-hover)' : 'var(--color-border)',
+        border: '1px solid var(--color-border)',
         opacity: dimmed ? 0.7 : 1,
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f8', letterSpacing: '0.04em' }}>
+        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', letterSpacing: '0.04em' }}>
           {pick.ticker}
         </span>
         {scoreBadge(pick.score)}
@@ -96,15 +96,15 @@ function PickCard({
         <span
           style={{
             fontSize: 11,
-            color: '#6b7a99',
-            background: 'rgba(255,255,255,0.05)',
+            color: 'var(--color-text-2)',
+            background: 'var(--color-border)',
             borderRadius: 4,
             padding: '1px 6px',
           }}
         >
           {pick.sector}
         </span>
-        <span style={{ fontSize: 12, color: '#6b7a99' }}>{formatPrice(pick.current_price)}</span>
+        <span style={{ fontSize: 12, color: 'var(--color-text-2)' }}>{formatPrice(pick.current_price)}</span>
       </div>
       {alloc !== undefined && (
         <div
@@ -153,10 +153,10 @@ function ActionColumn({ title, icon, borderColor, bgColor, children, emptyMsg, i
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
         <span style={{ fontSize: 18, lineHeight: 1 }}>{icon}</span>
-        <span style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f8' }}>{title}</span>
+        <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)' }}>{title}</span>
       </div>
       {isEmpty ? (
-        <p style={{ fontSize: 12, color: '#6b7a99', fontStyle: 'italic' }}>{emptyMsg}</p>
+        <p style={{ fontSize: 12, color: 'var(--color-text-2)', fontStyle: 'italic' }}>{emptyMsg}</p>
       ) : (
         children
       )}
@@ -231,7 +231,7 @@ export default function RebalancePage() {
   const sellPicks = data ? data.to_sell.map(t => prevPickMap[t]).filter(Boolean) : []
 
   return (
-    <div style={{ minHeight: '100vh', background: '#080b12' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
       {/* Sticky header */}
       <header
         style={{
@@ -241,9 +241,9 @@ export default function RebalancePage() {
           display: 'flex',
           flexDirection: 'column',
           padding: '0 24px',
-          background: 'rgba(8,11,18,0.93)',
+          background: 'var(--color-header)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
         <div
@@ -257,12 +257,12 @@ export default function RebalancePage() {
         >
           <a href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 0 }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: '#4f8ef7', letterSpacing: '-0.01em' }}>Edge</span>
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f8', letterSpacing: '-0.01em' }}>Scan</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>Scan</span>
           </a>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f8' }}>Rebalancing Assistant</span>
-            <span style={{ fontSize: 11, color: '#6b7a99', marginTop: 1 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text)' }}>Rebalancing Assistant</span>
+            <span style={{ fontSize: 11, color: 'var(--color-text-2)', marginTop: 1 }}>
               Monthly top-3 picks vs last month — what to buy, sell, or hold
             </span>
           </div>
@@ -284,17 +284,17 @@ export default function RebalancePage() {
         >
           {/* Universe selector */}
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, color: '#6b7a99', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <span style={{ fontSize: 11, color: 'var(--color-text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Universe
             </span>
             <select
               value={universe}
               onChange={handleUniverseChange}
               style={{
-                background: '#0f1521',
-                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'var(--color-card)',
+                border: '1px solid var(--color-border-3)',
                 borderRadius: 8,
-                color: '#e2e8f8',
+                color: 'var(--color-text)',
                 fontSize: 13,
                 padding: '6px 32px 6px 10px',
                 cursor: 'pointer',
@@ -338,7 +338,7 @@ export default function RebalancePage() {
                     display: 'inline-block',
                     width: 12,
                     height: 12,
-                    border: '2px solid rgba(255,255,255,0.3)',
+                    border: '2px solid var(--color-border-strong)',
                     borderTopColor: '#fff',
                     borderRadius: '50%',
                     animation: 'spin 0.7s linear infinite',
@@ -398,15 +398,15 @@ export default function RebalancePage() {
             style={{
               padding: '48px 24px',
               borderRadius: 16,
-              background: '#0f1521',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'var(--color-card)',
+              border: '1px solid var(--color-border)',
               textAlign: 'center',
             }}
           >
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#e2e8f8', marginBottom: 8 }}>
+            <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text)', marginBottom: 8 }}>
               No scan data available yet.
             </p>
-            <p style={{ fontSize: 13, color: '#6b7a99' }}>
+            <p style={{ fontSize: 13, color: 'var(--color-text-2)' }}>
               Run a scan from the home page first.
             </p>
           </div>
@@ -484,8 +484,8 @@ export default function RebalancePage() {
             {/* Top picks table */}
             <div
               style={{
-                background: '#0f1521',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: 'var(--color-card)',
+                border: '1px solid var(--color-border)',
                 borderRadius: 16,
                 overflow: 'hidden',
               }}
@@ -493,21 +493,21 @@ export default function RebalancePage() {
               <div
                 style={{
                   padding: '14px 20px',
-                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  borderBottom: '1px solid var(--color-border)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: 8,
                 }}
               >
-                <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#e2e8f8' }}>
+                <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--color-text)' }}>
                   Top Picks — This Month
                 </h2>
                 <span
                   style={{
                     fontSize: 11,
-                    color: '#6b7a99',
-                    background: 'rgba(255,255,255,0.04)',
+                    color: 'var(--color-text-2)',
+                    background: 'var(--color-border)',
                     borderRadius: 6,
                     padding: '2px 8px',
                   }}
@@ -522,8 +522,8 @@ export default function RebalancePage() {
                   display: 'grid',
                   gridTemplateColumns: '44px 72px 1fr 80px 130px 90px',
                   padding: '8px 20px',
-                  background: 'rgba(255,255,255,0.02)',
-                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  background: 'var(--color-hover)',
+                  borderBottom: '1px solid var(--color-border)',
                 }}
               >
                 {['Rank', 'Ticker', 'Name', 'Score', 'Sector', 'Price'].map(col => (
@@ -532,7 +532,7 @@ export default function RebalancePage() {
                     style={{
                       fontSize: 11,
                       fontWeight: 600,
-                      color: '#6b7a99',
+                      color: 'var(--color-text-2)',
                       textTransform: 'uppercase',
                       letterSpacing: '0.06em',
                     }}
@@ -552,20 +552,20 @@ export default function RebalancePage() {
                     padding: '12px 20px',
                     borderBottom:
                       i < data.top_picks.length - 1
-                        ? '1px solid rgba(255,255,255,0.04)'
+                        ? '1px solid var(--color-border)'
                         : 'none',
                     alignItems: 'center',
                     transition: 'background 0.1s',
                   }}
                   onMouseEnter={e => {
-                    ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.03)'
+                    ;(e.currentTarget as HTMLDivElement).style.background = 'var(--color-border)'
                   }}
                   onMouseLeave={e => {
                     ;(e.currentTarget as HTMLDivElement).style.background = 'transparent'
                   }}
                 >
-                  <span style={{ fontSize: 12, color: '#6b7a99', fontWeight: 600 }}>#{i + 1}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f8', letterSpacing: '0.04em' }}>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-2)', fontWeight: 600 }}>#{i + 1}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)', letterSpacing: '0.04em' }}>
                     {pick.ticker}
                   </span>
                   <span
@@ -584,8 +584,8 @@ export default function RebalancePage() {
                   <span
                     style={{
                       fontSize: 11,
-                      color: '#6b7a99',
-                      background: 'rgba(255,255,255,0.05)',
+                      color: 'var(--color-text-2)',
+                      background: 'var(--color-border)',
                       borderRadius: 4,
                       padding: '2px 7px',
                       width: 'fit-content',
@@ -609,8 +609,8 @@ export default function RebalancePage() {
               <div
                 style={{
                   marginTop: 20,
-                  background: '#0f1521',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  background: 'var(--color-card)',
+                  border: '1px solid var(--color-border)',
                   borderRadius: 16,
                   overflow: 'hidden',
                   opacity: 0.75,
@@ -619,7 +619,7 @@ export default function RebalancePage() {
                 <div
                   style={{
                     padding: '14px 20px',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderBottom: '1px solid var(--color-border)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
@@ -631,8 +631,8 @@ export default function RebalancePage() {
                   <span
                     style={{
                       fontSize: 11,
-                      color: '#6b7a99',
-                      background: 'rgba(255,255,255,0.04)',
+                      color: 'var(--color-text-2)',
+                      background: 'var(--color-border)',
                       borderRadius: 6,
                       padding: '2px 8px',
                     }}
@@ -646,8 +646,8 @@ export default function RebalancePage() {
                     display: 'grid',
                     gridTemplateColumns: '44px 72px 1fr 80px 130px 90px',
                     padding: '8px 20px',
-                    background: 'rgba(255,255,255,0.02)',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    background: 'var(--color-hover)',
+                    borderBottom: '1px solid var(--color-border)',
                   }}
                 >
                   {['Rank', 'Ticker', 'Name', 'Score', 'Sector', 'Price'].map(col => (
@@ -656,7 +656,7 @@ export default function RebalancePage() {
                       style={{
                         fontSize: 11,
                         fontWeight: 600,
-                        color: '#6b7a99',
+                        color: 'var(--color-text-2)',
                         textTransform: 'uppercase',
                         letterSpacing: '0.06em',
                       }}
@@ -675,12 +675,12 @@ export default function RebalancePage() {
                       padding: '12px 20px',
                       borderBottom:
                         i < data.previous_picks.length - 1
-                          ? '1px solid rgba(255,255,255,0.04)'
+                          ? '1px solid var(--color-border)'
                           : 'none',
                       alignItems: 'center',
                     }}
                   >
-                    <span style={{ fontSize: 12, color: '#6b7a99', fontWeight: 600 }}>#{i + 1}</span>
+                    <span style={{ fontSize: 12, color: 'var(--color-text-2)', fontWeight: 600 }}>#{i + 1}</span>
                     <span
                       style={{ fontSize: 13, fontWeight: 700, color: '#9aa5c0', letterSpacing: '0.04em' }}
                     >
@@ -689,7 +689,7 @@ export default function RebalancePage() {
                     <span
                       style={{
                         fontSize: 12,
-                        color: '#6b7a99',
+                        color: 'var(--color-text-2)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -702,8 +702,8 @@ export default function RebalancePage() {
                     <span
                       style={{
                         fontSize: 11,
-                        color: '#6b7a99',
-                        background: 'rgba(255,255,255,0.05)',
+                        color: 'var(--color-text-2)',
+                        background: 'var(--color-border)',
                         borderRadius: 4,
                         padding: '2px 7px',
                         width: 'fit-content',
@@ -711,7 +711,7 @@ export default function RebalancePage() {
                     >
                       {pick.sector}
                     </span>
-                    <span style={{ fontSize: 12, color: '#6b7a99', textAlign: 'right' }}>
+                    <span style={{ fontSize: 12, color: 'var(--color-text-2)', textAlign: 'right' }}>
                       {formatPrice(pick.current_price)}
                     </span>
                   </div>

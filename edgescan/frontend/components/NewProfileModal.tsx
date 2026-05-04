@@ -75,14 +75,14 @@ export default function NewProfileModal({ onSuccess, onClose }: Props) {
     >
       <div
         className="w-full max-w-sm rounded-2xl p-6"
-        style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.1)' }}
+        style={{ background: 'var(--color-card)', border: '1px solid var(--color-border-2)' }}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-bold" style={{ color: '#e2e8f8' }}>New Profile</h2>
+          <h2 className="text-base font-bold" style={{ color: 'var(--color-text)' }}>New Profile</h2>
           <button
             onClick={onClose}
             className="flex items-center justify-center w-7 h-7 rounded-full transition-colors hover:bg-white/[0.08]"
-            style={{ color: '#6b7a99' }}
+            style={{ color: 'var(--color-text-2)' }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
@@ -93,7 +93,7 @@ export default function NewProfileModal({ onSuccess, onClose }: Props) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-xs mb-1.5" style={{ color: '#6b7a99' }}>Name</label>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--color-text-2)' }}>Name</label>
             <input
               autoFocus
               type="text"
@@ -104,15 +104,15 @@ export default function NewProfileModal({ onSuccess, onClose }: Props) {
               className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
               style={{
                 background: '#131720',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: '#e2e8f8',
+                border: '1px solid var(--color-border-2)',
+                color: 'var(--color-text)',
               }}
             />
           </div>
 
           {/* Avatar colour */}
           <div>
-            <label className="block text-xs mb-2" style={{ color: '#6b7a99' }}>Avatar colour</label>
+            <label className="block text-xs mb-2" style={{ color: 'var(--color-text-2)' }}>Avatar colour</label>
             <div className="flex gap-2">
               {AVATAR_COLOURS.map(c => (
                 <button
@@ -154,7 +154,7 @@ export default function NewProfileModal({ onSuccess, onClose }: Props) {
           {/* PIN input */}
           {addPin && (
             <div>
-              <label className="block text-xs mb-1.5" style={{ color: '#6b7a99' }}>PIN (up to 6 digits)</label>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--color-text-2)' }}>PIN (up to 6 digits)</label>
               <input
                 type="password"
                 inputMode="numeric"
@@ -165,8 +165,8 @@ export default function NewProfileModal({ onSuccess, onClose }: Props) {
                 className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
                 style={{
                   background: '#131720',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: '#e2e8f8',
+                  border: '1px solid var(--color-border-2)',
+                  color: 'var(--color-text)',
                   letterSpacing: '0.3em',
                 }}
               />

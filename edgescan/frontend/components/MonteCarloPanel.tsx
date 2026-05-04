@@ -65,7 +65,7 @@ function ReturnHistogram({ histogram, originalRet }: { histogram: Histogram; ori
         const range = maxEdge - minEdge || 1
         const zeroX = ((0 - minEdge) / range) * 100
         if (zeroX < 0 || zeroX > 100) return null
-        return <line x1={zeroX} y1={0} x2={zeroX} y2={H} stroke="rgba(255,255,255,0.2)" strokeWidth={0.6} />
+        return <line x1={zeroX} y1={0} x2={zeroX} y2={H} stroke="var(--color-border-3)" strokeWidth={0.6} />
       })()}
     </svg>
   )
@@ -108,11 +108,11 @@ export default function MonteCarloPanel({ ticker }: { ticker: string }) {
   return (
     <div
       className="rounded-xl p-4"
-      style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}
+      style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <p className="text-xs font-semibold" style={{ color: '#6b7a99' }}>
+        <p className="text-xs font-semibold" style={{ color: 'var(--color-text-2)' }}>
           Monte Carlo Return Distribution
         </p>
         <div className="flex gap-1">
@@ -122,8 +122,8 @@ export default function MonteCarloPanel({ ticker }: { ticker: string }) {
               onClick={() => handleHorizon(opt.days)}
               className="px-2 py-0.5 rounded text-xs font-medium transition-colors"
               style={{
-                background: horizon === opt.days ? '#4f8ef7' : 'rgba(255,255,255,0.06)',
-                color: horizon === opt.days ? '#fff' : '#6b7a99',
+                background: horizon === opt.days ? '#4f8ef7' : 'var(--color-border)',
+                color: horizon === opt.days ? '#fff' : 'var(--color-text-2)',
               }}
             >
               {opt.label}
@@ -134,7 +134,7 @@ export default function MonteCarloPanel({ ticker }: { ticker: string }) {
 
       {!ran && !loading && (
         <div className="text-center py-4">
-          <p className="text-xs mb-3" style={{ color: '#6b7a99' }}>
+          <p className="text-xs mb-3" style={{ color: 'var(--color-text-2)' }}>
             Simulate 1,000 price paths using {ticker}&apos;s historical volatility.
           </p>
           <button
@@ -148,7 +148,7 @@ export default function MonteCarloPanel({ ticker }: { ticker: string }) {
       )}
 
       {loading && (
-        <div className="flex items-center justify-center gap-2 py-4" style={{ color: '#6b7a99' }}>
+        <div className="flex items-center justify-center gap-2 py-4" style={{ color: 'var(--color-text-2)' }}>
           <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
           </svg>
@@ -167,7 +167,7 @@ export default function MonteCarloPanel({ ticker }: { ticker: string }) {
           {/* Histogram */}
           <div>
             <ReturnHistogram histogram={data.histogram} />
-            <div className="flex justify-between text-xs mt-1" style={{ color: '#3a4259' }}>
+            <div className="flex justify-between text-xs mt-1" style={{ color: 'var(--color-text-3)' }}>
               <span>{data.histogram.edges[0].toFixed(0)}%</span>
               <span>0%</span>
               <span>+{data.histogram.edges[data.histogram.edges.length - 1].toFixed(0)}%</span>
@@ -187,7 +187,7 @@ export default function MonteCarloPanel({ ticker }: { ticker: string }) {
                 style={{ background: '#131720' }}
               >
                 <p className="text-xs font-bold mb-0.5" style={{ color: s.color }}>{s.value}</p>
-                <p className="text-xs leading-tight" style={{ color: '#6b7a99' }}>{s.label}</p>
+                <p className="text-xs leading-tight" style={{ color: 'var(--color-text-2)' }}>{s.label}</p>
               </div>
             ))}
           </div>
@@ -196,14 +196,14 @@ export default function MonteCarloPanel({ ticker }: { ticker: string }) {
           {p && (
             <div
               className="rounded-lg overflow-hidden text-xs"
-              style={{ border: '1px solid rgba(255,255,255,0.05)' }}
+              style={{ border: '1px solid var(--color-border)' }}
             >
               <div
                 className="grid px-3 py-1.5"
                 style={{
                   gridTemplateColumns: 'repeat(5, 1fr)',
-                  background: '#0a0e17',
-                  color: '#3a4259',
+                  background: 'var(--color-card-alt)',
+                  color: 'var(--color-text-3)',
                 }}
               >
                 {['5th', '25th', 'Median', '75th', '95th'].map(l => (
@@ -212,7 +212,7 @@ export default function MonteCarloPanel({ ticker }: { ticker: string }) {
               </div>
               <div
                 className="grid px-3 py-2"
-                style={{ gridTemplateColumns: 'repeat(5, 1fr)', background: '#0f1521' }}
+                style={{ gridTemplateColumns: 'repeat(5, 1fr)', background: 'var(--color-card)' }}
               >
                 {['5', '25', '50', '75', '95'].map(k => (
                   <span
@@ -227,7 +227,7 @@ export default function MonteCarloPanel({ ticker }: { ticker: string }) {
             </div>
           )}
 
-          <p className="text-xs" style={{ color: '#3a4259' }}>
+          <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
             {data.n_simulations.toLocaleString()} simulations · {data.horizon_days}-day horizon · daily vol {data.daily_vol_pct.toFixed(2)}% · not investment advice
           </p>
         </div>

@@ -123,17 +123,17 @@ export default function PaperTradingPage() {
     data.monthly_history.length === 0
 
   return (
-    <div className="min-h-screen" style={{ background: '#080b12' }}>
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
       {/* Sticky header */}
       <header
         className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 sm:px-6 h-14"
         style={{
-          background: 'rgba(8,11,18,0.92)',
+          background: 'var(--color-header)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
-        <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>
+        <span className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
           Paper Trading
         </span>
         <UniverseBadge />
@@ -142,10 +142,10 @@ export default function PaperTradingPage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         {/* Page title + subtitle */}
         <div className="mb-5">
-          <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>
+          <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--color-text)' }}>
             Paper Trading Portfolio
           </h1>
-          <p className="text-sm" style={{ color: '#6b7a99' }}>
+          <p className="text-sm" style={{ color: 'var(--color-text-2)' }}>
             Live simulation · $6,000 starting capital · Top picks · Monthly auto-rebalance
           </p>
         </div>
@@ -159,11 +159,11 @@ export default function PaperTradingPage() {
               disabled={loading || rebalancing}
               className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors"
               style={{
-                background: universe === opt.value ? '#4f8ef7' : 'rgba(255,255,255,0.06)',
+                background: universe === opt.value ? '#4f8ef7' : 'var(--color-border)',
                 color: universe === opt.value ? '#fff' : '#a0aec0',
                 border: '1px solid',
                 borderColor:
-                  universe === opt.value ? '#4f8ef7' : 'rgba(255,255,255,0.08)',
+                  universe === opt.value ? '#4f8ef7' : 'var(--color-border-2)',
               }}
             >
               {opt.label}
@@ -173,7 +173,7 @@ export default function PaperTradingPage() {
 
         {/* Loading state */}
         {loading && (
-          <div className="flex items-center gap-2 py-6" style={{ color: '#6b7a99' }}>
+          <div className="flex items-center gap-2 py-6" style={{ color: 'var(--color-text-2)' }}>
             <svg
               className="animate-spin"
               width="16"
@@ -204,9 +204,9 @@ export default function PaperTradingPage() {
           <div
             className="rounded-xl p-6 mb-6 text-sm"
             style={{
-              background: '#0f1521',
-              border: '1px solid rgba(255,255,255,0.06)',
-              color: '#6b7a99',
+              background: 'var(--color-card)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-2)',
             }}
           >
             No paper trades yet. The model auto-rebalances on the 1st of each month. Use the
@@ -222,7 +222,7 @@ export default function PaperTradingPage() {
                 {
                   label: 'Portfolio Value',
                   value: usd(data.current_value),
-                  valueColor: '#e2e8f8',
+                  valueColor: 'var(--color-text)',
                   sub: null,
                 },
                 {
@@ -234,13 +234,13 @@ export default function PaperTradingPage() {
                 {
                   label: 'Starting Capital',
                   value: usd(data.starting_capital),
-                  valueColor: '#e2e8f8',
+                  valueColor: 'var(--color-text)',
                   sub: null,
                 },
                 {
                   label: 'Open Positions',
                   value: String(data.open_positions.length),
-                  valueColor: '#e2e8f8',
+                  valueColor: 'var(--color-text)',
                   sub: null,
                 },
               ].map((card) => (
@@ -248,11 +248,11 @@ export default function PaperTradingPage() {
                   key={card.label}
                   className="rounded-xl p-4"
                   style={{
-                    background: '#0f1521',
-                    border: '1px solid rgba(255,255,255,0.06)',
+                    background: 'var(--color-card)',
+                    border: '1px solid var(--color-border)',
                   }}
                 >
-                  <p className="text-xs mb-1" style={{ color: '#6b7a99' }}>
+                  <p className="text-xs mb-1" style={{ color: 'var(--color-text-2)' }}>
                     {card.label}
                   </p>
                   <p className="text-lg font-bold" style={{ color: card.valueColor }}>
@@ -265,7 +265,7 @@ export default function PaperTradingPage() {
             {/* Open Positions */}
             {data.open_positions.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold mb-3" style={{ color: '#e2e8f8' }}>
+                <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
                   Open Positions
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -274,19 +274,19 @@ export default function PaperTradingPage() {
                       key={`${pos.ticker}-${pos.month}`}
                       className="rounded-xl p-4"
                       style={{
-                        background: '#0f1521',
-                        border: '1px solid rgba(255,255,255,0.06)',
+                        background: 'var(--color-card)',
+                        border: '1px solid var(--color-border)',
                       }}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p
                             className="text-base font-bold"
-                            style={{ color: '#e2e8f8' }}
+                            style={{ color: 'var(--color-text)' }}
                           >
                             {pos.ticker}
                           </p>
-                          <p className="text-xs mt-0.5" style={{ color: '#6b7a99' }}>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-2)' }}>
                             Since {pos.month} · Score {pos.score}
                           </p>
                         </div>
@@ -300,24 +300,24 @@ export default function PaperTradingPage() {
 
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-xs">
-                          <span style={{ color: '#6b7a99' }}>Entry</span>
+                          <span style={{ color: 'var(--color-text-2)' }}>Entry</span>
                           <span style={{ color: '#a0aec0' }}>{usd(pos.entry_price)}</span>
                         </div>
                         <div className="flex justify-between text-xs">
-                          <span style={{ color: '#6b7a99' }}>Current</span>
-                          <span style={{ color: '#e2e8f8' }}>{usd(pos.current_price)}</span>
+                          <span style={{ color: 'var(--color-text-2)' }}>Current</span>
+                          <span style={{ color: 'var(--color-text)' }}>{usd(pos.current_price)}</span>
                         </div>
                         <div className="flex justify-between text-xs">
-                          <span style={{ color: '#6b7a99' }}>Shares</span>
+                          <span style={{ color: 'var(--color-text-2)' }}>Shares</span>
                           <span style={{ color: '#a0aec0' }}>
                             {pos.shares.toFixed(3)}
                           </span>
                         </div>
                         <div
                           className="flex justify-between text-xs pt-1.5"
-                          style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+                          style={{ borderTop: '1px solid var(--color-border)' }}
                         >
-                          <span style={{ color: '#6b7a99' }}>Unrealized P&amp;L</span>
+                          <span style={{ color: 'var(--color-text-2)' }}>Unrealized P&amp;L</span>
                           <span
                             className="font-semibold"
                             style={{ color: pctColor(pos.unrealized_pnl) }}
@@ -336,21 +336,21 @@ export default function PaperTradingPage() {
             {/* Monthly History table */}
             {data.monthly_history.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold mb-3" style={{ color: '#e2e8f8' }}>
+                <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
                   Monthly History
                 </h2>
                 <div
                   className="rounded-xl overflow-hidden"
-                  style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+                  style={{ border: '1px solid var(--color-border)' }}
                 >
                   {/* Table header */}
                   <div
                     className="grid text-xs px-4 py-2"
                     style={{
                       gridTemplateColumns: '85px 1fr 110px 130px',
-                      background: '#0a0e17',
-                      color: '#6b7a99',
-                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      background: 'var(--color-card-alt)',
+                      color: 'var(--color-text-2)',
+                      borderBottom: '1px solid var(--color-border)',
                     }}
                   >
                     <span>Month</span>
@@ -366,8 +366,8 @@ export default function PaperTradingPage() {
                       className="grid px-4 py-2.5 text-xs sm:text-sm items-center"
                       style={{
                         gridTemplateColumns: '85px 1fr 110px 130px',
-                        background: i % 2 === 0 ? '#0f1521' : '#0b1019',
-                        borderBottom: '1px solid rgba(255,255,255,0.03)',
+                        background: i % 2 === 0 ? 'var(--color-card)' : '#0b1019',
+                        borderBottom: '1px solid var(--color-border)',
                       }}
                     >
                       <span className="font-medium" style={{ color: '#a0aec0' }}>
@@ -375,7 +375,7 @@ export default function PaperTradingPage() {
                       </span>
                       <span
                         className="text-xs truncate pr-2"
-                        style={{ color: '#6b7a99' }}
+                        style={{ color: 'var(--color-text-2)' }}
                       >
                         {row.picks.join(', ')}
                       </span>
@@ -388,7 +388,7 @@ export default function PaperTradingPage() {
                       </span>
                       <span
                         className="text-right text-xs"
-                        style={{ color: '#e2e8f8' }}
+                        style={{ color: 'var(--color-text)' }}
                       >
                         {usd(row.portfolio_value)}
                       </span>
@@ -401,11 +401,11 @@ export default function PaperTradingPage() {
         )}
 
         {/* Trigger Rebalance */}
-        <div className="mt-8 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <h2 className="text-sm font-semibold mb-1" style={{ color: '#e2e8f8' }}>
+        <div className="mt-8 pt-6" style={{ borderTop: '1px solid var(--color-border)' }}>
+          <h2 className="text-sm font-semibold mb-1" style={{ color: 'var(--color-text)' }}>
             Manual Rebalance
           </h2>
-          <p className="text-xs mb-3" style={{ color: '#6b7a99' }}>
+          <p className="text-xs mb-3" style={{ color: 'var(--color-text-2)' }}>
             The model auto-rebalances on the 1st of each month. You can also trigger it
             manually now.
           </p>

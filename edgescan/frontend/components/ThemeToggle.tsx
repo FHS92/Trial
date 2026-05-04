@@ -28,7 +28,7 @@ export default function ThemeToggle() {
     <button
       onClick={toggle}
       className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl transition-colors hover:brightness-110"
-      style={{ background: 'rgba(255,255,255,0.03)', color: '#8492aa', border: 'none', cursor: 'pointer' }}
+      style={{ background: 'var(--color-border)', color: '#8492aa', border: 'none', cursor: 'pointer' }}
       aria-label={light ? 'Switch to dark mode' : 'Switch to light mode'}
     >
       {light ? (

@@ -29,7 +29,7 @@ export default function AuthGuard() {
         style={{
           position: 'fixed',
           inset: 0,
-          background: '#080b12',
+          background: 'var(--color-bg)',
           zIndex: 9999,
         }}
       />

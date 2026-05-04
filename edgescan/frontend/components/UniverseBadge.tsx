@@ -20,7 +20,7 @@ export default function UniverseBadge() {
         <path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" />
       </svg>
       {label}
-      <span style={{ color: '#6b7a99', fontSize: '10px' }}>· Switch</span>
+      <span style={{ color: 'var(--color-text-2)', fontSize: '10px' }}>· Switch</span>
     </Link>
   )
 }

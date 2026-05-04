@@ -103,20 +103,20 @@ const STEPS = [
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen" style={{ background: '#080b12', color: '#e2e8f8' }}>
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>
 
       {/* ── Nav ── */}
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-5 sm:px-10 h-14"
         style={{
-          background: 'rgba(8,11,18,0.88)',
+          background: 'var(--color-header)',
           backdropFilter: 'blur(14px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
         <Link href="/" className="flex items-center gap-1">
           <span className="text-lg font-bold tracking-tight" style={{ color: '#4f8ef7' }}>Edge</span>
-          <span className="text-lg font-bold tracking-tight" style={{ color: '#e2e8f8' }}>Scan</span>
+          <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>Scan</span>
         </Link>
         <Link
           href="/"
@@ -153,12 +153,12 @@ export default function AboutPage() {
           </div>
           <h1
             className="text-4xl sm:text-5xl font-black leading-tight mb-5"
-            style={{ color: '#e2e8f8', letterSpacing: '-0.02em' }}
+            style={{ color: 'var(--color-text)', letterSpacing: '-0.02em' }}
           >
             Stock intelligence that<br />
             <span style={{ color: '#4f8ef7' }}>cuts through the noise.</span>
           </h1>
-          <p className="text-base sm:text-lg max-w-xl mx-auto mb-8" style={{ color: '#6b7a99', lineHeight: 1.7 }}>
+          <p className="text-base sm:text-lg max-w-xl mx-auto mb-8" style={{ color: 'var(--color-text-2)', lineHeight: 1.7 }}>
             EdgeScan scores every S&amp;P 500 stock across 12 signals, ranks the best opportunities
             daily, and gives you the tools to act — watchlist, portfolio, backtest, earnings calendar,
             all in one place.
@@ -184,7 +184,7 @@ export default function AboutPage() {
             ].map(s => (
               <div key={s.label} className="text-center">
                 <p className="text-2xl font-black mb-0.5" style={{ color: '#4f8ef7' }}>{s.value}</p>
-                <p className="text-xs" style={{ color: '#6b7a99' }}>{s.label}</p>
+                <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>{s.label}</p>
               </div>
             ))}
           </div>
@@ -194,7 +194,7 @@ export default function AboutPage() {
         <section className="py-16">
           <div className="text-center mb-10">
             <h2 className="text-2xl sm:text-3xl font-black mb-3" style={{ letterSpacing: '-0.01em' }}>The EdgeScan Score</h2>
-            <p className="text-sm max-w-lg mx-auto" style={{ color: '#6b7a99', lineHeight: 1.7 }}>
+            <p className="text-sm max-w-lg mx-auto" style={{ color: 'var(--color-text-2)', lineHeight: 1.7 }}>
               Every stock gets a score from 0–100 built from two equally-weighted pillars.
               No black box — every component is transparent and traceable.
             </p>
@@ -204,7 +204,7 @@ export default function AboutPage() {
           <div className="flex justify-center mb-10">
             <div
               className="flex items-center gap-6 px-8 py-5 rounded-2xl"
-              style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}
+              style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
             >
               {[
                 { score: 88, label: 'NVDA', color: '#22c55e' },
@@ -225,7 +225,7 @@ export default function AboutPage() {
                   >
                     {s.score}
                   </div>
-                  <span className="text-xs font-semibold" style={{ color: '#6b7a99' }}>{s.label}</span>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--color-text-2)' }}>{s.label}</span>
                 </div>
               ))}
             </div>
@@ -236,7 +236,7 @@ export default function AboutPage() {
               <div
                 key={p.label}
                 className="rounded-2xl p-6"
-                style={{ background: '#0f1521', border: `1px solid ${p.colour}22` }}
+                style={{ background: 'var(--color-card)', border: `1px solid ${p.colour}22` }}
               >
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-bold" style={{ color: p.colour }}>{p.label}</span>
@@ -266,7 +266,7 @@ export default function AboutPage() {
               { range: '50 – 69', label: 'Neutral / watch', color: '#f59e0b' },
               { range: '0 – 49', label: 'Weak / avoid', color: '#ef4444' },
             ].map(l => (
-              <div key={l.range} className="flex items-center gap-2 text-xs" style={{ color: '#6b7a99' }}>
+              <div key={l.range} className="flex items-center gap-2 text-xs" style={{ color: 'var(--color-text-2)' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: l.color, display: 'inline-block' }} />
                 <span style={{ color: l.color, fontWeight: 600 }}>{l.range}</span>
                 <span>{l.label}</span>
@@ -279,7 +279,7 @@ export default function AboutPage() {
         <section className="py-16">
           <div className="text-center mb-10">
             <h2 className="text-2xl sm:text-3xl font-black mb-3" style={{ letterSpacing: '-0.01em' }}>Everything you need. Nothing you don&apos;t.</h2>
-            <p className="text-sm max-w-lg mx-auto" style={{ color: '#6b7a99', lineHeight: 1.7 }}>
+            <p className="text-sm max-w-lg mx-auto" style={{ color: 'var(--color-text-2)', lineHeight: 1.7 }}>
               Six tightly integrated tools — all derived from the same underlying scoring engine.
             </p>
           </div>
@@ -288,7 +288,7 @@ export default function AboutPage() {
               <div
                 key={f.title}
                 className="rounded-2xl p-6"
-                style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}
+                style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
               >
                 <div
                   className="flex items-center justify-center rounded-xl mb-4"
@@ -296,8 +296,8 @@ export default function AboutPage() {
                 >
                   {f.icon}
                 </div>
-                <h3 className="text-sm font-bold mb-2" style={{ color: '#e2e8f8' }}>{f.title}</h3>
-                <p className="text-xs leading-relaxed" style={{ color: '#6b7a99' }}>{f.desc}</p>
+                <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--color-text)' }}>{f.title}</h3>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-2)' }}>{f.desc}</p>
               </div>
             ))}
           </div>
@@ -307,7 +307,7 @@ export default function AboutPage() {
         <section className="py-16">
           <div className="text-center mb-10">
             <h2 className="text-2xl sm:text-3xl font-black mb-3" style={{ letterSpacing: '-0.01em' }}>Up and running in 60 seconds.</h2>
-            <p className="text-sm max-w-md mx-auto" style={{ color: '#6b7a99' }}>
+            <p className="text-sm max-w-md mx-auto" style={{ color: 'var(--color-text-2)' }}>
               No account form. No email required. Just pick a profile and start exploring.
             </p>
           </div>
@@ -324,7 +324,7 @@ export default function AboutPage() {
                 )}
                 <div
                   className="rounded-2xl p-6 h-full relative z-10"
-                  style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}
+                  style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
                 >
                   <span
                     className="inline-block text-xs font-black mb-3 px-2 py-0.5 rounded-lg"
@@ -332,8 +332,8 @@ export default function AboutPage() {
                   >
                     {step.n}
                   </span>
-                  <h3 className="text-sm font-bold mb-2" style={{ color: '#e2e8f8' }}>{step.title}</h3>
-                  <p className="text-xs leading-relaxed" style={{ color: '#6b7a99' }}>{step.desc}</p>
+                  <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--color-text)' }}>{step.title}</h3>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-2)' }}>{step.desc}</p>
                 </div>
               </div>
             ))}
@@ -351,7 +351,7 @@ export default function AboutPage() {
           <h2 className="text-2xl font-black mb-3" style={{ letterSpacing: '-0.01em' }}>
             Ready to find your edge?
           </h2>
-          <p className="text-sm mb-6" style={{ color: '#6b7a99' }}>
+          <p className="text-sm mb-6" style={{ color: 'var(--color-text-2)' }}>
             The scanner is live. The scores are fresh. Pick a profile and start exploring.
           </p>
           <Link
@@ -367,7 +367,7 @@ export default function AboutPage() {
         </section>
 
         {/* ── Disclaimer ── */}
-        <p className="text-center text-xs mt-10" style={{ color: '#3a4259', lineHeight: 1.7 }}>
+        <p className="text-center text-xs mt-10" style={{ color: 'var(--color-text-3)', lineHeight: 1.7 }}>
           EdgeScan is a research and analysis tool, not a financial adviser.
           Scores and signals do not constitute investment advice.
           Past backtest performance does not guarantee future results.

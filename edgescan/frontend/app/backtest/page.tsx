@@ -85,7 +85,7 @@ function pct(n: number | null) {
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 }
 function usd(n: number) { return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
-function pctColor(n: number | null) { if (n === null) return '#6b7a99'; return n >= 0 ? '#22c55e' : '#ef4444' }
+function pctColor(n: number | null) { if (n === null) return 'var(--color-text-2)'; return n >= 0 ? '#22c55e' : '#ef4444' }
 
 const HOLD_OPTIONS = [
   { months: 1, label: '1-Month Hold', short: '1M' },
@@ -159,17 +159,17 @@ export default function BacktestPage() {
   const activeHold = s?.hold_months ?? holdMonths
 
   return (
-    <div className="min-h-screen" style={{ background: '#080b12' }}>
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
       <header className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 sm:px-6 h-14"
-        style={{ background: 'rgba(8,11,18,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>Backtest</span>
+        style={{ background: 'var(--color-header)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--color-border)' }}>
+        <span className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Backtest</span>
         <UniverseBadge />
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         <div className="mb-5">
-          <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>Technical Score Backtest</h1>
-          <p className="text-sm" style={{ color: '#6b7a99' }}>
+          <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--color-text)' }}>Technical Score Backtest</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-2)' }}>
             Jan 2020 → today · Top 3 picks · $6,000 start · Technical + Fundamental · Equal-weight monthly rotation · S&amp;P 500 · vs SPY buy-and-hold
           </p>
         </div>
@@ -184,10 +184,10 @@ export default function BacktestPage() {
                 disabled={running || loading}
                 className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors"
                 style={{
-                  background: holdMonths === opt.months ? '#4f8ef7' : 'rgba(255,255,255,0.06)',
+                  background: holdMonths === opt.months ? '#4f8ef7' : 'var(--color-border)',
                   color: holdMonths === opt.months ? '#fff' : '#a0aec0',
                   border: '1px solid',
-                  borderColor: holdMonths === opt.months ? '#4f8ef7' : 'rgba(255,255,255,0.08)',
+                  borderColor: holdMonths === opt.months ? '#4f8ef7' : 'var(--color-border-2)',
                 }}
               >
                 {opt.label}
@@ -214,7 +214,7 @@ export default function BacktestPage() {
               onClick={() => loadLatest(holdMonths)}
               disabled={running || loading}
               className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-              style={{ background: 'rgba(255,255,255,0.06)', color: '#e2e8f8' }}
+              style={{ background: 'var(--color-border)', color: 'var(--color-text)' }}
             >
               {loading ? 'Loading…' : `Load Last ${holdMonths}M Results`}
             </button>
@@ -226,7 +226,7 @@ export default function BacktestPage() {
             <p className="text-sm" style={{ color: '#4f8ef7' }}>
               Downloading 5+ years of price data for 100 stocks and computing monthly signals… this takes 2-4 minutes.
             </p>
-            <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-border)' }}>
               <div className="h-full rounded-full animate-pulse" style={{ width: `${Math.min(elapsed / 180 * 100, 95)}%`, background: '#4f8ef7', transition: 'width 1s' }} />
             </div>
           </div>
@@ -241,32 +241,32 @@ export default function BacktestPage() {
               {[
                 { label: 'EdgeScan Final', value: usd(s.final_value), sub: pct(s.total_return_pct), subColor: pctColor(s.total_return_pct) },
                 { label: 'SPY Buy & Hold', value: usd(s.spy_final_value), sub: pct(s.spy_total_return_pct), subColor: pctColor(s.spy_total_return_pct) },
-                { label: 'Outperformance', value: pct(s.outperformance_pct), sub: `vs SPY`, subColor: '#6b7a99', valColor: pctColor(s.outperformance_pct) },
-                { label: 'Winning Months', value: `${s.winning_months}/${s.months_traded}`, sub: `${s.winning_months_pct}%`, subColor: '#6b7a99' },
+                { label: 'Outperformance', value: pct(s.outperformance_pct), sub: `vs SPY`, subColor: 'var(--color-text-2)', valColor: pctColor(s.outperformance_pct) },
+                { label: 'Winning Months', value: `${s.winning_months}/${s.months_traded}`, sub: `${s.winning_months_pct}%`, subColor: 'var(--color-text-2)' },
               ].map(c => (
-                <div key={c.label} className="rounded-xl p-4" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <p className="text-xs mb-1" style={{ color: '#6b7a99' }}>{c.label}</p>
-                  <p className="text-lg font-bold" style={{ color: c.valColor ?? '#e2e8f8' }}>{c.value}</p>
+                <div key={c.label} className="rounded-xl p-4" style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+                  <p className="text-xs mb-1" style={{ color: 'var(--color-text-2)' }}>{c.label}</p>
+                  <p className="text-lg font-bold" style={{ color: c.valColor ?? 'var(--color-text)' }}>{c.value}</p>
                   <p className="text-xs mt-0.5" style={{ color: c.subColor }}>{c.sub}</p>
                 </div>
               ))}
             </div>
 
-            <p className="text-xs" style={{ color: '#3a4259' }}>
+            <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
               {data.run_at && `Run ${new Date(data.run_at).toLocaleString()} · `}
               {activeHold}-month hold · S&amp;P 500 · {s.n_stocks} stocks · {s.months_traded} months · Beat SPY {s.beat_spy_months}/{s.months_traded} ({s.beat_spy_months_pct}%)
             </p>
 
             {/* Yearly summary */}
             <div>
-              <h2 className="text-sm font-semibold mb-3" style={{ color: '#e2e8f8' }}>Yearly Summary</h2>
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div className="grid text-xs px-4 py-2" style={{ gridTemplateColumns: '80px 1fr 1fr 1fr 1fr', background: '#0a0e17', color: '#6b7a99', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Yearly Summary</h2>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+                <div className="grid text-xs px-4 py-2" style={{ gridTemplateColumns: '80px 1fr 1fr 1fr 1fr', background: 'var(--color-card-alt)', color: 'var(--color-text-2)', borderBottom: '1px solid var(--color-border)' }}>
                   <span>Year</span><span className="text-right">EdgeScan</span><span className="text-right">SPY</span><span className="text-right">vs SPY</span><span className="text-right">End Value</span>
                 </div>
                 {data.yearly.map((y, i) => (
-                  <div key={y.year} className="grid px-4 py-3 text-sm items-center" style={{ gridTemplateColumns: '80px 1fr 1fr 1fr 1fr', background: i % 2 === 0 ? '#0f1521' : '#0b1019', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <span className="font-semibold" style={{ color: '#e2e8f8' }}>{y.year}</span>
+                  <div key={y.year} className="grid px-4 py-3 text-sm items-center" style={{ gridTemplateColumns: '80px 1fr 1fr 1fr 1fr', background: i % 2 === 0 ? 'var(--color-card)' : '#0b1019', borderBottom: '1px solid var(--color-border)' }}>
+                    <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{y.year}</span>
                     <span className="text-right font-medium" style={{ color: pctColor(y.port_return_pct) }}>{pct(y.port_return_pct)}</span>
                     <span className="text-right" style={{ color: pctColor(y.spy_return_pct) }}>{pct(y.spy_return_pct)}</span>
                     <span className="text-right font-bold" style={{ color: pctColor(y.outperformance_pct) }}>{pct(y.outperformance_pct)}</span>
@@ -278,19 +278,19 @@ export default function BacktestPage() {
 
             {/* Monthly table */}
             <div>
-              <h2 className="text-sm font-semibold mb-3" style={{ color: '#e2e8f8' }}>Monthly Breakdown</h2>
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div className="hidden sm:grid text-xs px-4 py-2" style={{ gridTemplateColumns: '75px 1fr 90px 110px 80px 80px', background: '#0a0e17', color: '#6b7a99', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Monthly Breakdown</h2>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+                <div className="hidden sm:grid text-xs px-4 py-2" style={{ gridTemplateColumns: '75px 1fr 90px 110px 80px 80px', background: 'var(--color-card-alt)', color: 'var(--color-text-2)', borderBottom: '1px solid var(--color-border)' }}>
                   <span>Month</span><span>Picks</span><span className="text-right">Port %</span><span className="text-right">Port Value</span><span className="text-right">SPY %</span><span className="text-right">vs SPY</span>
                 </div>
                 {data.monthly.map((r, i) => {
                   const picks = r.holdings.map(h => `${h.ticker}(${h.score})`).join(' · ')
                   return (
-                    <div key={r.month} className="grid px-4 py-2.5 text-xs sm:text-sm items-center gap-1" style={{ gridTemplateColumns: '75px 1fr 90px 110px 80px 80px', background: i % 2 === 0 ? '#0f1521' : '#0b1019', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div key={r.month} className="grid px-4 py-2.5 text-xs sm:text-sm items-center gap-1" style={{ gridTemplateColumns: '75px 1fr 90px 110px 80px 80px', background: i % 2 === 0 ? 'var(--color-card)' : '#0b1019', borderBottom: '1px solid var(--color-border)' }}>
                       <span className="font-medium" style={{ color: '#a0aec0' }}>{r.month}</span>
-                      <span className="text-xs truncate" style={{ color: '#6b7a99' }}>{picks}</span>
+                      <span className="text-xs truncate" style={{ color: 'var(--color-text-2)' }}>{picks}</span>
                       <span className="text-right font-semibold" style={{ color: pctColor(r.port_return_pct) }}>{pct(r.port_return_pct)}</span>
-                      <span className="text-right" style={{ color: '#e2e8f8' }}>{usd(r.portfolio_value)}</span>
+                      <span className="text-right" style={{ color: 'var(--color-text)' }}>{usd(r.portfolio_value)}</span>
                       <span className="text-right" style={{ color: pctColor(r.spy_return_pct) }}>{pct(r.spy_return_pct)}</span>
                       <span className="text-right font-medium" style={{ color: pctColor(r.vs_spy_pct) }}>{pct(r.vs_spy_pct)}</span>
                     </div>
@@ -299,7 +299,7 @@ export default function BacktestPage() {
               </div>
             </div>
 
-            <div className="rounded-xl p-4 text-xs space-y-1" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)', color: '#6b7a99' }}>
+            <div className="rounded-xl p-4 text-xs space-y-1" style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-2)' }}>
               <p>⚠ Fundamental data from SEC EDGAR filings — point-in-time, no look-ahead bias</p>
               <p>⚠ Survivorship bias — universe uses current S&P 500 members, not historical composition</p>
               <p>⚠ No transaction costs, slippage, or taxes modeled</p>
@@ -307,11 +307,11 @@ export default function BacktestPage() {
             </div>
 
             {/* Robustness check */}
-            <div className="rounded-xl p-4" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="rounded-xl p-4" style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
               <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>Bootstrap Robustness Check</p>
-                  <p className="text-xs mt-0.5" style={{ color: '#6b7a99' }}>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Bootstrap Robustness Check</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-2)' }}>
                     Re-sample the {holdMonths}-month backtest&apos;s monthly returns 500× to test if results depend on the specific order months occurred.
                   </p>
                 </div>
@@ -351,7 +351,7 @@ export default function BacktestPage() {
                     {/* Histogram */}
                     <div>
                       <RobustnessHistogram histogram={robData.histogram} actualRet={robData.original_return_pct} />
-                      <div className="flex justify-between text-xs mt-1" style={{ color: '#3a4259' }}>
+                      <div className="flex justify-between text-xs mt-1" style={{ color: 'var(--color-text-3)' }}>
                         <span>{robData.histogram.edges[0].toFixed(0)}%</span>
                         <span className="flex items-center gap-1">
                           <span style={{ display: 'inline-block', width: 8, height: 2, background: '#f59e0b', verticalAlign: 'middle' }} />
@@ -370,19 +370,19 @@ export default function BacktestPage() {
                       ].map(st => (
                         <div key={st.label} className="rounded-lg px-3 py-2 text-center" style={{ background: '#131720' }}>
                           <p className="text-xs font-bold mb-0.5" style={{ color: st.color }}>{st.value}</p>
-                          <p className="text-xs leading-tight" style={{ color: '#6b7a99' }}>{st.label}</p>
+                          <p className="text-xs leading-tight" style={{ color: 'var(--color-text-2)' }}>{st.label}</p>
                         </div>
                       ))}
                     </div>
 
                     {/* Percentile table */}
-                    <div className="rounded-lg overflow-hidden text-xs" style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div className="grid px-3 py-1.5" style={{ gridTemplateColumns: 'repeat(5, 1fr)', background: '#0a0e17', color: '#3a4259' }}>
+                    <div className="rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--color-border)' }}>
+                      <div className="grid px-3 py-1.5" style={{ gridTemplateColumns: 'repeat(5, 1fr)', background: 'var(--color-card-alt)', color: 'var(--color-text-3)' }}>
                         {['5th', '25th', 'Median', '75th', '95th'].map(l => (
                           <span key={l} className="text-center">{l}</span>
                         ))}
                       </div>
-                      <div className="grid px-3 py-2" style={{ gridTemplateColumns: 'repeat(5, 1fr)', background: '#0f1521' }}>
+                      <div className="grid px-3 py-2" style={{ gridTemplateColumns: 'repeat(5, 1fr)', background: 'var(--color-card)' }}>
                         {['5', '25', '50', '75', '95'].map(k => {
                           const val = robData.percentiles[k] ?? 0
                           return (
@@ -394,7 +394,7 @@ export default function BacktestPage() {
                       </div>
                     </div>
 
-                    <p className="text-xs" style={{ color: '#3a4259' }}>
+                    <p className="text-xs" style={{ color: 'var(--color-text-3)' }}>
                       {robData.n_runs.toLocaleString()} bootstrap runs · {robData.n_months} monthly samples · actual {robData.original_return_pct >= 0 ? '+' : ''}{robData.original_return_pct.toFixed(1)}% vs SPY {robData.spy_total_return_pct >= 0 ? '+' : ''}{robData.spy_total_return_pct.toFixed(1)}%
                     </p>
                   </div>

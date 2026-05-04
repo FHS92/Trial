@@ -17,11 +17,11 @@ function MetricRow({ label, values }: { label: string; values: (string | null)[]
   return (
     <>
       {/* Mobile: stacked block — label header + value cells */}
-      <div className="sm:hidden" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <div className="px-3 py-1.5 text-xs font-semibold" style={{ color: '#6b7a99', background: '#0a0e17' }}>{label}</div>
-        <div className="flex" style={{ background: '#0f1521' }}>
+      <div className="sm:hidden" style={{ borderBottom: '1px solid var(--color-border)' }}>
+        <div className="px-3 py-1.5 text-xs font-semibold" style={{ color: 'var(--color-text-2)', background: 'var(--color-card-alt)' }}>{label}</div>
+        <div className="flex" style={{ background: 'var(--color-card)' }}>
           {values.map((v, i) => (
-            <span key={i} className="flex-1 px-3 py-2 text-xs font-medium text-center" style={{ color: '#e2e8f8' }}>{v ?? '—'}</span>
+            <span key={i} className="flex-1 px-3 py-2 text-xs font-medium text-center" style={{ color: 'var(--color-text)' }}>{v ?? '—'}</span>
           ))}
         </div>
       </div>
@@ -29,11 +29,11 @@ function MetricRow({ label, values }: { label: string; values: (string | null)[]
       {/* Desktop: side-by-side grid with fixed label column */}
       <div
         className="hidden sm:grid gap-px"
-        style={{ gridTemplateColumns: `160px repeat(${values.length}, 1fr)`, borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+        style={{ gridTemplateColumns: `160px repeat(${values.length}, 1fr)`, borderBottom: '1px solid var(--color-border)' }}
       >
-        <span className="px-3 py-2.5 text-xs" style={{ color: '#6b7a99', background: '#0a0e17' }}>{label}</span>
+        <span className="px-3 py-2.5 text-xs" style={{ color: 'var(--color-text-2)', background: 'var(--color-card-alt)' }}>{label}</span>
         {values.map((v, i) => (
-          <span key={i} className="px-3 py-2.5 text-xs font-medium text-center" style={{ color: '#e2e8f8', background: '#0f1521' }}>{v ?? '—'}</span>
+          <span key={i} className="px-3 py-2.5 text-xs font-medium text-center" style={{ color: 'var(--color-text)', background: 'var(--color-card)' }}>{v ?? '—'}</span>
         ))}
       </div>
     </>
@@ -70,25 +70,25 @@ export default function ComparePage() {
   const n = stocks.length
 
   return (
-    <div className="min-h-screen" style={{ background: '#080b12' }}>
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
       <header
         className="sticky top-0 z-40 flex items-center gap-3 px-4 sm:px-6 h-14"
-        style={{ background: 'rgba(8,11,18,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ background: 'var(--color-header)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--color-border)' }}
       >
-        <Link href="/" className="flex items-center gap-1 text-sm hover:opacity-80" style={{ color: '#6b7a99' }}>
+        <Link href="/" className="flex items-center gap-1 text-sm hover:opacity-80" style={{ color: 'var(--color-text-2)' }}>
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
           Scanner
         </Link>
-        <span style={{ color: 'rgba(255,255,255,0.12)' }}>/</span>
-        <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>Compare</span>
+        <span style={{ color: 'var(--color-border-3)' }}>/</span>
+        <span className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Compare</span>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
         <div className="mb-6">
-          <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>Stock Comparison</h1>
-          <p className="text-sm" style={{ color: '#6b7a99' }}>Add up to {MAX} tickers to compare side by side</p>
+          <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--color-text)' }}>Stock Comparison</h1>
+          <p className="text-sm" style={{ color: 'var(--color-text-2)' }}>Add up to {MAX} tickers to compare side by side</p>
         </div>
 
         {/* Add ticker form */}
@@ -99,7 +99,7 @@ export default function ComparePage() {
             placeholder="Enter ticker (e.g. AAPL)"
             disabled={stocks.length >= MAX}
             className="flex-1 max-w-xs px-3 py-2 rounded-lg text-sm outline-none disabled:opacity-40"
-            style={{ background: '#131720', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f8' }}
+            style={{ background: '#131720', border: '1px solid var(--color-border-2)', color: 'var(--color-text)' }}
           />
           <button
             type="submit"
@@ -110,7 +110,7 @@ export default function ComparePage() {
             {loading ? '…' : 'Add'}
           </button>
           {stocks.length > 0 && (
-            <button type="button" onClick={() => setStocks([])} className="px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(255,255,255,0.06)', color: '#6b7a99' }}>
+            <button type="button" onClick={() => setStocks([])} className="px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--color-border)', color: 'var(--color-text-2)' }}>
               Clear
             </button>
           )}
@@ -119,7 +119,7 @@ export default function ComparePage() {
         {error && <p className="text-sm mb-4" style={{ color: '#ef4444' }}>{error}</p>}
 
         {n === 0 && (
-          <div className="text-center py-20" style={{ color: '#6b7a99' }}>
+          <div className="text-center py-20" style={{ color: 'var(--color-text-2)' }}>
             <p className="text-sm">Add tickers above to start comparing.</p>
           </div>
         )}
@@ -129,21 +129,21 @@ export default function ComparePage() {
             {/* Header row — single column on mobile, side-by-side on sm+ */}
             <div className="flex flex-col sm:grid gap-3" style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
               {stocks.map(s => (
-                <div key={s.ticker} className="rounded-xl p-4 relative" style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <button onClick={() => remove(s.ticker)} className="absolute top-3 right-3 text-xs" style={{ color: '#6b7a99' }}>✕</button>
+                <div key={s.ticker} className="rounded-xl p-4 relative" style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+                  <button onClick={() => remove(s.ticker)} className="absolute top-3 right-3 text-xs" style={{ color: 'var(--color-text-2)' }}>✕</button>
                   <Link href={`/stock/${s.ticker}`}>
-                    <p className="font-bold text-lg" style={{ color: '#e2e8f8' }}>{s.ticker}</p>
-                    <p className="text-xs truncate mb-3" style={{ color: '#6b7a99' }}>{s.name}</p>
+                    <p className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>{s.ticker}</p>
+                    <p className="text-xs truncate mb-3" style={{ color: 'var(--color-text-2)' }}>{s.name}</p>
                   </Link>
                   <div className="text-3xl font-black" style={{ color: scoreColor(s.score) }}>{s.score}</div>
-                  <p className="text-xs" style={{ color: '#6b7a99' }}>EdgeScan Score</p>
+                  <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>EdgeScan Score</p>
                   <div className="flex gap-2 mt-3 text-xs">
                     <div className="flex-1 text-center py-1.5 rounded" style={{ background: '#131720' }}>
-                      <p style={{ color: '#6b7a99' }}>Fund.</p>
+                      <p style={{ color: 'var(--color-text-2)' }}>Fund.</p>
                       <p className="font-bold" style={{ color: '#4f8ef7' }}>{s.fundamental_score}/60</p>
                     </div>
                     <div className="flex-1 text-center py-1.5 rounded" style={{ background: '#131720' }}>
-                      <p style={{ color: '#6b7a99' }}>Tech.</p>
+                      <p style={{ color: 'var(--color-text-2)' }}>Tech.</p>
                       <p className="font-bold" style={{ color: '#4f8ef7' }}>{s.technical_score}/40</p>
                     </div>
                   </div>
@@ -152,7 +152,7 @@ export default function ComparePage() {
             </div>
 
             {/* Comparison table */}
-            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
               <MetricRow label="Price" values={stocks.map(s => s.current_price ? `$${s.current_price.toFixed(2)}` : null)} />
               <MetricRow label="1M Target" values={stocks.map(s => s.price_target_1m ? `$${s.price_target_1m.toFixed(2)}` : null)} />
               <MetricRow label="Upside" values={stocks.map(s => s.upside_pct != null ? `${s.upside_pct >= 0 ? '+' : ''}${s.upside_pct.toFixed(1)}%` : null)} />

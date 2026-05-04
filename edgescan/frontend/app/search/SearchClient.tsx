@@ -73,10 +73,10 @@ export default function SearchClient() {
       <div className="flex gap-2">
         <div
           className="flex-1 flex items-center gap-3 px-4 py-3 rounded-card"
-          style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.08)' }}
+          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border-2)' }}
           onKeyDown={handleKeyDown}
         >
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#6b7a99" strokeWidth={2} className="flex-shrink-0">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="var(--color-text-2)" strokeWidth={2} className="flex-shrink-0">
             <circle cx="11" cy="11" r="8" />
             <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
           </svg>
@@ -88,7 +88,7 @@ export default function SearchClient() {
           />
           {loading && (
             <svg className="animate-spin flex-shrink-0" width="16" height="16" fill="none" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.2)" strokeWidth={3} />
+              <circle cx="12" cy="12" r="10" stroke="var(--color-border-3)" strokeWidth={3} />
               <path d="M12 2a10 10 0 0 1 10 10" stroke="#4f8ef7" strokeWidth={3} strokeLinecap="round" />
             </svg>
           )}
@@ -111,16 +111,16 @@ export default function SearchClient() {
       {/* Recent searches */}
       {recent.length > 0 && (
         <div className="mt-6">
-          <p className="text-xs mb-3" style={{ color: '#6b7a99' }}>Recent</p>
+          <p className="text-xs mb-3" style={{ color: 'var(--color-text-2)' }}>Recent</p>
           <div className="flex flex-wrap gap-2">
             {recent.map(r => (
               <button
                 key={r.ticker}
                 onClick={() => navigate(r.ticker, r.name)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-medium transition-colors hover:bg-white/[0.08]"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                style={{ background: 'var(--color-border)', border: '1px solid var(--color-border-2)' }}
               >
-                <span style={{ color: '#e2e8f8' }}>{r.ticker}</span>
+                <span style={{ color: 'var(--color-text)' }}>{r.ticker}</span>
                 {r.name && <span className="hidden sm:inline" style={{ color: '#4a556b' }}>· {r.name}</span>}
               </button>
             ))}
@@ -129,7 +129,7 @@ export default function SearchClient() {
       )}
 
       {!rawQuery && recent.length === 0 && (
-        <p className="mt-4 text-sm" style={{ color: '#6b7a99' }}>
+        <p className="mt-4 text-sm" style={{ color: 'var(--color-text-2)' }}>
           Search by ticker (AAPL) or company name (Apple). The backend fetches live data on demand — not just S&P 500.
         </p>
       )}

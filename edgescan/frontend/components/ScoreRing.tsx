@@ -24,7 +24,7 @@ export default function ScoreRing({ score, size = 52, strokeWidth = 4 }: Props) 
         <circle
           cx={size / 2} cy={size / 2} r={r}
           fill="none"
-          stroke="rgba(255,255,255,0.07)"
+          stroke="var(--color-border)"
           strokeWidth={strokeWidth}
         />
         {/* Progress */}

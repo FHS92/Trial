@@ -17,7 +17,7 @@ export default function RefreshButton() {
     <button
       onClick={handleRefresh}
       className="flex items-center gap-1.5 px-3 py-1 rounded-pill text-xs font-medium transition-colors hover:bg-white/[0.08]"
-      style={{ color: '#6b7a99', border: '1px solid rgba(255,255,255,0.08)' }}
+      style={{ color: 'var(--color-text-2)', border: '1px solid var(--color-border-2)' }}
       title="Refresh stock data"
       aria-label="Refresh stock data"
     >

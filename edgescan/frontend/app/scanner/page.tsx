@@ -57,18 +57,18 @@ export default async function ScannerPage({
   const hasMore = bySector.length > 10
 
   return (
-    <div className="min-h-screen" style={{ background: '#080b12' }}>
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-14 gap-4"
         style={{
-          background: 'rgba(8,11,18,0.92)',
+          background: 'var(--color-header)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
         <Link href="/scanner" className="flex items-center gap-2 flex-shrink-0">
           <span className="text-base font-bold tracking-tight" style={{ color: '#4f8ef7' }}>Edge</span>
-          <span className="text-base font-bold tracking-tight" style={{ color: '#e2e8f8' }}>Scan</span>
+          <span className="text-base font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>Scan</span>
         </Link>
 
         <div className="hidden sm:flex flex-1 justify-center">
@@ -79,13 +79,13 @@ export default async function ScannerPage({
       </header>
 
       <div className="sm:hidden flex justify-center gap-2 px-4 py-2 overflow-x-auto"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#080b12' }}>
+        style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
         <MarketStrip />
       </div>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
         <div className="mb-6">
-          <h1 className="text-xl font-bold mb-1" style={{ color: '#e2e8f8' }}>
+          <h1 className="text-xl font-bold mb-1" style={{ color: 'var(--color-text)' }}>
             Top Opportunities
           </h1>
           {/* Last-scanned banner + scan button */}
@@ -93,8 +93,8 @@ export default async function ScannerPage({
           <div
             className="inline-flex items-center gap-2 px-3 py-1 rounded-pill"
             style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.07)',
+              background: 'var(--color-border)',
+              border: '1px solid var(--color-border)',
             }}
           >
             {/* Clock / refresh icon */}
@@ -103,7 +103,7 @@ export default async function ScannerPage({
               height="14"
               viewBox="0 0 14 14"
               fill="none"
-              stroke="#6b7a99"
+              stroke="var(--color-text-2)"
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -112,7 +112,7 @@ export default async function ScannerPage({
               <circle cx="7" cy="7" r="5.5" />
               <polyline points="7,4 7,7 9,9" />
             </svg>
-            <span className="text-xs" style={{ color: '#6b7a99' }}>
+            <span className="text-xs" style={{ color: 'var(--color-text-2)' }}>
               {lastScannedMinutesAgo == null 
                 ? 'Scanning now…'
                 : lastScannedMinutesAgo < 120
@@ -139,10 +139,10 @@ export default async function ScannerPage({
                 href={s === 'All' ? '/scanner' : `/scanner?sector=${s}`}
                 className="px-2.5 sm:px-3 py-1 rounded-pill text-xs font-medium transition-colors"
                 style={{
-                  background: active ? '#4f8ef7' : 'rgba(255,255,255,0.05)',
-                  color: active ? '#fff' : count === 0 ? 'rgba(107,122,153,0.4)' : '#6b7a99',
+                  background: active ? '#4f8ef7' : 'var(--color-border)',
+                  color: active ? '#fff' : count === 0 ? 'rgba(107,122,153,0.4)' : 'var(--color-text-2)',
                   border: '1px solid',
-                  borderColor: active ? '#4f8ef7' : 'rgba(255,255,255,0.08)',
+                  borderColor: active ? '#4f8ef7' : 'var(--color-border-2)',
                   pointerEvents: count === 0 && !active ? 'none' : 'auto',
                 }}
               >
@@ -155,7 +155,7 @@ export default async function ScannerPage({
         {/* Stock list */}
         <div
           className="rounded-card overflow-hidden"
-          style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
         >
           {results.length === 0 ? (
             <div className="py-16 text-center space-y-3">
@@ -164,14 +164,14 @@ export default async function ScannerPage({
                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                 </svg>
               </div>
-              <p className="text-sm font-medium" style={{ color: '#e2e8f8' }}>Initial scan in progress…</p>
-              <p className="text-xs" style={{ color: '#6b7a99' }}>
+              <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Initial scan in progress…</p>
+              <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>
                 Scoring stocks for the first time. This takes 2–4 minutes — refresh shortly.
               </p>
             </div>
           ) : bySector.length === 0 ? (
             <div className="py-16 text-center">
-              <p className="text-sm" style={{ color: '#6b7a99' }}>
+              <p className="text-sm" style={{ color: 'var(--color-text-2)' }}>
                 No <strong>{activeSector}</strong> stocks in the current scan.
               </p>
             </div>
@@ -209,7 +209,7 @@ export default async function ScannerPage({
           ].map(({ label, color }) => (
             <div key={label} className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-              <span className="text-xs" style={{ color: '#6b7a99' }}>{label}</span>
+              <span className="text-xs" style={{ color: 'var(--color-text-2)' }}>{label}</span>
             </div>
           ))}
         </div>

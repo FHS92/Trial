@@ -57,16 +57,16 @@ export default function MetricsGrid({ metrics }: Props) {
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-px" style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
+    <div className="grid grid-cols-3 gap-px" style={{ background: 'var(--color-border)', borderRadius: 8, overflow: 'hidden' }}>
       {cells.map((c) => (
         <div
           key={c.label}
           className="flex flex-col gap-0.5 p-3"
-          style={{ background: '#0f1420' }}
+          style={{ background: 'var(--color-card)' }}
         >
-          <span className="text-xs" style={{ color: '#6b7a99' }}>{c.label}</span>
-          <span className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>{c.value}</span>
-          {c.sub && <span className="text-xs" style={{ color: '#6b7a99' }}>{c.sub}</span>}
+          <span className="text-xs" style={{ color: 'var(--color-text-2)' }}>{c.label}</span>
+          <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{c.value}</span>
+          {c.sub && <span className="text-xs" style={{ color: 'var(--color-text-2)' }}>{c.sub}</span>}
         </div>
       ))}
     </div>

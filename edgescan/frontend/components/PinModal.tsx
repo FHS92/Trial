@@ -50,17 +50,17 @@ export default function PinModal({ profileId, profileName, onSuccess, onClose }:
     >
       <div
         className="w-full max-w-sm rounded-2xl p-6"
-        style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.1)' }}
+        style={{ background: 'var(--color-card)', border: '1px solid var(--color-border-2)' }}
       >
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-base font-bold" style={{ color: '#e2e8f8' }}>Enter PIN</h2>
-            <p className="text-xs mt-0.5" style={{ color: '#6b7a99' }}>{profileName}</p>
+            <h2 className="text-base font-bold" style={{ color: 'var(--color-text)' }}>Enter PIN</h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-2)' }}>{profileName}</p>
           </div>
           <button
             onClick={onClose}
             className="flex items-center justify-center w-7 h-7 rounded-full transition-colors hover:bg-white/[0.08]"
-            style={{ color: '#6b7a99' }}
+            style={{ color: 'var(--color-text-2)' }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
@@ -80,8 +80,8 @@ export default function PinModal({ profileId, profileName, onSuccess, onClose }:
             className="w-full px-4 py-3 rounded-xl text-center text-xl tracking-widest outline-none"
             style={{
               background: '#131720',
-              border: `1px solid ${error ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.08)'}`,
-              color: '#e2e8f8',
+              border: `1px solid ${error ? 'rgba(239,68,68,0.5)' : 'var(--color-border-2)'}`,
+              color: 'var(--color-text)',
               letterSpacing: '0.4em',
             }}
           />

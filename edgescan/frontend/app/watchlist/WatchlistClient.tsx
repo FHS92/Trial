@@ -97,7 +97,7 @@ function WatchlistCard({ stock, onRemove }: { stock: StockResult; onRemove: () =
   }
 
   return (
-    <div className="relative overflow-hidden" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+    <div className="relative overflow-hidden" style={{ borderBottom: '1px solid var(--color-border)' }}>
       {/* Red delete zone revealed under the card */}
       <div
         className="absolute inset-y-0 left-0 flex items-center justify-center"
@@ -118,7 +118,7 @@ function WatchlistCard({ stock, onRemove }: { stock: StockResult; onRemove: () =
       <div
         className="flex items-center gap-4 px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-colors"
         style={{
-          background: '#0f1420',
+          background: 'var(--color-card)',
           transform: `translateX(${swipeX}px)`,
           transition: swipeX === 0 ? 'transform 0.2s' : 'none',
         }}
@@ -129,7 +129,7 @@ function WatchlistCard({ stock, onRemove }: { stock: StockResult; onRemove: () =
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm" style={{ color: '#e2e8f8' }}>{stock.ticker}</span>
+            <span className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>{stock.ticker}</span>
             {stock.sector && (
               <span className="text-xs px-2 py-0.5 rounded-pill hidden sm:inline"
                 style={{ background: 'rgba(79,142,247,0.1)', color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.2)' }}>
@@ -137,11 +137,11 @@ function WatchlistCard({ stock, onRemove }: { stock: StockResult; onRemove: () =
               </span>
             )}
           </div>
-          <p className="text-xs mt-0.5 truncate" style={{ color: '#6b7a99' }}>{stock.name}</p>
+          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-text-2)' }}>{stock.name}</p>
         </div>
 
         <div className="text-right flex-shrink-0">
-          <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
             {stock.current_price != null ? `$${stock.current_price.toFixed(2)}` : '—'}
           </p>
           <p className="text-xs" style={{ color: upside >= 0 ? '#22d47e' : '#f75f5f' }}>
@@ -154,7 +154,7 @@ function WatchlistCard({ stock, onRemove }: { stock: StockResult; onRemove: () =
         <button
           onClick={e => { e.stopPropagation(); onRemove() }}
           className="flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors hover:bg-white/[0.08]"
-          style={{ color: '#6b7a99' }}
+          style={{ color: 'var(--color-text-2)' }}
           title="Remove from watchlist"
           aria-label="Remove from watchlist"
         >
@@ -229,9 +229,9 @@ export default function WatchlistClient() {
       <div className="mb-5">
         <div
           className="flex items-center gap-3 px-4 py-2.5 rounded-card"
-          style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.08)' }}
+          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border-2)' }}
         >
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#6b7a99" strokeWidth={2} className="flex-shrink-0">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="var(--color-text-2)" strokeWidth={2} className="flex-shrink-0">
             <path strokeLinecap="round" d="M12 4v16m8-8H4" />
           </svg>
           <TickerSearch
@@ -252,17 +252,17 @@ export default function WatchlistClient() {
       {tickers.length === 0 ? (
         <div
           className="rounded-card py-16 text-center"
-          style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
         >
-          <p className="text-sm mb-1" style={{ color: '#6b7a99' }}>Your watchlist is empty.</p>
-          <p className="text-xs" style={{ color: '#6b7a99' }}>
+          <p className="text-sm mb-1" style={{ color: 'var(--color-text-2)' }}>Your watchlist is empty.</p>
+          <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>
             Tap the ⭐ star on any stock card in the scanner, or use the search field above.
           </p>
         </div>
       ) : (
         <div
           className="rounded-card overflow-hidden"
-          style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
         >
           {tickers.map(ticker => {
             const stock = stocks[ticker]
@@ -271,10 +271,10 @@ export default function WatchlistClient() {
                 <div
                   key={ticker}
                   className="flex items-center gap-4 px-4 py-3"
-                  style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                  style={{ borderBottom: '1px solid var(--color-border)' }}
                 >
-                  <div className="h-4 w-16 rounded animate-pulse" style={{ background: '#1e2540' }} />
-                  <div className="h-4 flex-1 rounded animate-pulse" style={{ background: '#1e2540' }} />
+                  <div className="h-4 w-16 rounded animate-pulse" style={{ background: 'var(--surf3)' }} />
+                  <div className="h-4 flex-1 rounded animate-pulse" style={{ background: 'var(--surf3)' }} />
                 </div>
               )
             }

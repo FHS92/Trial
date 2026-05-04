@@ -75,7 +75,7 @@ export default function TickerSearch({
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={handleKeyDown}
         className="w-full bg-transparent outline-none text-sm"
-        style={{ color: '#e2e8f8' }}
+        style={{ color: 'var(--color-text)' }}
         autoComplete="off"
         spellCheck={false}
       />
@@ -83,7 +83,7 @@ export default function TickerSearch({
       {open && results.length > 0 && (
         <div
           className="absolute left-0 right-0 top-full mt-1 rounded-card z-50 overflow-hidden"
-          style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+          style={{ background: 'var(--color-card)', border: '1px solid var(--color-border-2)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
         >
           {results.map((r, i) => (
             <button
@@ -92,11 +92,11 @@ export default function TickerSearch({
               className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
               style={{ background: i === activeIdx ? 'rgba(79,142,247,0.1)' : 'transparent' }}
             >
-              <span className="text-sm font-bold flex-shrink-0" style={{ color: '#e2e8f8', minWidth: 44 }}>
+              <span className="text-sm font-bold flex-shrink-0" style={{ color: 'var(--color-text)', minWidth: 44 }}>
                 {r.ticker}
               </span>
               {r.name && (
-                <span className="text-xs truncate" style={{ color: '#6b7a99' }}>{r.name}</span>
+                <span className="text-xs truncate" style={{ color: 'var(--color-text-2)' }}>{r.name}</span>
               )}
               {r.current_price != null && (
                 <span className="ml-auto text-xs flex-shrink-0" style={{ color: '#4f8ef7' }}>

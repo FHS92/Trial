@@ -48,9 +48,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const ma50  = payload.find((p: any) => p.dataKey === 'ma50')?.value
   const ma200 = payload.find((p: any) => p.dataKey === 'ma200')?.value
   return (
-    <div style={{ background: '#161c2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 12px' }}>
-      <p style={{ color: '#6b7a99', fontSize: 11, marginBottom: 4 }}>{fmtTooltipDate(label)}</p>
-      {close  != null && <p style={{ color: '#e2e8f8', fontSize: 12 }}>Price  <strong>${close.toFixed(2)}</strong></p>}
+    <div style={{ background: 'var(--surf2)', border: '1px solid var(--color-border-2)', borderRadius: 8, padding: '8px 12px' }}>
+      <p style={{ color: 'var(--color-text-2)', fontSize: 11, marginBottom: 4 }}>{fmtTooltipDate(label)}</p>
+      {close  != null && <p style={{ color: 'var(--color-text)', fontSize: 12 }}>Price  <strong>${close.toFixed(2)}</strong></p>}
       {ma50   != null && <p style={{ color: '#4f8ef7', fontSize: 12 }}>50 MA  <strong>${ma50.toFixed(2)}</strong></p>}
       {ma200  != null && <p style={{ color: '#f5a623', fontSize: 12 }}>200 MA <strong>${ma200.toFixed(2)}</strong></p>}
     </div>
@@ -110,8 +110,8 @@ export default function PriceChart({ allHistory, onPeriodChange }: Props) {
             onClick={() => handlePeriod(p)}
             className="px-3 py-1 rounded-cell text-xs font-medium transition-colors"
             style={{
-              background: p === period ? '#4f8ef7' : 'rgba(255,255,255,0.05)',
-              color: p === period ? '#fff' : '#6b7a99',
+              background: p === period ? '#4f8ef7' : 'var(--color-border)',
+              color: p === period ? '#fff' : 'var(--color-text-2)',
             }}
           >
             {p.toUpperCase()}
@@ -122,13 +122,13 @@ export default function PriceChart({ allHistory, onPeriodChange }: Props) {
           {showMA50 && (
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-0.5 rounded" style={{ background: '#4f8ef7' }} />
-              <span className="text-xs" style={{ color: '#6b7a99' }}>50MA</span>
+              <span className="text-xs" style={{ color: 'var(--color-text-2)' }}>50MA</span>
             </div>
           )}
           {showMA200 && (
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-0.5 rounded" style={{ background: '#f5a623' }} />
-              <span className="text-xs" style={{ color: '#6b7a99' }}>200MA</span>
+              <span className="text-xs" style={{ color: 'var(--color-text-2)' }}>200MA</span>
             </div>
           )}
           {!showMA50 && !showMA200 && (
@@ -140,10 +140,10 @@ export default function PriceChart({ allHistory, onPeriodChange }: Props) {
       {/* Chart */}
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-          <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+          <CartesianGrid stroke="var(--color-border)" vertical={false} />
           <XAxis
             dataKey="date"
-            tick={{ fill: '#6b7a99', fontSize: 10 }}
+            tick={{ fill: 'var(--color-text-2)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             interval="preserveStartEnd"
@@ -151,7 +151,7 @@ export default function PriceChart({ allHistory, onPeriodChange }: Props) {
           />
           <YAxis
             domain={domain}
-            tick={{ fill: '#6b7a99', fontSize: 10 }}
+            tick={{ fill: 'var(--color-text-2)', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             width={56}
@@ -161,7 +161,7 @@ export default function PriceChart({ allHistory, onPeriodChange }: Props) {
           <Line
             type="monotone"
             dataKey="close"
-            stroke="#e2e8f8"
+            stroke="var(--color-text)"
             strokeWidth={1.5}
             dot={false}
             isAnimationActive={false}

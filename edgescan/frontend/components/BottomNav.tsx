@@ -164,9 +164,9 @@ export default function BottomNav() {
         style={{
           bottom: open ? '4.5rem' : '4.5rem',
           transform: open ? 'translateY(0)' : 'translateY(calc(100% + 4.5rem))',
-          background: 'rgba(10,14,23,0.98)',
+          background: 'var(--color-tray)',
           backdropFilter: 'blur(20px)',
-          borderTop: '1px solid rgba(255,255,255,0.1)',
+          borderTop: '1px solid var(--color-border-2)',
           borderRadius: '20px 20px 0 0',
           padding: '20px 16px 8px',
         }}
@@ -186,12 +186,12 @@ export default function BottomNav() {
           <button
             onClick={() => setOpen(false)}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded transition-colors hover:bg-white/[0.05]"
-            style={{ color: '#6b7a99' }}
+            style={{ color: 'var(--color-text-2)' }}
             aria-label="Close menu"
           >
             <span
               className="w-6 h-6 flex items-center justify-center rounded-full"
-              style={{ background: 'rgba(255,255,255,0.07)' }}
+              style={{ background: 'var(--color-border)' }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -210,7 +210,7 @@ export default function BottomNav() {
                 onClick={() => setOpen(false)}
                 className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl transition-colors"
                 style={{
-                  background: active ? 'rgba(79,142,247,0.12)' : 'rgba(255,255,255,0.03)',
+                  background: active ? 'rgba(79,142,247,0.12)' : 'var(--color-border)',
                   color: active ? '#4f8ef7' : '#8492aa',
                 }}
               >
@@ -226,7 +226,7 @@ export default function BottomNav() {
             onClick={handleSwitchProfile}
             className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl transition-colors"
             style={{
-              background: 'rgba(255,255,255,0.03)',
+              background: 'var(--color-border)',
               color: '#8492aa',
               border: 'none',
               cursor: 'pointer',
@@ -244,9 +244,9 @@ export default function BottomNav() {
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 flex"
         style={{
-          background: 'rgba(8,11,18,0.97)',
+          background: 'var(--color-tray)',
           backdropFilter: 'blur(16px)',
-          borderTop: '1px solid rgba(255,255,255,0.07)',
+          borderTop: '1px solid var(--color-border)',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >

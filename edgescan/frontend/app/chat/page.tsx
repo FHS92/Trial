@@ -6,18 +6,18 @@ import UniverseBadge from '@/components/UniverseBadge'
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
 const COLORS = {
-  bg: '#080b12',
+  bg: 'var(--color-bg)',
   blue: '#4f8ef7',
-  text: '#e2e8f8',
-  muted: '#6b7a99',
-  card: '#0f1521',
+  text: 'var(--color-text)',
+  muted: 'var(--color-text-2)',
+  card: 'var(--color-card)',
   userBubbleBg: 'rgba(79,142,247,0.15)',
   userBubbleBorder: 'rgba(79,142,247,0.3)',
-  aiBubbleBg: '#0f1521',
-  aiBubbleBorder: 'rgba(255,255,255,0.06)',
-  inputBg: '#0c1220',
+  aiBubbleBg: 'var(--color-card)',
+  aiBubbleBorder: 'var(--color-border)',
+  inputBg: 'var(--color-card-alt)',
   inputBorder: 'rgba(79,142,247,0.25)',
-  headerBorder: 'rgba(255,255,255,0.06)',
+  headerBorder: 'var(--color-border)',
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -421,7 +421,7 @@ export default function ChatPage() {
                   onClick={() => handleChipClick(q)}
                   style={{
                     backgroundColor: 'transparent',
-                    border: `1px solid rgba(255,255,255,0.1)`,
+                    border: `1px solid var(--color-border-2)`,
                     borderRadius: 6,
                     color: COLORS.muted,
                     fontSize: 12,
@@ -435,7 +435,7 @@ export default function ChatPage() {
                     e.currentTarget.style.color = COLORS.text
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                    e.currentTarget.style.borderColor = 'var(--color-border-2)'
                     e.currentTarget.style.color = COLORS.muted
                   }}
                 >

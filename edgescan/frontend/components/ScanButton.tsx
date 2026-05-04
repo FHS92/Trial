@@ -87,9 +87,9 @@ export default function ScanButton() {
 
   if (phase === 'starting') {
     return (
-      <span className="flex items-center gap-1.5 px-3 py-1 rounded-pill text-xs" style={{ color: '#6b7a99', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <span className="flex items-center gap-1.5 px-3 py-1 rounded-pill text-xs" style={{ color: 'var(--color-text-2)', border: '1px solid var(--color-border)' }}>
         <svg className="animate-spin" width="12" height="12" fill="none" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" strokeWidth={3} />
+          <circle cx="12" cy="12" r="10" stroke="var(--color-border-3)" strokeWidth={3} />
           <path d="M12 2a10 10 0 0 1 10 10" stroke="#4f8ef7" strokeWidth={3} strokeLinecap="round" />
         </svg>
         Starting…
@@ -101,7 +101,7 @@ export default function ScanButton() {
     return (
       <span className="flex items-center gap-1.5 px-3 py-1 rounded-pill text-xs" style={{ color: '#f5a623', border: '1px solid rgba(245,166,35,0.25)', background: 'rgba(245,166,35,0.08)' }}>
         <svg className="animate-spin" width="12" height="12" fill="none" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" strokeWidth={3} />
+          <circle cx="12" cy="12" r="10" stroke="var(--color-border-3)" strokeWidth={3} />
           <path d="M12 2a10 10 0 0 1 10 10" stroke="#f5a623" strokeWidth={3} strokeLinecap="round" />
         </svg>
         Scanning…

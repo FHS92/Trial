@@ -44,14 +44,14 @@ export default function IndustryMultiples({ ticker }: { ticker: string }) {
   return (
     <div
       className="rounded-xl p-4"
-      style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}
+      style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
     >
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-semibold" style={{ color: '#6b7a99' }}>
+        <p className="text-xs font-semibold" style={{ color: 'var(--color-text-2)' }}>
           {data ? `Valuation vs ${data.sector} Peers` : 'Industry Multiples'}
         </p>
         {data && (
-          <span className="text-xs" style={{ color: '#3a4259' }}>
+          <span className="text-xs" style={{ color: 'var(--color-text-3)' }}>
             {data.peer_count} peers
           </span>
         )}
@@ -60,7 +60,7 @@ export default function IndustryMultiples({ ticker }: { ticker: string }) {
       {loading && (
         <div className="space-y-2">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-7 rounded animate-pulse" style={{ background: '#1e2540' }} />
+            <div key={i} className="h-7 rounded animate-pulse" style={{ background: 'var(--surf3)' }} />
           ))}
         </div>
       )}
@@ -97,14 +97,14 @@ export default function IndustryMultiples({ ticker }: { ticker: string }) {
                   className="grid items-center px-1 py-1.5 rounded-lg text-sm"
                   style={{
                     gridTemplateColumns: '1fr 72px 72px 20px',
-                    background: 'rgba(255,255,255,0.02)',
+                    background: 'var(--color-hover)',
                   }}
                 >
                   <span className="text-xs" style={{ color: '#8492aa' }}>{m.label}</span>
                   <span className="text-right text-xs font-semibold" style={{ color: valueColor }}>
                     {fmt(m.stock)}
                   </span>
-                  <span className="text-right text-xs" style={{ color: '#6b7a99' }}>
+                  <span className="text-right text-xs" style={{ color: 'var(--color-text-2)' }}>
                     {fmt(m.median)}
                   </span>
                   <span className="text-right text-xs" style={{ color: valueColor }}>
@@ -115,7 +115,7 @@ export default function IndustryMultiples({ ticker }: { ticker: string }) {
             })}
           </div>
 
-          <p className="text-xs mt-3" style={{ color: '#3a4259' }}>
+          <p className="text-xs mt-3" style={{ color: 'var(--color-text-3)' }}>
             Green ↓ = cheaper than sector · Red ↑ = richer than sector
           </p>
         </>

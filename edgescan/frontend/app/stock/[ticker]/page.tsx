@@ -47,9 +47,9 @@ function ScoreSparkline({ points }: { points: ScorePoint[] }) {
   return (
     <div
       className="rounded-xl p-4"
-      style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}
+      style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
     >
-      <p className="text-xs font-semibold mb-3" style={{ color: '#6b7a99' }}>
+      <p className="text-xs font-semibold mb-3" style={{ color: 'var(--color-text-2)' }}>
         Score History (last {points.length} scans)
       </p>
 
@@ -68,7 +68,7 @@ function ScoreSparkline({ points }: { points: ScorePoint[] }) {
             y1={H / 2}
             x2={W - PAD}
             y2={H / 2}
-            stroke="rgba(255,255,255,0.04)"
+            stroke="var(--color-border)"
             strokeWidth={1}
           />
           {/* Area fill */}
@@ -102,15 +102,15 @@ function ScoreSparkline({ points }: { points: ScorePoint[] }) {
         {/* Stats */}
         <div className="flex flex-col gap-2 text-xs" style={{ minWidth: 72 }}>
           <div>
-            <p style={{ color: '#6b7a99' }}>Current</p>
-            <p className="font-bold text-sm" style={{ color: '#e2e8f8' }}>{current.toFixed(1)}</p>
+            <p style={{ color: 'var(--color-text-2)' }}>Current</p>
+            <p className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>{current.toFixed(1)}</p>
           </div>
           <div>
-            <p style={{ color: '#6b7a99' }}>High</p>
+            <p style={{ color: 'var(--color-text-2)' }}>High</p>
             <p className="font-semibold" style={{ color: '#22c55e' }}>{highest.toFixed(1)}</p>
           </div>
           <div>
-            <p style={{ color: '#6b7a99' }}>Low</p>
+            <p style={{ color: 'var(--color-text-2)' }}>Low</p>
             <p className="font-semibold" style={{ color: '#ef4444' }}>{lowest.toFixed(1)}</p>
           </div>
         </div>
@@ -139,28 +139,28 @@ export default async function StockPage({ params }: Props) {
   const scorePoints: ScorePoint[] = scoreHistoryData?.history ?? []
 
   return (
-    <div className="min-h-screen" style={{ background: '#080b12' }}>
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
       {/* Top bar */}
       <header
         className="sticky top-0 z-40 flex items-center gap-3 px-4 sm:px-6 h-14"
         style={{
-          background: 'rgba(8,11,18,0.92)',
+          background: 'var(--color-header)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--color-border)',
         }}
       >
         <Link
           href="/"
           className="flex items-center gap-1 text-sm transition-colors hover:opacity-80"
-          style={{ color: '#6b7a99' }}
+          style={{ color: 'var(--color-text-2)' }}
         >
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
           Scanner
         </Link>
-        <span style={{ color: 'rgba(255,255,255,0.12)' }}>/</span>
-        <span className="font-semibold text-sm" style={{ color: '#e2e8f8' }}>{ticker}</span>
+        <span style={{ color: 'var(--color-border-3)' }}>/</span>
+        <span className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>{ticker}</span>
         <div className="ml-auto flex items-center gap-2">
           <RefreshButton />
           <WatchStar ticker={ticker} />

@@ -2,10 +2,10 @@ import Link from 'next/link'
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: '#080b12' }}>
-      <p className="text-5xl font-bold mb-3" style={{ color: '#1e2540' }}>404</p>
-      <p className="text-lg font-semibold mb-1" style={{ color: '#e2e8f8' }}>Stock not found</p>
-      <p className="text-sm mb-6" style={{ color: '#6b7a99' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: 'var(--color-bg)' }}>
+      <p className="text-5xl font-bold mb-3" style={{ color: 'var(--surf3)' }}>404</p>
+      <p className="text-lg font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Stock not found</p>
+      <p className="text-sm mb-6" style={{ color: 'var(--color-text-2)' }}>
         This ticker may not be in the S&P 500 or the backend is offline.
       </p>
       <Link
