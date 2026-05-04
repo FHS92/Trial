@@ -65,7 +65,7 @@ function PortfolioChart({ history }: { history: HistoryPoint[] }) {
     >
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b7a99' }}>
-          Portfolio Value — 90 days
+          Portfolio Value — since {history[0].date}
         </span>
         <span
           className="text-xs font-bold px-2 py-0.5 rounded"

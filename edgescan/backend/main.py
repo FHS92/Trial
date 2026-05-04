@@ -1312,7 +1312,11 @@ class HoldingIn(BaseModel):
 
 @app.get("/api/portfolio/history")
 def get_portfolio_history(authorization: str = Header(default=""), db: Session = Depends(get_db)):
-    """Return daily portfolio value over the last 90 days using price_history × shares."""
+    """Return daily portfolio value from first trade date using price_history × shares.
+
+    Each holding is only included from the date it was purchased, so the chart
+    reflects actual portfolio value — not a hypothetical backfill.
+    """
     profile_id = _get_profile_id_from_token(authorization)
     if not profile_id:
         raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
@@ -1325,10 +1329,18 @@ def get_portfolio_history(authorization: str = Header(default=""), db: Session =
     if not holdings:
         return {"history": []}
 
+    # Per-holding entry date: buy_date if set, else the date it was added
+    def entry_date(h: PortfolioHolding) -> date:
+        if h.buy_date:
+            return h.buy_date
+        return h.added_at.date() if h.added_at else date.today()
+
     tickers = [h.ticker for h in holdings]
     shares_map = {h.ticker: h.shares for h in holdings}
+    entry_map = {h.ticker: entry_date(h) for h in holdings}
 
-    cutoff = date.today() - timedelta(days=90)
+    cutoff = min(entry_map.values())
+
     rows = (
         db.query(PriceHistory.date, PriceHistory.ticker, PriceHistory.close)
         .filter(PriceHistory.ticker.in_(tickers), PriceHistory.date >= cutoff)
@@ -1347,7 +1359,12 @@ def get_portfolio_history(authorization: str = Header(default=""), db: Session =
     history = []
     for d in sorted(date_closes.keys()):
         closes = date_closes[d]
-        val = sum(shares_map[t] * closes[t] for t in tickers if t in closes)
+        # Only include holdings that existed on this date
+        val = sum(
+            shares_map[t] * closes[t]
+            for t in tickers
+            if t in closes and entry_map[t] <= d
+        )
         if val > 0:
             history.append({"date": d.isoformat(), "value": round(val, 2)})
 
