@@ -89,7 +89,7 @@ export default function StockRow({ stock, rank }: Props) {
 
   return (
     <div
-      className="flex items-center gap-4 px-4 py-3 rounded-cell transition-colors hover:bg-white/[0.03] group"
+      className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-3 rounded-cell transition-colors hover:bg-white/[0.03] group"
       style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}
     >
       <Link
@@ -98,7 +98,7 @@ export default function StockRow({ stock, rank }: Props) {
         aria-label={`View ${stock.ticker}`}
       />
 
-      {/* Rank */}
+      {/* Rank — desktop only */}
       <span
         className="hidden sm:inline-block w-6 text-center text-sm font-semibold flex-shrink-0 relative"
         style={{ color: '#6b7a99' }}
@@ -108,12 +108,12 @@ export default function StockRow({ stock, rank }: Props) {
 
       {/* Ticker + name + sector */}
       <div className="flex-1 min-w-0 relative">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="font-bold text-sm" style={{ color: '#e2e8f8' }}>
             {stock.ticker}
           </span>
           <span
-            className="text-xs px-2 py-0.5 rounded-pill"
+            className="text-xs px-1.5 py-0.5 rounded-pill"
             style={{
               background: `${sectorColor}18`,
               color: sectorColor,
@@ -128,24 +128,25 @@ export default function StockRow({ stock, rank }: Props) {
         </p>
       </div>
 
-      {/* 7-day sparkline */}
-      <div className="flex-shrink-0 relative">
+      {/* 7-day sparkline — desktop only */}
+      <div className="hidden sm:block flex-shrink-0 relative">
         <Sparkline data={sparkData} positive={isPositive} />
       </div>
 
       {/* Price + upside */}
-      <div className="text-right flex-shrink-0 min-w-[80px] relative">
+      <div className="text-right flex-shrink-0 sm:min-w-[80px] relative">
         <p className="text-sm font-semibold" style={{ color: '#e2e8f8' }}>
           {fmt(stock.current_price, '$')}
         </p>
         <p className="text-xs font-medium" style={{ color: upsideColor }}>
-          {upside >= 0 ? '+' : ''}{upside.toFixed(1)}% target
+          {upside >= 0 ? '+' : ''}{upside.toFixed(1)}%
+          <span className="hidden sm:inline"> target</span>
         </p>
       </div>
 
       {/* Score ring + trend arrow */}
       <div className="flex-shrink-0 relative flex flex-col items-center gap-0.5">
-        <ScoreRing score={stock.score} size={48} />
+        <ScoreRing score={stock.score} size={44} />
         <TrendArrow delta={scoreDelta} />
       </div>
 

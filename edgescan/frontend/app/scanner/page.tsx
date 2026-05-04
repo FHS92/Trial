@@ -127,7 +127,7 @@ export default async function ScannerPage({
         </div>
 
         {/* Sector filter pills */}
-        <div className="flex gap-2 flex-wrap mb-5">
+        <div className="flex gap-1.5 sm:gap-2 flex-wrap mb-5">
           {SECTORS.map(s => {
             const active = s === activeSector
             const count = s === 'All'
@@ -137,7 +137,7 @@ export default async function ScannerPage({
               <Link
                 key={s}
                 href={s === 'All' ? '/scanner' : `/scanner?sector=${s}`}
-                className="px-3 py-1 rounded-pill text-xs font-medium transition-colors"
+                className="px-2.5 sm:px-3 py-1 rounded-pill text-xs font-medium transition-colors"
                 style={{
                   background: active ? '#4f8ef7' : 'rgba(255,255,255,0.05)',
                   color: active ? '#fff' : count === 0 ? 'rgba(107,122,153,0.4)' : '#6b7a99',
