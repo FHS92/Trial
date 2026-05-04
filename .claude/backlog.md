@@ -93,16 +93,30 @@ Promote it to a more visible sticky banner with a refresh icon.
 
 ---
 
-### [READY-9] Industry multiples section on the stock detail page
+### ✅ [DONE — Sprint 9] Industry multiples panel on stock detail page
 
-Show a valuation-in-context panel on `app/stock/[ticker]/page.tsx` comparing the stock's key multiples (P/E, EV/EBITDA, P/S, P/B) against the median for its sector/industry peers already in the S&P 500 universe. Helps users instantly see whether a stock is cheap or expensive relative to its industry.
+Completed 2026-05-04. New `GET /api/stock/{ticker}/industry-multiples` endpoint computes sector
+peer medians from DB (no extra yfinance calls). New `IndustryMultiples.tsx` client component
+renders below MonteCarloPanel showing P/E (Fwd), P/S, EV/EBITDA, P/B vs sector median — green ↓
+if cheaper, red ↑ if richer. Scanner now also stores trailing_pe, price_to_sales, price_to_book,
+ev_ebitda for all future scans.
 
-- Pull the stock's sector from the already-loaded `stock` object.
-- Filter `ScanResult` rows for same-sector tickers (latest scan only) and compute median multiples from stored fundamental data — no extra yfinance calls.
-- Render as a compact 2-column table: metric name | stock value vs industry median, coloured green if cheaper, red if more expensive.
-- Backend: new `GET /api/stock/{ticker}/industry-multiples` endpoint.
-- Frontend: new `IndustryMultiples` client component rendered below `MonteCarloPanel`.
-**Decision needed:** which multiples to surface (P/E, P/S, EV/EBITDA, P/B suggested). Confirm before implementation.
+---
+
+### ✅ [DONE — Sprint 9] Value-based portfolio position entry (non-destructive)
+
+Completed 2026-05-04. Portfolio add-position form now takes "Amount Invested ($)" + "Price Per
+Share ($)" instead of raw share count. Shares derived server-side (amount ÷ price). Adding a
+ticker you already hold now accumulates with weighted average cost basis instead of overwriting.
+
+---
+
+### ✅ [DONE — Sprint 9] Unified smart search — name + ticker autocomplete everywhere
+
+Completed 2026-05-04. New shared `TickerSearch` component with arrow-key navigation, live
+dropdown showing TICKER · Company Name · $price. Backend `GET /api/search` now queries DB by
+ticker OR company name substring (no longer static-list only). Deployed to all three inputs:
+universal search page, watchlist add, portfolio add-position (price auto-fills on selection).
 
 ---
 
