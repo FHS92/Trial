@@ -48,6 +48,22 @@ after 2s). Wired into `StockRow.tsx` — each star tap shows "AAPL added to watc
 
 ---
 
+### ✅ [DONE — Sprint 11] Leaderboard transparency + drill-down + time windows
+
+Completed 2026-05-04.
+- **LB-1 (transparency):** `fmtDollar` + `timeAgo` helpers; BADGE_META extended with `desc`;
+  `HowItWorks` collapsible explains return formula, 7d/30d windows, badge criteria; podium + rank
+  rows show $ gain; header timestamp uses "Xm ago" instead of raw ISO.
+- **LB-2 (drill-down):** New `GET /api/leaderboard/profile/{profile_id}/holdings` backend endpoint
+  (auth required, public to all logged-in profiles). `HoldingsModal` bottom-sheet shows invested /
+  current value / gain-loss summary strip + per-holding cards (ticker, name, shares, avg→current
+  price, $ P&L, position weight % bar). Tap any podium card or rank row to open.
+- **LB-3 (time windows):** `WindowTabs` pill bar (All time | 7 days | 30 days). `rankEntries()`
+  re-sorts + re-numbers entries client-side for the active window. Podium + RankRow show the
+  active-window return as primary headline; secondary context shows other windows grayed.
+
+---
+
 ### ✅ [DONE — Sprint 7] Friends leaderboard with podium + weekly/monthly rewards
 
 Completed 2026-05-03. `/leaderboard` page with gold/silver/bronze podium for top 3, ranked list
