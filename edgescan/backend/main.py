@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db, init_db, SessionLocal
 from data_fetcher import SP500_TICKERS, fetch_fundamentals, fetch_price_history
-from models import BacktestRun, PriceHistory, PortfolioHolding, Profile, ProfileSession, ScanResult, ThesisCache, WatchlistItem
+from models import BacktestRun, PriceHistory, PortfolioHolding, Profile, ProfileSession, ScanResult, ScanJob, ThesisCache, WatchlistItem
 from scanner import scan_tickers, score_stock
 from thesis_generator import generate_thesis
 from analytics import get_sector_heatmap, get_rebalance_suggestions
@@ -851,23 +851,32 @@ def _fetch_market_pulse() -> dict:
 # Scan state (in-memory, per-instance)
 # ---------------------------------------------------------------------------
 
-_scan_lock = threading.Lock()
-_scan_in_progress: bool = False
-
-
-def _background_scan() -> None:
-    global _scan_in_progress
+def _background_scan(job_id: int, triggered_by: str) -> None:
+    """Background scan — persists state to DB so all Cloud Run instances agree."""
+    db = SessionLocal()
     try:
         results = scan_tickers(SP500_TICKERS)
-        db = SessionLocal()
+        for r in results:
+            _store_scan_result(r, db)
+        job = db.query(ScanJob).filter(ScanJob.id == job_id).first()
+        if job:
+            job.completed_at = datetime.utcnow()
+            job.tickers_done = len(results)
+            db.commit()
+        print(f"[scan] Job {job_id} complete — {len(results)} tickers scanned.")
+    except Exception as e:
+        db2 = SessionLocal()
         try:
-            for r in results:
-                _store_scan_result(r, db)
+            job = db2.query(ScanJob).filter(ScanJob.id == job_id).first()
+            if job:
+                job.completed_at = datetime.utcnow()
+                job.error = str(e)[:500]
+                db2.commit()
         finally:
-            db.close()
+            db2.close()
+        print(f"[scan] Job {job_id} failed: {e}")
     finally:
-        with _scan_lock:
-            _scan_in_progress = False
+        db.close()
 
 
 # ---------------------------------------------------------------------------
@@ -876,13 +885,23 @@ def _background_scan() -> None:
 
 @app.get("/api/scan/status")
 def get_scan_status(db: Session = Depends(get_db)):
-    """Lightweight poll endpoint — returns last scan timestamp and in-progress flag."""
-    row = db.query(ScanResult).order_by(ScanResult.scanned_at.desc()).first()
-    with _scan_lock:
-        in_progress = _scan_in_progress
+    """
+    Lightweight poll endpoint — reads from DB so every Cloud Run instance
+    returns consistent state regardless of which instance started the scan.
+    """
+    latest_job = db.query(ScanJob).order_by(ScanJob.started_at.desc()).first()
+    in_progress = latest_job is not None and latest_job.completed_at is None
+
+    latest_result = db.query(ScanResult).order_by(ScanResult.scanned_at.desc()).first()
+    last_scanned_at = None
+    if latest_job and latest_job.completed_at:
+        last_scanned_at = latest_job.completed_at.isoformat()
+    elif latest_result:
+        last_scanned_at = latest_result.scanned_at.isoformat()
+
     return {
         "in_progress": in_progress,
-        "last_scanned_at": row.scanned_at.isoformat() if row else None,
+        "last_scanned_at": last_scanned_at,
         "total_scanned": db.query(func.count(ScanResult.ticker.distinct())).scalar(),
     }
 
@@ -892,24 +911,36 @@ def get_scan_status(db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.post("/api/scan/request")
-def request_scan(authorization: str = Header(default="")):
+def request_scan(authorization: str = Header(default=""), db: Session = Depends(get_db)):
     """
     Any authenticated profile can trigger a background scan.
     Returns immediately — poll GET /api/scan/status for completion.
+    Scan state persisted to DB so any Cloud Run instance can report status.
     """
-    global _scan_in_progress
     profile_id = _get_profile_id_from_token(authorization)
     if not profile_id:
         raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
 
-    with _scan_lock:
-        if _scan_in_progress:
+    # Check if a scan is already running (DB-backed, instance-agnostic)
+    latest_job = db.query(ScanJob).order_by(ScanJob.started_at.desc()).first()
+    if latest_job and latest_job.completed_at is None:
+        # Guard: if started >15 min ago with no completion, assume it died
+        age_minutes = (datetime.utcnow() - latest_job.started_at).total_seconds() / 60
+        if age_minutes < 15:
             return {"status": "already_running", "message": "A scan is already in progress"}
-        _scan_in_progress = True
+        # Mark stale job as failed so we can start a fresh one
+        latest_job.completed_at = datetime.utcnow()
+        latest_job.error = "timed out"
+        db.commit()
 
-    t = threading.Thread(target=_background_scan, daemon=True)
+    job = ScanJob(triggered_by=profile_id)
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    t = threading.Thread(target=_background_scan, args=(job.id, profile_id), daemon=True)
     t.start()
-    return {"status": "started", "message": f"Scanning {len(SP500_TICKERS)} stocks in background"}
+    return {"status": "started", "message": f"Scanning {len(SP500_TICKERS)} stocks in background", "job_id": job.id}
 
 
 # ---------------------------------------------------------------------------
@@ -923,12 +954,17 @@ def trigger_scan(
     db: Session = Depends(get_db),
 ):
     """
-    Manually trigger a scan. Protected by X-Scan-Secret header.
-    If tickers is None/empty, scans the full SP500_TICKERS list.
-    Returns count of tickers scored and top 5 results.
+    Synchronous full scan — for Cloud Scheduler / manual ops.
+    Protected by X-Scan-Secret header. Blocks until complete (2-4 min).
+    Writes a ScanJob row so /api/scan/status reflects the result.
     """
     if x_scan_secret != SCAN_SECRET:
         raise HTTPException(status_code=403, detail="Invalid scan secret")
+
+    job = ScanJob(triggered_by="scheduler")
+    db.add(job)
+    db.commit()
+    db.refresh(job)
 
     target = tickers if tickers else SP500_TICKERS
     results = scan_tickers(target)
@@ -936,10 +972,14 @@ def trigger_scan(
     for r in results:
         _store_scan_result(r, db)
 
+    job.completed_at = datetime.utcnow()
+    job.tickers_done = len(results)
+    db.commit()
+
     top5 = results[:5]
     return {
         "scanned": len(results),
-        "scanned_at": datetime.utcnow().isoformat(),
+        "scanned_at": job.completed_at.isoformat(),
         "top_5": top5,
     }
 

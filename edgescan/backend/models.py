@@ -175,6 +175,22 @@ class BacktestJob(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ScanJob(Base):
+    """
+    Persistent scan-job state — survives across Cloud Run instances.
+    Replaces the in-memory _scan_in_progress flag which was unreliable
+    when status polls hit a different instance than the one doing the work.
+    """
+    __tablename__ = "scan_jobs"
+
+    id           = Column(Integer, primary_key=True, autoincrement=True)
+    started_at   = Column(DateTime, default=datetime.utcnow, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    triggered_by = Column(String(64), nullable=True)   # profile_id or "scheduler"
+    tickers_done = Column(Integer, nullable=True)
+    error        = Column(Text, nullable=True)
+
+
 class FundamentalSnapshot(Base):
     """
     Point-in-time fundamental filing data extracted from SEC EDGAR.
