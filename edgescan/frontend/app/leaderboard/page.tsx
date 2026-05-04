@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -11,6 +11,14 @@ const BADGE_META: Record<string, { emoji: string; label: string; desc: string }>
   monthly: { emoji: '🥇', label: 'Monthly Champion',     desc: 'Best 30-day return % this month' },
   rocket:  { emoji: '🚀', label: 'Biggest Weekly Mover', desc: 'Largest $ gain in the last 7 days' },
 }
+
+type TimeWindow = 'alltime' | 'weekly' | 'monthly'
+
+const WINDOWS: { key: TimeWindow; label: string }[] = [
+  { key: 'alltime', label: 'All time' },
+  { key: 'weekly',  label: '7 days' },
+  { key: 'monthly', label: '30 days' },
+]
 
 interface Entry {
   profile_id: string
@@ -25,6 +33,11 @@ interface Entry {
   rank: number
   badges: string[]
   is_me: boolean
+}
+
+interface RankedEntry extends Entry {
+  display_rank: number
+  display_pct: number
 }
 
 interface LeaderboardData {
@@ -84,6 +97,21 @@ function ReturnPct({ pct, className = '' }: { pct: number; className?: string })
   )
 }
 
+function rankEntries(entries: Entry[], window: TimeWindow): RankedEntry[] {
+  const sortKey: keyof Entry =
+    window === 'weekly'  ? 'weekly_return_pct' :
+    window === 'monthly' ? 'monthly_return_pct' :
+    'return_pct'
+
+  return [...entries]
+    .sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number))
+    .map((e, i) => ({
+      ...e,
+      display_rank: i + 1,
+      display_pct:  e[sortKey] as number,
+    }))
+}
+
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
 function Avatar({ name, colour, size = 48 }: { name: string; colour: string; size?: number }) {
@@ -97,7 +125,7 @@ function Avatar({ name, colour, size = 48 }: { name: string; colour: string; siz
   )
 }
 
-// ─── Badge chip (inline, with label) ─────────────────────────────────────────
+// ─── Badge chip ───────────────────────────────────────────────────────────────
 
 function BadgeChip({ badgeKey, small }: { badgeKey: string; small?: boolean }) {
   const meta = BADGE_META[badgeKey]
@@ -116,6 +144,34 @@ function BadgeChip({ badgeKey, small }: { badgeKey: string; small?: boolean }) {
       <span style={{ fontSize: small ? 11 : 13 }}>{meta.emoji}</span>
       {!small && <span className="hidden sm:inline">{meta.label}</span>}
     </span>
+  )
+}
+
+// ─── Time window tab bar ──────────────────────────────────────────────────────
+
+function WindowTabs({ active, onChange }: { active: TimeWindow; onChange: (w: TimeWindow) => void }) {
+  return (
+    <div
+      className="flex gap-1 p-1 rounded-xl mb-4"
+      style={{ background: '#0d1220', border: '1px solid rgba(255,255,255,0.07)' }}
+    >
+      {WINDOWS.map(({ key, label }) => {
+        const isActive = key === active
+        return (
+          <button
+            key={key}
+            onClick={() => onChange(key)}
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+            style={{
+              background: isActive ? '#4f8ef7' : 'transparent',
+              color: isActive ? '#fff' : '#6b7a99',
+            }}
+          >
+            {label}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -150,7 +206,7 @@ function HowItWorks({ updatedAt }: { updatedAt: string }) {
       {open && (
         <div className="px-4 pb-4 space-y-3 text-xs" style={{ color: '#8492aa' }}>
           <div className="pt-1 pb-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <p className="font-semibold mb-1" style={{ color: '#a0aec0' }}>Return %</p>
+            <p className="font-semibold mb-1" style={{ color: '#a0aec0' }}>All-time return %</p>
             <p>( Current portfolio value − Amount invested ) ÷ Amount invested</p>
             <p className="mt-1" style={{ color: '#4a556b' }}>
               Prices are from the last EdgeScan scan · updated {timeAgo(updatedAt)}
@@ -158,7 +214,7 @@ function HowItWorks({ updatedAt }: { updatedAt: string }) {
           </div>
 
           <div>
-            <p className="font-semibold mb-2" style={{ color: '#a0aec0' }}>7-day & 30-day return</p>
+            <p className="font-semibold mb-1" style={{ color: '#a0aec0' }}>7-day & 30-day return</p>
             <p>Compares each holding's current price to its price 7 or 30 days ago in the scan history. Weighted by position size.</p>
           </div>
 
@@ -181,13 +237,7 @@ function HowItWorks({ updatedAt }: { updatedAt: string }) {
 
 // ─── Holdings modal ───────────────────────────────────────────────────────────
 
-function HoldingsModal({
-  entry,
-  onClose,
-}: {
-  entry: Entry
-  onClose: () => void
-}) {
+function HoldingsModal({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const [holdings, setHoldings] = useState<ProfileHoldings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -205,7 +255,6 @@ function HoldingsModal({
       .finally(() => setLoading(false))
   }, [entry.profile_id])
 
-  // Close on backdrop click
   function handleBackdrop(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose()
   }
@@ -262,7 +311,6 @@ function HoldingsModal({
 
           {!loading && !error && holdings && (
             <>
-              {/* Summary strip */}
               {holdings.total_pnl !== null && (
                 <div
                   className="flex items-center justify-between px-4 py-3 rounded-xl mb-4"
@@ -290,7 +338,6 @@ function HoldingsModal({
                 </div>
               )}
 
-              {/* Holdings list */}
               {holdings.holdings.length === 0 ? (
                 <p className="text-sm text-center py-6" style={{ color: '#6b7a99' }}>No holdings yet.</p>
               ) : (
@@ -320,9 +367,7 @@ function HoldingsModal({
                             )}
                             <p className="text-xs mt-1" style={{ color: '#3a4259' }}>
                               {h.shares.toFixed(2)} sh · avg ${h.avg_price.toFixed(2)}
-                              {h.current_price !== null && (
-                                <span> → ${h.current_price.toFixed(2)}</span>
-                              )}
+                              {h.current_price !== null && <span> → ${h.current_price.toFixed(2)}</span>}
                             </p>
                           </div>
 
@@ -340,7 +385,6 @@ function HoldingsModal({
                           </div>
                         </div>
 
-                        {/* Weight bar */}
                         {weight !== null && (
                           <div className="mt-2 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }}>
                             <div
@@ -369,7 +413,17 @@ const PODIUM_HEIGHT      = [72, 108, 52]
 const PODIUM_MEDAL_COLOR = ['#9ca3af', '#f59e0b', '#b45212']
 const PODIUM_GLOW        = ['rgba(156,163,175,0.15)', 'rgba(245,158,11,0.18)', 'rgba(180,82,18,0.15)']
 
-function Podium({ entries, onSelect }: { entries: Entry[]; onSelect: (e: Entry) => void }) {
+function Podium({
+  entries,
+  onSelect,
+  window: win,
+}: {
+  entries: RankedEntry[]
+  onSelect: (e: Entry) => void
+  window: TimeWindow
+}) {
+  const windowLabel = win === 'weekly' ? '7d' : win === 'monthly' ? '30d' : null
+
   return (
     <div className="flex items-end justify-center gap-2 sm:gap-4 mb-4 pt-4">
       {PODIUM_ORDER.map((entryIdx, posIdx) => {
@@ -421,21 +475,23 @@ function Podium({ entries, onSelect }: { entries: Entry[]; onSelect: (e: Entry) 
               {entry.name}
             </p>
 
-            {/* Return % + $ gain */}
-            <ReturnPct pct={entry.return_pct} className={isTop ? 'text-sm' : 'text-xs'} />
-            <p className="text-xs mt-0.5" style={{ color: gain >= 0 ? '#22c55e88' : '#ef444488' }}>
-              {gain >= 0 ? '+' : ''}{fmtDollar(gain)}
-            </p>
+            {/* Primary return % for active window */}
+            {windowLabel && (
+              <p className="text-xs mb-0.5" style={{ color: '#4a556b' }}>{windowLabel}</p>
+            )}
+            <ReturnPct pct={entry.display_pct} className={isTop ? 'text-sm' : 'text-xs'} />
 
-            {/* 7d line */}
-            <p className="text-xs mt-0.5" style={{ color: '#4a556b' }}>
-              7d <ReturnPct pct={entry.weekly_return_pct} className="text-xs" />
-            </p>
+            {/* Always show $ gain (all-time) as secondary */}
+            {win === 'alltime' && (
+              <p className="text-xs mt-0.5" style={{ color: gain >= 0 ? '#22c55e88' : '#ef444488' }}>
+                {gain >= 0 ? '+' : ''}{fmtDollar(gain)}
+              </p>
+            )}
 
             {/* Pedestal */}
             <div className="w-full rounded-t-xl mt-2 flex items-center justify-center"
               style={{ height: pedH, background: `linear-gradient(180deg, ${glow} 0%, transparent 100%)`, border: `1px solid ${medal}44`, borderBottom: 'none' }}>
-              <span className="font-black text-2xl" style={{ color: medal }}>{entry.rank}</span>
+              <span className="font-black text-2xl" style={{ color: medal }}>{entry.display_rank}</span>
             </div>
           </button>
         )
@@ -446,7 +502,15 @@ function Podium({ entries, onSelect }: { entries: Entry[]; onSelect: (e: Entry) 
 
 // ─── Rank row ─────────────────────────────────────────────────────────────────
 
-function RankRow({ entry, onSelect }: { entry: Entry; onSelect: (e: Entry) => void }) {
+function RankRow({
+  entry,
+  onSelect,
+  window: win,
+}: {
+  entry: RankedEntry
+  onSelect: (e: Entry) => void
+  window: TimeWindow
+}) {
   const gain = entry.total_value - entry.total_cost
   return (
     <button
@@ -459,7 +523,7 @@ function RankRow({ entry, onSelect }: { entry: Entry; onSelect: (e: Entry) => vo
       aria-label={`View ${entry.name}'s portfolio`}
     >
       <span className="text-sm font-bold w-6 text-center shrink-0" style={{ color: '#3a4259' }}>
-        {entry.rank}
+        {entry.display_rank}
       </span>
 
       <div className="relative shrink-0">
@@ -485,21 +549,31 @@ function RankRow({ entry, onSelect }: { entry: Entry; onSelect: (e: Entry) => vo
 
       {/* Returns column */}
       <div className="text-right shrink-0">
-        {/* Overall % + $ */}
-        <div className="flex items-baseline gap-1 justify-end">
-          <ReturnPct pct={entry.return_pct} className="text-sm" />
-          <span className="text-xs" style={{ color: gain >= 0 ? '#22c55e66' : '#ef444466' }}>
-            ({gain >= 0 ? '+' : ''}{fmtDollar(gain)})
-          </span>
-        </div>
-        {/* 7d + 30d */}
+        {/* Primary % for active window */}
+        <ReturnPct pct={entry.display_pct} className="text-sm" />
+
+        {/* Secondary context */}
         <div className="flex gap-2 justify-end mt-0.5">
-          <span className="text-xs" style={{ color: '#3a4259' }}>
-            7d <ReturnPct pct={entry.weekly_return_pct} className="text-xs" />
-          </span>
-          <span className="text-xs" style={{ color: '#3a4259' }}>
-            30d <ReturnPct pct={entry.monthly_return_pct} className="text-xs" />
-          </span>
+          {win !== 'alltime' && (
+            <span className="text-xs" style={{ color: '#3a4259' }}>
+              all <ReturnPct pct={entry.return_pct} className="text-xs" />
+            </span>
+          )}
+          {win !== 'weekly' && (
+            <span className="text-xs" style={{ color: '#3a4259' }}>
+              7d <ReturnPct pct={entry.weekly_return_pct} className="text-xs" />
+            </span>
+          )}
+          {win !== 'monthly' && (
+            <span className="text-xs" style={{ color: '#3a4259' }}>
+              30d <ReturnPct pct={entry.monthly_return_pct} className="text-xs" />
+            </span>
+          )}
+          {win === 'alltime' && (
+            <span className="text-xs" style={{ color: entry.total_value - entry.total_cost >= 0 ? '#22c55e66' : '#ef444466' }}>
+              {gain >= 0 ? '+' : ''}{fmtDollar(gain)}
+            </span>
+          )}
         </div>
       </div>
     </button>
@@ -514,6 +588,7 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>('alltime')
 
   useEffect(() => {
     const token = sessionStorage.getItem('edgescan_profile_token')
@@ -538,12 +613,18 @@ export default function LeaderboardPage() {
       .finally(() => setLoading(false))
   }, [router])
 
+  const rankedEntries = useMemo(
+    () => rankEntries(data?.entries ?? [], timeWindow),
+    [data, timeWindow],
+  )
+
   const handleSelect = useCallback((entry: Entry) => setSelectedEntry(entry), [])
   const handleClose  = useCallback(() => setSelectedEntry(null), [])
 
-  const entries        = data?.entries ?? []
-  const podiumEntries  = entries.slice(0, 3)
-  const restEntries    = entries.slice(3)
+  const podiumEntries = rankedEntries.slice(0, 3)
+  const restEntries   = rankedEntries.slice(3)
+
+  const windowLabel = timeWindow === 'weekly' ? '7-day' : timeWindow === 'monthly' ? '30-day' : 'all-time'
 
   return (
     <div className="min-h-screen pb-24" style={{ background: '#080b12' }}>
@@ -563,7 +644,7 @@ export default function LeaderboardPage() {
         <div className="text-center mb-4">
           <h1 className="text-2xl font-black" style={{ color: '#e2e8f8' }}>Portfolio Battle</h1>
           <p className="text-xs mt-1" style={{ color: '#6b7a99' }}>
-            Return = (current value − invested) ÷ invested · last-scan prices · tap any player to see their portfolio
+            Ranked by {windowLabel} return · last-scan prices · tap any player to see their portfolio
           </p>
         </div>
 
@@ -578,41 +659,46 @@ export default function LeaderboardPage() {
 
         {error && <p className="text-sm text-center py-8" style={{ color: '#ef4444' }}>{error}</p>}
 
-        {!loading && !error && entries.length === 0 && (
+        {!loading && !error && rankedEntries.length === 0 && (
           <p className="text-sm text-center py-16" style={{ color: '#6b7a99' }}>
             No profiles with portfolios yet. Add holdings to get on the board!
           </p>
         )}
 
-        {!loading && entries.length > 0 && (
+        {!loading && rankedEntries.length > 0 && (
           <>
             {/* How it works */}
             {data && <HowItWorks updatedAt={data.updated_at} />}
 
+            {/* Time window tabs */}
+            <WindowTabs active={timeWindow} onChange={setTimeWindow} />
+
             {/* Podium */}
-            <Podium entries={podiumEntries} onSelect={handleSelect} />
+            <Podium entries={podiumEntries} onSelect={handleSelect} window={timeWindow} />
 
             {/* Ranks 4+ */}
             {restEntries.length > 0 && (
               <div className="space-y-2 mt-4">
                 <p className="text-xs font-semibold mb-3" style={{ color: '#3a4259' }}>REST OF THE FIELD</p>
-                {restEntries.map(entry => <RankRow key={entry.profile_id} entry={entry} onSelect={handleSelect} />)}
+                {restEntries.map(entry => (
+                  <RankRow key={entry.profile_id} entry={entry} onSelect={handleSelect} window={timeWindow} />
+                ))}
               </div>
             )}
 
             {/* Stats strip */}
             <div className="mt-5 grid grid-cols-3 gap-2">
               {[
-                { label: 'Players', value: String(entries.length) },
+                { label: 'Players', value: String(rankedEntries.length) },
                 {
-                  label: 'Best overall',
-                  value: `${entries[0]?.return_pct >= 0 ? '+' : ''}${entries[0]?.return_pct.toFixed(1)}%`,
+                  label: `Best ${windowLabel}`,
+                  value: `${rankedEntries[0]?.display_pct >= 0 ? '+' : ''}${rankedEntries[0]?.display_pct.toFixed(1)}%`,
                 },
                 {
-                  label: 'Best 7-day',
+                  label: 'Most holdings',
                   value: (() => {
-                    const best = [...entries].sort((a, b) => b.weekly_return_pct - a.weekly_return_pct)[0]
-                    return `${best?.weekly_return_pct >= 0 ? '+' : ''}${best?.weekly_return_pct.toFixed(1)}%`
+                    const most = [...rankedEntries].sort((a, b) => b.n_holdings - a.n_holdings)[0]
+                    return `${most?.n_holdings ?? 0}`
                   })(),
                 },
               ].map(s => (
