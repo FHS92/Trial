@@ -34,6 +34,14 @@ function formatDate(dateStr: string, period: Period) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+function fmtTooltipDate(dateStr: string) {
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  } catch {
+    return dateStr
+  }
+}
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   const close = payload.find((p: any) => p.dataKey === 'close')?.value
@@ -41,7 +49,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const ma200 = payload.find((p: any) => p.dataKey === 'ma200')?.value
   return (
     <div style={{ background: '#161c2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 12px' }}>
-      <p style={{ color: '#6b7a99', fontSize: 11, marginBottom: 4 }}>{label}</p>
+      <p style={{ color: '#6b7a99', fontSize: 11, marginBottom: 4 }}>{fmtTooltipDate(label)}</p>
       {close  != null && <p style={{ color: '#e2e8f8', fontSize: 12 }}>Price  <strong>${close.toFixed(2)}</strong></p>}
       {ma50   != null && <p style={{ color: '#4f8ef7', fontSize: 12 }}>50 MA  <strong>${ma50.toFixed(2)}</strong></p>}
       {ma200  != null && <p style={{ color: '#f5a623', fontSize: 12 }}>200 MA <strong>${ma200.toFixed(2)}</strong></p>}
@@ -73,9 +81,8 @@ export default function PriceChart({ allHistory, onPeriodChange }: Props) {
       ...bar,
       ma50:  ma50vals[offset + i],
       ma200: ma200vals[offset + i],
-      label: formatDate(bar.date, period),
     }))
-  }, [sliced, ma50vals, ma200vals, period])
+  }, [sliced, ma50vals, ma200vals])
 
   const prices = sliced.map(b => b.close)
   const minP = Math.min(...prices)
@@ -135,11 +142,12 @@ export default function PriceChart({ allHistory, onPeriodChange }: Props) {
         <ComposedChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
           <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
           <XAxis
-            dataKey="label"
+            dataKey="date"
             tick={{ fill: '#6b7a99', fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             interval="preserveStartEnd"
+            tickFormatter={d => formatDate(d, period)}
           />
           <YAxis
             domain={domain}
