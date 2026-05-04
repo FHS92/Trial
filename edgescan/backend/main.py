@@ -1310,6 +1310,50 @@ class HoldingIn(BaseModel):
     buy_date: Optional[str] = None  # ISO date string
 
 
+@app.get("/api/portfolio/history")
+def get_portfolio_history(authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    """Return daily portfolio value over the last 90 days using price_history × shares."""
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+
+    holdings = (
+        db.query(PortfolioHolding)
+        .filter(PortfolioHolding.profile_id == profile_id)
+        .all()
+    )
+    if not holdings:
+        return {"history": []}
+
+    tickers = [h.ticker for h in holdings]
+    shares_map = {h.ticker: h.shares for h in holdings}
+
+    cutoff = date.today() - timedelta(days=90)
+    rows = (
+        db.query(PriceHistory.date, PriceHistory.ticker, PriceHistory.close)
+        .filter(PriceHistory.ticker.in_(tickers), PriceHistory.date >= cutoff)
+        .order_by(PriceHistory.date.asc())
+        .all()
+    )
+
+    # Group closes by date
+    date_closes: dict[date, dict[str, float]] = {}
+    for row in rows:
+        if row.date not in date_closes:
+            date_closes[row.date] = {}
+        if row.close is not None:
+            date_closes[row.date][row.ticker] = row.close
+
+    history = []
+    for d in sorted(date_closes.keys()):
+        closes = date_closes[d]
+        val = sum(shares_map[t] * closes[t] for t in tickers if t in closes)
+        if val > 0:
+            history.append({"date": d.isoformat(), "value": round(val, 2)})
+
+    return {"history": history}
+
+
 @app.get("/api/portfolio/{username}")
 def get_portfolio(username: str, authorization: str = Header(default=""), db: Session = Depends(get_db)):
     profile_id = _get_profile_id_from_token(authorization)

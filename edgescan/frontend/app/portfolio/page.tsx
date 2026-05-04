@@ -33,6 +33,72 @@ function fmtPct(n: number | null) {
   return `${n >= 0 ? '+' : '-'}${Math.abs(n).toFixed(2)}%`
 }
 
+interface HistoryPoint { date: string; value: number }
+
+function PortfolioChart({ history }: { history: HistoryPoint[] }) {
+  if (history.length < 2) return null
+
+  const values = history.map(p => p.value)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 1
+
+  const W = 600
+  const H = 80
+  const PAD = 4
+
+  const points = history.map((p, i) => {
+    const x = PAD + (i / (history.length - 1)) * (W - PAD * 2)
+    const y = PAD + (1 - (p.value - min) / range) * (H - PAD * 2)
+    return `${x},${y}`
+  }).join(' ')
+
+  const first = history[0].value
+  const last = history[history.length - 1].value
+  const changePct = ((last - first) / first) * 100
+  const up = changePct >= 0
+
+  return (
+    <div
+      className="rounded-xl p-4 mb-6"
+      style={{ background: '#0f1521', border: '1px solid rgba(255,255,255,0.06)' }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b7a99' }}>
+          Portfolio Value — 90 days
+        </span>
+        <span
+          className="text-xs font-bold px-2 py-0.5 rounded"
+          style={{
+            background: up ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+            color: up ? '#22c55e' : '#ef4444',
+          }}
+        >
+          {up ? '+' : ''}{changePct.toFixed(2)}%
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ width: '100%', height: 80, display: 'block', overflow: 'visible' }}
+        preserveAspectRatio="none"
+      >
+        <polyline
+          points={points}
+          fill="none"
+          stroke={up ? '#22c55e' : '#ef4444'}
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="flex justify-between mt-1">
+        <span className="text-xs" style={{ color: '#3a4259' }}>{history[0].date}</span>
+        <span className="text-xs" style={{ color: '#3a4259' }}>{history[history.length - 1].date}</span>
+      </div>
+    </div>
+  )
+}
+
 export default function PortfolioPage() {
   const router = useRouter()
   const [username, setUsername] = useState<string | null>(null)
@@ -41,6 +107,7 @@ export default function PortfolioPage() {
   const [summary, setSummary] = useState<PortfolioSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [history, setHistory] = useState<HistoryPoint[]>([])
 
   const [showForm, setShowForm] = useState(false)
   const [ticker, setTicker] = useState('')
@@ -65,9 +132,13 @@ export default function PortfolioPage() {
     setLoading(true)
     setError(null)
     try {
-      const data = await api.portfolio(user)
+      const [data, hist] = await Promise.all([
+        api.portfolio(user),
+        api.portfolioHistory().catch(() => ({ history: [] })),
+      ])
       setHoldings(data.holdings)
       setSummary(data.summary)
+      setHistory(hist.history ?? [])
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : ''
       if (msg.includes('401')) {
@@ -158,6 +229,9 @@ export default function PortfolioPage() {
             ))}
           </div>
         )}
+
+        {/* Portfolio value chart */}
+        {history.length >= 2 && <PortfolioChart history={history} />}
 
         {/* Header row */}
         <div className="flex items-center justify-between mb-4">

@@ -78,6 +78,13 @@ export const api = {
     }).then(r => r.json())
   },
 
+  portfolioHistory(): Promise<{ history: { date: string; value: number }[] }> {
+    return fetch(`${BASE}/api/portfolio/history`, {
+      cache: 'no-store',
+      headers: { ...authHeaders() },
+    }).then(r => r.json())
+  },
+
   scoreHistory(ticker: string): Promise<ScoreHistoryResponse> {
     return get<ScoreHistoryResponse>(`/api/stock/${ticker.toUpperCase()}/score-history`)
   },
