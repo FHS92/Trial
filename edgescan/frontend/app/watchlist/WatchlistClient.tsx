@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import ScoreRing from '@/components/ScoreRing'
-import type { StockResult } from '@/lib/types'
+import TickerSearch from '@/components/TickerSearch'
+import type { StockResult, SearchResult } from '@/lib/types'
 
 const WL_KEY = 'edgescan_watchlist'
 
@@ -128,8 +129,6 @@ export default function WatchlistClient() {
   const [tickers, setTickers] = useState<string[]>([])
   const [stocks, setStocks] = useState<Record<string, StockResult>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
-  const [addInput, setAddInput] = useState('')
-  const [searchResults, setSearchResults] = useState<string[]>([])
 
   // On mount: load from API (source of truth), sync to localStorage cache
   useEffect(() => {
@@ -173,58 +172,28 @@ export default function WatchlistClient() {
       toggleWatchlist(ticker)
       setTickers(prev => [...prev, ticker])
     }
-    setAddInput('')
-    setSearchResults([])
   }
 
-  useEffect(() => {
-    if (!addInput.trim()) { setSearchResults([]); return }
-    const t = setTimeout(() => {
-      api.search(addInput).then(r => setSearchResults(r.results)).catch(() => {})
-    }, 120)
-    return () => clearTimeout(t)
-  }, [addInput])
+  function handleSelect(result: SearchResult) {
+    add(result.ticker)
+  }
 
   return (
     <div>
       {/* Add ticker */}
-      <div className="relative mb-5">
+      <div className="mb-5">
         <div
           className="flex items-center gap-3 px-4 py-2.5 rounded-card"
           style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.08)' }}
         >
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#6b7a99" strokeWidth={2}>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#6b7a99" strokeWidth={2} className="flex-shrink-0">
             <path strokeLinecap="round" d="M12 4v16m8-8H4" />
           </svg>
-          <input
-            type="text"
-            placeholder="Add ticker…"
-            value={addInput}
-            onChange={e => setAddInput(e.target.value.toUpperCase())}
-            className="flex-1 bg-transparent outline-none text-sm"
-            style={{ color: '#e2e8f8' }}
+          <TickerSearch
+            onSelect={handleSelect}
+            placeholder="Add by ticker or company name…"
           />
         </div>
-        {searchResults.length > 0 && (
-          <div
-            className="absolute w-full mt-1 rounded-card overflow-hidden z-50"
-            style={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            {searchResults.map(t => (
-              <button
-                key={t}
-                onClick={() => add(t)}
-                className="w-full px-4 py-2.5 text-left text-sm hover:bg-white/[0.04] transition-colors"
-                style={{ color: '#e2e8f8' }}
-              >
-                {t}
-                {tickers.includes(t) && (
-                  <span className="ml-2 text-xs" style={{ color: '#22d47e' }}>✓ Added</span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* List */}

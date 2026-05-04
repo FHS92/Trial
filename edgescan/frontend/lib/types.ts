@@ -97,9 +97,15 @@ export interface MarketPulse {
 
 // ─── Search ───────────────────────────────────────────────────────────────────
 
+export interface SearchResult {
+  ticker: string
+  name: string | null
+  current_price: number | null
+}
+
 export interface SearchResponse {
   query: string
-  results: string[]
+  results: SearchResult[]
 }
 
 // ─── Portfolio ────────────────────────────────────────────────────────────────

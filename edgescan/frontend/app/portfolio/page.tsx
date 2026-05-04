@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
-import type { PortfolioHolding, PortfolioSummary } from '@/lib/types'
+import TickerSearch from '@/components/TickerSearch'
+import type { PortfolioHolding, PortfolioSummary, SearchResult } from '@/lib/types'
 
 function slugify(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 40)
@@ -85,6 +86,13 @@ export default function PortfolioPage() {
   useEffect(() => {
     if (username) loadPortfolio(username)
   }, [username, loadPortfolio])
+
+  function handleStockSelect(result: SearchResult) {
+    setTicker(result.ticker)
+    if (result.current_price != null && !buyPrice) {
+      setBuyPrice(result.current_price.toFixed(2))
+    }
+  }
 
   async function handleAddHolding(e: React.FormEvent) {
     e.preventDefault()
@@ -169,33 +177,53 @@ export default function PortfolioPage() {
         {showForm && (
           <form
             onSubmit={handleAddHolding}
-            className="rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3"
+            className="rounded-xl p-4 mb-4 space-y-3"
             style={{ background: '#0f1521', border: '1px solid rgba(79,142,247,0.2)' }}
           >
-            {[
-              { label: 'Ticker', value: ticker, onChange: (v: string) => setTicker(v.toUpperCase()), placeholder: 'AAPL', required: true },
-              { label: 'Amount Invested ($)', value: amount, onChange: setAmount, placeholder: '10000', required: true, type: 'number' },
-              { label: 'Price Per Share ($)', value: buyPrice, onChange: setBuyPrice, placeholder: '150.00', required: true, type: 'number' },
-              { label: 'Buy Date', value: buyDate, onChange: setBuyDate, placeholder: '', required: false, type: 'date' },
-            ].map(f => (
-              <div key={f.label}>
-                <label className="block text-xs mb-1" style={{ color: '#6b7a99' }}>{f.label}</label>
-                <input
-                  required={f.required}
-                  type={f.type ?? 'text'}
-                  value={f.value}
-                  onChange={e => f.onChange(e.target.value)}
-                  placeholder={f.placeholder}
-                  step="any"
-                  className="w-full px-2 py-1.5 rounded-lg text-sm outline-none"
-                  style={{ background: '#131720', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f8' }}
+            {/* Ticker search */}
+            <div>
+              <label className="block text-xs mb-1" style={{ color: '#6b7a99' }}>Stock</label>
+              <div
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                style={{ background: '#131720', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <TickerSearch
+                  onSelect={handleStockSelect}
+                  placeholder="Search ticker or company…"
                 />
               </div>
-            ))}
-            <div className="col-span-2 sm:col-span-4 flex justify-end">
+              {ticker && (
+                <p className="text-xs mt-1" style={{ color: '#4f8ef7' }}>Selected: {ticker}</p>
+              )}
+            </div>
+
+            {/* Amount + Price + Date */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { label: 'Amount Invested ($)', value: amount, onChange: setAmount, placeholder: '10000', required: true, type: 'number' },
+                { label: 'Price Per Share ($)', value: buyPrice, onChange: setBuyPrice, placeholder: '150.00', required: true, type: 'number' },
+                { label: 'Buy Date', value: buyDate, onChange: setBuyDate, placeholder: '', required: false, type: 'date' },
+              ].map(f => (
+                <div key={f.label}>
+                  <label className="block text-xs mb-1" style={{ color: '#6b7a99' }}>{f.label}</label>
+                  <input
+                    required={f.required}
+                    type={f.type}
+                    value={f.value}
+                    onChange={e => f.onChange(e.target.value)}
+                    placeholder={f.placeholder}
+                    step="any"
+                    className="w-full px-2 py-1.5 rounded-lg text-sm outline-none"
+                    style={{ background: '#131720', border: '1px solid rgba(255,255,255,0.08)', color: '#e2e8f8' }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !ticker}
                 className="px-4 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50"
                 style={{ background: '#4f8ef7', color: '#fff' }}
               >

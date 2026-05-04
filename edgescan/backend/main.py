@@ -643,20 +643,64 @@ def get_price_history(
 # ---------------------------------------------------------------------------
 
 @app.get("/api/search")
-def search(q: str = Query(default="", min_length=1)):
+def search(q: str = Query(default="", min_length=1), db: Session = Depends(get_db)):
     """
-    Ticker autocomplete — searches the static S&P 500 list.
-    Returns up to 10 matches on ticker prefix or name substring.
+    Ticker + company name autocomplete.
+    Searches scan_results DB (ticker prefix OR name substring); falls back to
+    the static SP500 list when the DB has no matches.
+    Returns up to 10 results ordered: ticker-prefix matches first, then by ticker.
     """
-    q_upper = q.upper().strip()
-    q_lower = q.lower().strip()
+    from sqlalchemy import case as sql_case
 
-    matches = [
-        t for t in SP500_TICKERS
-        if t.startswith(q_upper) or q_lower in t.lower()
-    ][:10]
+    q_stripped = q.strip()
+    q_upper = q_stripped.upper()
 
-    return {"query": q, "results": matches}
+    # Latest scan per ticker
+    subq = (
+        db.query(
+            ScanResult.ticker,
+            func.max(ScanResult.scanned_at).label("max_at"),
+        )
+        .group_by(ScanResult.ticker)
+        .subquery()
+    )
+
+    order_expr = sql_case((ScanResult.ticker.ilike(f"{q_upper}%"), 0), else_=1)
+
+    rows = (
+        db.query(ScanResult)
+        .join(
+            subq,
+            (ScanResult.ticker == subq.c.ticker)
+            & (ScanResult.scanned_at == subq.c.max_at),
+        )
+        .filter(
+            ScanResult.ticker.ilike(f"%{q_upper}%")
+            | ScanResult.name.ilike(f"%{q_stripped}%")
+        )
+        .order_by(order_expr, ScanResult.ticker)
+        .limit(10)
+        .all()
+    )
+
+    if rows:
+        results = [
+            {
+                "ticker": r.ticker,
+                "name": r.name,
+                "current_price": r.current_price,
+            }
+            for r in rows
+        ]
+    else:
+        # Fall back to static list (no name data)
+        matches = [
+            t for t in SP500_TICKERS
+            if t.startswith(q_upper) or q_upper in t
+        ][:10]
+        results = [{"ticker": t, "name": None, "current_price": None} for t in matches]
+
+    return {"query": q, "results": results}
 
 
 # ---------------------------------------------------------------------------
