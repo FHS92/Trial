@@ -80,7 +80,7 @@ function TickerPills({ tickers, label, colour }: { tickers: HoldingItem[]; label
   if (tickers.length === 0) return null
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color }}>
+      <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: colour }}>
         {label} ({tickers.length})
       </p>
       <div className="flex flex-wrap gap-1.5">
