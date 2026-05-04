@@ -5,6 +5,7 @@ import Link from 'next/link'
 import ScoreRing from './ScoreRing'
 import Sparkline from './Sparkline'
 import Toast from './Toast'
+import TrendArrow from './TrendArrow'
 import type { StockResult, OHLCVBar } from '@/lib/types'
 import { getServerWatchlist, toggleWatchlist } from '@/app/watchlist/WatchlistClient'
 import { api } from '@/lib/api'
@@ -41,6 +42,7 @@ export default function StockRow({ stock, rank }: Props) {
   const [history, setHistory] = useState<OHLCVBar[]>([])
   const [starred, setStarred] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [scoreDelta, setScoreDelta] = useState<number | null>(null)
 
   const sparkData = history.slice(-7).map(b => ({ close: b.close }))
   const isPositive =
@@ -52,6 +54,14 @@ export default function StockRow({ stock, rank }: Props) {
     getServerWatchlist().then(list => setStarred(list.includes(stock.ticker)))
     api.priceHistory(stock.ticker, '1w')
       .then(r => setHistory(r.data))
+      .catch(() => {})
+    api.scoreHistory(stock.ticker)
+      .then(r => {
+        const h = r.history
+        if (h.length >= 2) {
+          setScoreDelta(h[h.length - 1].score - h[h.length - 2].score)
+        }
+      })
       .catch(() => {})
   }, [stock.ticker])
 
@@ -122,9 +132,10 @@ export default function StockRow({ stock, rank }: Props) {
         </p>
       </div>
 
-      {/* Score ring */}
-      <div className="flex-shrink-0 relative">
+      {/* Score ring + trend arrow */}
+      <div className="flex-shrink-0 relative flex flex-col items-center gap-0.5">
         <ScoreRing score={stock.score} size={48} />
+        <TrendArrow delta={scoreDelta} />
       </div>
 
       {/* Watchlist star */}
