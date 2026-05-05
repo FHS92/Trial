@@ -112,8 +112,6 @@ export default function PortfolioPage() {
   const [metrics, setMetrics] = useState<PortfolioMetrics | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(false)
   const [metricsError, setMetricsError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-  const [refreshSuccess, setRefreshSuccess] = useState<string | null>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [ticker, setTicker] = useState('')
@@ -151,23 +149,7 @@ export default function PortfolioPage() {
     }
   }, [])
 
-  const handleRefreshPrices = useCallback(async () => {
-    setRefreshing(true)
-    setMetricsError(null)
-    setRefreshSuccess(null)
-    try {
-      const result = await api.refreshPortfolioPrices()
-      setRefreshSuccess(`Updated ${result.rows_updated} price rows. Recalculating metrics…`)
-      await fetchMetrics()
-      setRefreshSuccess(null)
-    } catch (e: unknown) {
-      setMetricsError(e instanceof Error ? e.message : 'Price refresh failed. Is the backend running?')
-    } finally {
-      setRefreshing(false)
-    }
-  }, [fetchMetrics])
-
-  const loadPortfolio = useCallback(async (user: string) => {
+const loadPortfolio = useCallback(async (user: string) => {
     setLoading(true)
     setError(null)
     try {
@@ -274,45 +256,15 @@ export default function PortfolioPage() {
 
         {/* Professional Metrics strip */}
         <div className="mb-5">
-          <div className="flex items-center justify-between mb-2">
+          <div className="mb-2">
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-2)' }}>
               Portfolio Metrics
             </p>
-            <button
-              onClick={handleRefreshPrices}
-              disabled={refreshing || loading}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium disabled:opacity-50 transition-colors"
-              style={{ background: 'var(--color-border)', color: 'var(--color-text-2)', border: '1px solid var(--color-border-2)' }}
-            >
-              {refreshing ? (
-                <>
-                  <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                  </svg>
-                  Refreshing…
-                </>
-              ) : (
-                <>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
-                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-                  </svg>
-                  Refresh Prices
-                </>
-              )}
-            </button>
           </div>
-
-          {refreshSuccess && (
-            <p className="text-xs px-3 py-2 rounded-lg mb-2" style={{ background: 'rgba(34,197,94,0.08)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)' }}>
-              {refreshSuccess}
-            </p>
-          )}
 
           {metricsError && (
             <p className="text-xs px-3 py-2 rounded-lg mb-2" style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
               {metricsError}
-              {!metrics && <span> — click <strong>Refresh Prices</strong> to download price history first.</span>}
             </p>
           )}
 

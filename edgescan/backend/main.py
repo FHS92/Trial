@@ -1794,9 +1794,71 @@ def refresh_portfolio_prices(authorization: str = Header(default=""), db: Sessio
     return {"status": "ok", "rows_updated": count}
 
 
+def _ensure_price_history(tickers: list, db: Session) -> None:
+    """Fetch and upsert 1-year price history for tickers whose data is missing or stale."""
+    import math as _math
+    import yfinance as yf
+    import pandas as pd
+    from datetime import timedelta
+
+    yesterday = date.today() - timedelta(days=1)
+    to_fetch = []
+    for t in tickers:
+        latest = (
+            db.query(PriceHistory.date)
+            .filter(PriceHistory.ticker == t)
+            .order_by(PriceHistory.date.desc())
+            .first()
+        )
+        if latest is None or latest.date < yesterday:
+            to_fetch.append(t)
+
+    if not to_fetch:
+        return
+
+    def _safe_float(v, fallback):
+        try:
+            f = float(v)
+            return fallback if _math.isnan(f) else round(f, 4)
+        except Exception:
+            return fallback
+
+    for t in to_fetch:
+        try:
+            df = yf.download(t, period="1y", auto_adjust=True, progress=False)
+            if df is None or df.empty:
+                continue
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            for dt_idx, row_data in df.iterrows():
+                close_val = row_data.get("Close")
+                if close_val is None or (isinstance(close_val, float) and _math.isnan(close_val)):
+                    continue
+                d = dt_idx.date() if hasattr(dt_idx, "date") else dt_idx
+                close_f = round(float(close_val), 4)
+                existing = (
+                    db.query(PriceHistory)
+                    .filter(PriceHistory.ticker == t, PriceHistory.date == d)
+                    .first()
+                )
+                if existing:
+                    existing.close = close_f
+                else:
+                    db.add(PriceHistory(
+                        ticker=t, date=d, close=close_f,
+                        open=_safe_float(row_data.get("Open"), close_f),
+                        high=_safe_float(row_data.get("High"), close_f),
+                        low=_safe_float(row_data.get("Low"), close_f),
+                        volume=_safe_float(row_data.get("Volume"), None),
+                    ))
+            db.commit()
+        except Exception as exc:
+            print(f"[price-history] Error fetching {t}: {exc}")
+
+
 @app.get("/api/portfolio/metrics")
 def get_portfolio_metrics(authorization: str = Header(default=""), db: Session = Depends(get_db)):
-    """Compute professional portfolio metrics using price_history data."""
+    """Compute professional portfolio metrics, auto-fetching price history when stale."""
     import math as _math
 
     profile_id = _get_profile_id_from_token(authorization)
@@ -1820,6 +1882,9 @@ def get_portfolio_metrics(authorization: str = Header(default=""), db: Session =
     shares_map = {h.ticker: h.shares for h in holdings}
     entry_map = {h.ticker: _entry_date(h) for h in holdings}
     cutoff = min(entry_map.values())
+
+    # Auto-populate price_history for any ticker that has no recent data
+    _ensure_price_history(tickers + ["^GSPC"], db)
 
     ph_rows = (
         db.query(PriceHistory.date, PriceHistory.ticker, PriceHistory.close)
@@ -1847,7 +1912,7 @@ def get_portfolio_metrics(authorization: str = Header(default=""), db: Session =
             history.append({"date": d, "value": val})
 
     if len(history) < 10:
-        return {"metrics": None, "error": "Not enough price history — click Refresh Prices to download data first."}
+        return {"metrics": None, "error": "Not enough price history yet — try again in a moment."}
 
     values = [h["value"] for h in history]
     daily_returns = [(values[i] - values[i - 1]) / values[i - 1] for i in range(1, len(values))]
