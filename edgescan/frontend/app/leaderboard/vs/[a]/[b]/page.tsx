@@ -37,8 +37,15 @@ interface HoldingItem {
 function Avatar({ name, colour, emoji, size = 48 }: { name: string; colour: string; emoji?: string | null; size?: number }) {
   return (
     <div
-      className="rounded-full flex items-center justify-center font-bold text-white shrink-0"
-      style={{ width: size, height: size, background: colour, fontSize: emoji ? Math.round(size * 0.5) : Math.round(size * 0.38) }}
+      className="rounded-full flex items-center justify-center font-bold shrink-0"
+      style={{
+        width: size,
+        height: size,
+        background: colour || '#4F8EF7',
+        color: '#fff',
+        fontSize: emoji ? Math.round(size * 0.5) : Math.round(size * 0.38),
+        flexShrink: 0,
+      }}
     >
       {emoji ?? name.charAt(0).toUpperCase()}
     </div>

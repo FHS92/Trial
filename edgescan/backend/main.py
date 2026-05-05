@@ -211,6 +211,21 @@ def list_profiles(db: Session = Depends(get_db)):
     return [_profile_to_dict(p) for p in profiles]
 
 
+@app.get("/api/profiles/me")
+def get_my_profile(
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    """Return the profile for the currently authenticated token."""
+    pid = _get_profile_id_from_token(authorization)
+    if not pid:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    p = db.query(Profile).filter(Profile.id == pid).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return _profile_to_dict(p)
+
+
 @app.post("/api/profiles", status_code=201)
 def create_profile(body: ProfileCreateIn, db: Session = Depends(get_db)):
     p = Profile(

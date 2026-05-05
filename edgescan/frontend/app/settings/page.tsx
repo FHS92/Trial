@@ -106,14 +106,20 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const token = sessionStorage.getItem('edgescan_profile_token')
-    const profileId = sessionStorage.getItem('edgescan_profile_id')
-    if (!token || !profileId) { router.replace('/'); return }
+    if (!token) { router.replace('/'); return }
 
-    fetch(`${BASE}/api/profiles`, { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then((list: ProfileData[]) => {
-        const p = list.find((x: ProfileData) => x.id === profileId)
-        if (!p) { router.replace('/'); return }
+    fetch(`${BASE}/api/profiles/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+      .then(r => {
+        if (r.status === 401) { router.replace('/'); return null }
+        if (!r.ok) throw new Error()
+        return r.json()
+      })
+      .then((p: ProfileData | null) => {
+        if (!p) return
+        sessionStorage.setItem('edgescan_profile_id', p.id)
         setProfile(p)
         setName(p.name)
         setColour(p.avatarColour)
