@@ -4,23 +4,31 @@ import ScoreRing from '@/components/ScoreRing'
 
 export const dynamic = 'force-dynamic'
 
+function daysDiff(dateStr: string) {
+  return Math.ceil((new Date(dateStr + 'T12:00:00').getTime() - Date.now()) / 86400000)
+}
+
 function daysUntil(dateStr: string) {
-  const diff = Math.ceil((new Date(dateStr + 'T12:00:00').getTime() - Date.now()) / 86400000)
-  if (diff <= 0) return 'Today'
+  const diff = daysDiff(dateStr)
+  if (diff === 0) return 'Today'
   if (diff === 1) return 'Tomorrow'
   return `${diff}d`
 }
 
 function urgencyLevel(dateStr: string): 'today' | 'soon' | 'later' {
-  const diff = Math.ceil((new Date(dateStr + 'T12:00:00').getTime() - Date.now()) / 86400000)
-  if (diff <= 0) return 'today'
+  const diff = daysDiff(dateStr)
+  if (diff === 0) return 'today'
   if (diff <= 7) return 'soon'
   return 'later'
 }
 
 function isThisWeek(dateStr: string) {
-  const diff = Math.ceil((new Date(dateStr + 'T12:00:00').getTime() - Date.now()) / 86400000)
-  return diff <= 7
+  const diff = daysDiff(dateStr)
+  return diff >= 0 && diff <= 7
+}
+
+function isUpcoming(dateStr: string) {
+  return daysDiff(dateStr) >= 0
 }
 
 const URGENCY_STYLES = {
@@ -42,9 +50,10 @@ export default async function EarningsPage() {
     earnings = data.earnings
   } catch {}
 
-  // Group by date
+  // Group by date — only upcoming (today or future)
   const grouped: Record<string, typeof earnings> = {}
   for (const item of earnings) {
+    if (!isUpcoming(item.earnings_date)) continue
     if (!grouped[item.earnings_date]) grouped[item.earnings_date] = []
     grouped[item.earnings_date].push(item)
   }
