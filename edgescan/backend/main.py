@@ -291,7 +291,14 @@ def get_leaderboard(
     # Universal leaderboard start date — all returns measured from here
     START_DATE = date(2026, 5, 1)
 
-    profiles = db.query(Profile).order_by(Profile.created_at.asc()).all()
+    # Profiles excluded from the public leaderboard (comma-separated names in env)
+    _hidden_raw = os.environ.get("LEADERBOARD_HIDDEN_PROFILES", "")
+    hidden_names = {n.strip().lower() for n in _hidden_raw.split(",") if n.strip()}
+
+    profiles = [
+        p for p in db.query(Profile).order_by(Profile.created_at.asc()).all()
+        if p.name.lower() not in hidden_names
+    ]
     if not profiles:
         return {"entries": [], "updated_at": today.isoformat()}
 
