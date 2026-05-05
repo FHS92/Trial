@@ -108,26 +108,49 @@ export default function SettingsPage() {
     const token = sessionStorage.getItem('edgescan_profile_token')
     if (!token) { router.replace('/'); return }
 
+    const profileId = sessionStorage.getItem('edgescan_profile_id')
+
+    function applyProfile(p: ProfileData) {
+      sessionStorage.setItem('edgescan_profile_id', p.id)
+      setProfile(p)
+      setName(p.name)
+      setColour(p.avatarColour)
+      setEmoji(p.avatarEmoji)
+      setTheme((p.themePref as 'dark' | 'light') ?? 'dark')
+      setLoading(false)
+    }
+
+    if (profileId) {
+      // Fast path — profile_id known from sessionStorage
+      fetch(`${BASE}/api/profiles`, { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then((list: ProfileData[]) => {
+          const p = list.find((x: ProfileData) => x.id === profileId)
+          if (!p) { router.replace('/'); return }
+          applyProfile(p)
+        })
+        .catch(() => { router.replace('/'); setLoading(false) })
+      return
+    }
+
+    // profile_id not in sessionStorage (user logged in before this update)
+    // Try /api/profiles/me (requires new backend deployment)
     fetch(`${BASE}/api/profiles/me`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     })
       .then(r => {
+        if (r.status === 404) {
+          // Old backend — redirect so user can re-login and get profile_id stored
+          router.replace('/')
+          return null
+        }
         if (r.status === 401) { router.replace('/'); return null }
         if (!r.ok) throw new Error()
         return r.json()
       })
-      .then((p: ProfileData | null) => {
-        if (!p) return
-        sessionStorage.setItem('edgescan_profile_id', p.id)
-        setProfile(p)
-        setName(p.name)
-        setColour(p.avatarColour)
-        setEmoji(p.avatarEmoji)
-        setTheme((p.themePref as 'dark' | 'light') ?? 'dark')
-      })
-      .catch(() => router.replace('/'))
-      .finally(() => setLoading(false))
+      .then((p: ProfileData | null) => { if (p) applyProfile(p) })
+      .catch(() => { router.replace('/'); setLoading(false) })
   }, [router])
 
   async function saveIdentity() {

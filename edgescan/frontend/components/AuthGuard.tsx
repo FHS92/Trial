@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
 /**
  * Client-side auth guard: redirects to profile picker if no session token exists.
- * Renders a blank screen while the check is in progress to prevent flashing
- * protected content before the redirect fires.
+ * Also opportunistically populates edgescan_profile_id in sessionStorage from
+ * /api/profiles/me so that the settings page works for users who logged in before
+ * the profile_id was stored locally.
  */
 export default function AuthGuard() {
   const router = useRouter()
@@ -16,14 +19,31 @@ export default function AuthGuard() {
     const token = sessionStorage.getItem('edgescan_profile_token')
     if (!token) {
       router.replace('/')
-    } else {
-      setChecked(true)
+      return
     }
+
+    // Populate profile_id if not already stored (once per session)
+    if (!sessionStorage.getItem('edgescan_profile_id')) {
+      fetch(`${BASE}/api/profiles/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.id) {
+            sessionStorage.setItem('edgescan_profile_id', data.id)
+            if (data.themePref) {
+              sessionStorage.setItem('edgescan_theme_pref', data.themePref)
+            }
+          }
+        })
+        .catch(() => {})
+    }
+
+    setChecked(true)
   }, [router])
 
   if (!checked) {
-    // Render an opaque screen so no protected content is visible while
-    // the auth check and potential redirect are in flight.
     return (
       <div
         style={{
@@ -38,3 +58,4 @@ export default function AuthGuard() {
 
   return null
 }
+
