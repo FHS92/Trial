@@ -418,10 +418,12 @@ function Podium({
   entries,
   onSelect,
   window: win,
+  myProfileId,
 }: {
   entries: RankedEntry[]
   onSelect: (e: Entry) => void
   window: TimeWindow
+  myProfileId?: string
 }) {
   const windowLabel = win === 'weekly' ? '7d' : win === 'monthly' ? '30d' : null
 
@@ -430,63 +432,82 @@ function Podium({
       {PODIUM_ORDER.map((entryIdx, posIdx) => {
         const entry = entries[entryIdx]
         if (!entry) return <div key={posIdx} style={{ width: 80 }} />
-        const pedH  = PODIUM_HEIGHT[posIdx]
-        const medal = PODIUM_MEDAL_COLOR[posIdx]
-        const glow  = PODIUM_GLOW[posIdx]
-        const isTop = posIdx === 1
-        const gain  = entry.total_value - entry.total_cost
+        const pedH   = PODIUM_HEIGHT[posIdx]
+        const medal  = PODIUM_MEDAL_COLOR[posIdx]
+        const glow   = PODIUM_GLOW[posIdx]
+        const isTop  = posIdx === 1
+        const gain   = entry.total_value - entry.total_cost
+        const showVs = myProfileId && myProfileId !== entry.profile_id
 
         return (
-          <button
+          <div
             key={entry.profile_id}
-            className="flex flex-col items-center cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            style={{ width: isTop ? 96 : 80, background: 'none', border: 'none', padding: 0 }}
-            onClick={() => onSelect(entry)}
-            aria-label={`View ${entry.name}'s portfolio`}
+            className="flex flex-col items-center"
+            style={{ width: isTop ? 96 : 80 }}
           >
-            {/* Badges */}
-            <div className="flex gap-0.5 justify-center mb-1 flex-wrap">
-              {entry.badges.map(b => (
-                <span key={b} title={`${BADGE_META[b]?.label}: ${BADGE_META[b]?.desc}`} style={{ fontSize: isTop ? 17 : 14 }}>
-                  {BADGE_META[b]?.emoji}
-                </span>
-              ))}
-            </div>
+            {/* Clickable avatar / info area */}
+            <button
+              className="flex flex-col items-center cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98] w-full"
+              style={{ background: 'none', border: 'none', padding: 0 }}
+              onClick={() => onSelect(entry)}
+              aria-label={`View ${entry.name}'s portfolio`}
+            >
+              {/* Badges */}
+              <div className="flex gap-0.5 justify-center mb-1 flex-wrap">
+                {entry.badges.map(b => (
+                  <span key={b} title={`${BADGE_META[b]?.label}: ${BADGE_META[b]?.desc}`} style={{ fontSize: isTop ? 17 : 14 }}>
+                    {BADGE_META[b]?.emoji}
+                  </span>
+                ))}
+              </div>
 
-            {/* Avatar */}
-            <div className="relative mb-1">
-              <Avatar name={entry.name} colour={entry.avatar_colour} size={isTop ? 64 : 50} />
-              {isTop && (
-                <div
-                  className="absolute inset-0 rounded-full"
-                  style={{ boxShadow: `0 0 28px 6px ${entry.avatar_colour}66`, borderRadius: '50%', animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' }}
-                />
-              )}
-              {entry.is_me && (
-                <div className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center"
-                  style={{ width: 18, height: 18, background: '#4f8ef7', fontSize: 8, color: '#fff', fontWeight: 700 }}>
-                  YOU
-                </div>
-              )}
-            </div>
+              {/* Avatar */}
+              <div className="relative mb-1">
+                <Avatar name={entry.name} colour={entry.avatar_colour} size={isTop ? 64 : 50} />
+                {isTop && (
+                  <div
+                    className="absolute inset-0 rounded-full"
+                    style={{ boxShadow: `0 0 28px 6px ${entry.avatar_colour}66`, borderRadius: '50%', animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' }}
+                  />
+                )}
+                {entry.is_me && (
+                  <div className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center"
+                    style={{ width: 18, height: 18, background: '#4f8ef7', fontSize: 8, color: '#fff', fontWeight: 700 }}>
+                    YOU
+                  </div>
+                )}
+              </div>
 
-            {/* Name */}
-            <p className="text-center font-semibold truncate w-full mb-0.5"
-              style={{ color: 'var(--color-text)', fontSize: isTop ? 13 : 11 }}>
-              {entry.name}
-            </p>
-
-            {/* Primary return % for active window */}
-            {windowLabel && (
-              <p className="text-xs mb-0.5" style={{ color: '#4a556b' }}>{windowLabel}</p>
-            )}
-            <ReturnPct pct={entry.display_pct} className={isTop ? 'text-sm' : 'text-xs'} />
-
-            {/* Always show $ gain (all-time) as secondary */}
-            {win === 'alltime' && (
-              <p className="text-xs mt-0.5" style={{ color: gain >= 0 ? '#22c55e88' : '#ef444488' }}>
-                {gain >= 0 ? '+' : ''}{fmtDollar(gain)}
+              {/* Name */}
+              <p className="text-center font-semibold truncate w-full mb-0.5"
+                style={{ color: 'var(--color-text)', fontSize: isTop ? 13 : 11 }}>
+                {entry.name}
               </p>
+
+              {/* Primary return % for active window */}
+              {windowLabel && (
+                <p className="text-xs mb-0.5" style={{ color: '#4a556b' }}>{windowLabel}</p>
+              )}
+              <ReturnPct pct={entry.display_pct} className={isTop ? 'text-sm' : 'text-xs'} />
+
+              {/* Always show $ gain (all-time) as secondary */}
+              {win === 'alltime' && (
+                <p className="text-xs mt-0.5" style={{ color: gain >= 0 ? '#22c55e88' : '#ef444488' }}>
+                  {gain >= 0 ? '+' : ''}{fmtDollar(gain)}
+                </p>
+              )}
+            </button>
+
+            {/* VS button */}
+            {showVs && (
+              <Link
+                href={`/leaderboard/vs/${myProfileId}/${entry.profile_id}`}
+                className="mt-1.5 text-xs font-bold px-2.5 py-1 rounded-lg transition-colors hover:brightness-110"
+                style={{ background: 'rgba(79,142,247,0.1)', color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.2)' }}
+                title={`Compare you vs ${entry.name}`}
+              >
+                VS
+              </Link>
             )}
 
             {/* Pedestal */}
@@ -494,7 +515,7 @@ function Podium({
               style={{ height: pedH, background: `linear-gradient(180deg, ${glow} 0%, transparent 100%)`, border: `1px solid ${medal}44`, borderBottom: 'none' }}>
               <span className="font-black text-2xl" style={{ color: medal }}>{entry.display_rank}</span>
             </div>
-          </button>
+          </div>
         )
       })}
     </div>
@@ -694,7 +715,7 @@ export default function LeaderboardPage() {
             <WindowTabs active={timeWindow} onChange={setTimeWindow} />
 
             {/* Podium */}
-            <Podium entries={podiumEntries} onSelect={handleSelect} window={timeWindow} />
+            <Podium entries={podiumEntries} onSelect={handleSelect} window={timeWindow} myProfileId={myProfileId} />
 
             {/* Ranks 4+ */}
             {restEntries.length > 0 && (
