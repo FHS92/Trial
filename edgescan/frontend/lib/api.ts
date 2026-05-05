@@ -111,7 +111,13 @@ export const api = {
     return fetch(`${BASE}/api/portfolio/metrics`, {
       cache: 'no-store',
       headers: { ...authHeaders() },
-    }).then(r => r.json())
+    }).then(async r => {
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        throw new Error(body.detail ?? `Server error ${r.status}`)
+      }
+      return r.json()
+    })
   },
 
   async refreshPortfolioPrices(): Promise<{ status: string; rows_updated: number; message?: string }> {

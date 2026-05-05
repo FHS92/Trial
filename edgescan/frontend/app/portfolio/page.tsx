@@ -142,7 +142,7 @@ export default function PortfolioPage() {
       if (res.metrics) {
         setMetrics(res.metrics)
       } else {
-        setMetricsError(res.error ?? 'No metrics available.')
+        setMetricsError(typeof res.error === 'string' ? res.error : 'No metrics available.')
       }
     } catch {
       setMetricsError('Could not load metrics.')
