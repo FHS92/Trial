@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import TickerSearch from '@/components/TickerSearch'
-import type { PortfolioHolding, PortfolioSummary, SearchResult } from '@/lib/types'
+import type { PortfolioHolding, PortfolioSummary, PortfolioMetrics, SearchResult } from '@/lib/types'
 
 function slugify(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 40)
@@ -109,6 +109,11 @@ export default function PortfolioPage() {
   const [error, setError] = useState<string | null>(null)
   const [history, setHistory] = useState<HistoryPoint[]>([])
 
+  const [metrics, setMetrics] = useState<PortfolioMetrics | null>(null)
+  const [metricsLoading, setMetricsLoading] = useState(false)
+  const [metricsError, setMetricsError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
   const [showForm, setShowForm] = useState(false)
   const [ticker, setTicker] = useState('')
   const [amount, setAmount] = useState('')
@@ -127,6 +132,36 @@ export default function PortfolioPage() {
     setProfileName(name)
     setUsername(slugify(name))
   }, [router])
+
+  const fetchMetrics = useCallback(async () => {
+    setMetricsLoading(true)
+    setMetricsError(null)
+    try {
+      const res = await api.portfolioMetrics()
+      if (res.metrics) {
+        setMetrics(res.metrics)
+      } else {
+        setMetricsError(res.error ?? 'No metrics available.')
+      }
+    } catch {
+      setMetricsError('Could not load metrics.')
+    } finally {
+      setMetricsLoading(false)
+    }
+  }, [])
+
+  const handleRefreshPrices = useCallback(async () => {
+    setRefreshing(true)
+    setMetricsError(null)
+    try {
+      await api.refreshPortfolioPrices()
+      await fetchMetrics()
+    } catch {
+      setMetricsError('Price refresh failed. Is the backend running?')
+    } finally {
+      setRefreshing(false)
+    }
+  }, [fetchMetrics])
 
   const loadPortfolio = useCallback(async (user: string) => {
     setLoading(true)
@@ -155,8 +190,11 @@ export default function PortfolioPage() {
   }, [router])
 
   useEffect(() => {
-    if (username) loadPortfolio(username)
-  }, [username, loadPortfolio])
+    if (username) {
+      loadPortfolio(username)
+      fetchMetrics()
+    }
+  }, [username, loadPortfolio, fetchMetrics])
 
   function handleStockSelect(result: SearchResult) {
     setTicker(result.ticker)
@@ -229,6 +267,126 @@ export default function PortfolioPage() {
             ))}
           </div>
         )}
+
+        {/* Professional Metrics strip */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-2)' }}>
+              Portfolio Metrics
+            </p>
+            <button
+              onClick={handleRefreshPrices}
+              disabled={refreshing || loading}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium disabled:opacity-50 transition-colors"
+              style={{ background: 'var(--color-border)', color: 'var(--color-text-2)', border: '1px solid var(--color-border-2)' }}
+            >
+              {refreshing ? (
+                <>
+                  <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                  </svg>
+                  Refreshing…
+                </>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                  </svg>
+                  Refresh Prices
+                </>
+              )}
+            </button>
+          </div>
+
+          {metricsError && !metrics && (
+            <p className="text-xs px-3 py-2 rounded-lg mb-2" style={{ background: 'rgba(79,142,247,0.08)', color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.2)' }}>
+              {metricsError} Click <strong>Refresh Prices</strong> to download price history.
+            </p>
+          )}
+
+          {metricsLoading && !metrics && (
+            <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Loading metrics…</p>
+          )}
+
+          {metrics && (() => {
+            function metricColor(val: number | null, thresholds: [number, number], invert = false) {
+              if (val === null) return 'var(--color-text-2)'
+              const [lo, hi] = thresholds
+              if (invert) return val <= lo ? '#22c55e' : val <= hi ? '#f59e0b' : '#ef4444'
+              return val >= hi ? '#22c55e' : val >= lo ? '#f59e0b' : '#ef4444'
+            }
+
+            const cards = [
+              {
+                label: 'Sharpe Ratio',
+                value: metrics.sharpe_ratio !== null ? metrics.sharpe_ratio.toFixed(2) : '—',
+                color: metricColor(metrics.sharpe_ratio, [0, 1]),
+                hint: 'Risk-adj. return (>1 = good)',
+              },
+              {
+                label: 'Max Drawdown',
+                value: metrics.max_drawdown_pct !== undefined ? `${metrics.max_drawdown_pct.toFixed(1)}%` : '—',
+                color: metricColor(metrics.max_drawdown_pct, [-20, -10], true),
+                hint: 'Largest peak-to-trough loss',
+              },
+              {
+                label: 'Ann. Volatility',
+                value: `${metrics.annual_volatility_pct.toFixed(1)}%`,
+                color: metricColor(metrics.annual_volatility_pct, [15, 30], true),
+                hint: 'Annualised std of daily returns',
+              },
+              {
+                label: 'Beta vs SPX',
+                value: metrics.beta !== null ? metrics.beta.toFixed(2) : '—',
+                color: metricColor(metrics.beta, [0.8, 1.3], true),
+                hint: 'Sensitivity to S&P 500 moves',
+              },
+              {
+                label: 'Win Rate',
+                value: metrics.win_rate_pct !== null ? `${metrics.win_rate_pct.toFixed(0)}%` : '—',
+                color: metricColor(metrics.win_rate_pct, [40, 60]),
+                hint: '% of positions profitable',
+              },
+              {
+                label: 'Best Position',
+                value: metrics.best_position
+                  ? `${metrics.best_position.ticker} ${metrics.best_position.return_pct >= 0 ? '+' : ''}${metrics.best_position.return_pct.toFixed(1)}%`
+                  : '—',
+                color: '#22c55e',
+                hint: 'Highest returning holding',
+              },
+              {
+                label: 'Worst Position',
+                value: metrics.worst_position
+                  ? `${metrics.worst_position.ticker} ${metrics.worst_position.return_pct >= 0 ? '+' : ''}${metrics.worst_position.return_pct.toFixed(1)}%`
+                  : '—',
+                color: '#ef4444',
+                hint: 'Lowest returning holding',
+              },
+            ]
+
+            return (
+              <div className="flex gap-2.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                {cards.map(card => (
+                  <div
+                    key={card.label}
+                    className="rounded-xl p-3 shrink-0"
+                    style={{
+                      background: 'var(--color-card)',
+                      border: '1px solid var(--color-border)',
+                      minWidth: 110,
+                    }}
+                    title={card.hint}
+                  >
+                    <p className="text-xs mb-1 whitespace-nowrap" style={{ color: 'var(--color-text-2)' }}>{card.label}</p>
+                    <p className="text-sm font-bold whitespace-nowrap" style={{ color: card.color }}>{card.value}</p>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+        </div>
 
         {/* Portfolio value chart */}
         {history.length >= 2 && <PortfolioChart history={history} />}

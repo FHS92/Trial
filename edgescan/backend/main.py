@@ -1653,6 +1653,314 @@ def delete_holding(username: str, ticker: str, authorization: str = Header(defau
 
 
 # ---------------------------------------------------------------------------
+# Scan movers — score changes between last two scans per ticker
+# ---------------------------------------------------------------------------
+
+@app.get("/api/scan/movers")
+def get_scan_movers(top_n: int = 10, db: Session = Depends(get_db)):
+    """Return top score risers and fallers comparing each ticker's two most recent scans."""
+    sql = text("""
+        WITH ranked AS (
+            SELECT
+                ticker, name, sector, score, current_price, scanned_at,
+                ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY scanned_at DESC) AS rn
+            FROM scan_results
+        )
+        SELECT
+            r1.ticker,
+            r1.name,
+            r1.sector,
+            r1.score        AS current_score,
+            r1.current_price,
+            r2.score        AS prev_score,
+            r1.scanned_at   AS current_ts,
+            r2.scanned_at   AS prev_ts
+        FROM ranked r1
+        JOIN ranked r2 ON r1.ticker = r2.ticker AND r2.rn = 2
+        WHERE r1.rn = 1
+    """)
+    rows = db.execute(sql).fetchall()
+
+    if not rows:
+        return {"risers": [], "fallers": [], "current_scan": None, "previous_scan": None}
+
+    def _ts(v) -> Optional[str]:
+        if v is None:
+            return None
+        return v if isinstance(v, str) else v.isoformat()
+
+    movers = []
+    sample_current = None
+    sample_previous = None
+    for row in rows:
+        delta = (row.current_score or 0) - (row.prev_score or 0)
+        if delta == 0:
+            continue
+        movers.append({
+            "ticker": row.ticker,
+            "name": row.name,
+            "sector": row.sector,
+            "score": row.current_score,
+            "prev_score": row.prev_score,
+            "score_change": delta,
+            "current_price": row.current_price,
+        })
+        if sample_current is None:
+            sample_current = _ts(row.current_ts)
+            sample_previous = _ts(row.prev_ts)
+
+    movers.sort(key=lambda x: x["score_change"], reverse=True)
+    risers = [m for m in movers if m["score_change"] > 0][:top_n]
+    fallers = list(reversed([m for m in movers if m["score_change"] < 0]))[:top_n]
+
+    return {
+        "risers": risers,
+        "fallers": fallers,
+        "current_scan": sample_current,
+        "previous_scan": sample_previous,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Portfolio price refresh + professional metrics
+# ---------------------------------------------------------------------------
+
+@app.post("/api/portfolio/refresh-prices")
+def refresh_portfolio_prices(authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    """Download 1-year price history for all holdings + ^GSPC and upsert into price_history."""
+    import math as _math
+    import yfinance as yf
+    import pandas as pd
+
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+
+    holdings = (
+        db.query(PortfolioHolding)
+        .filter(PortfolioHolding.profile_id == profile_id)
+        .all()
+    )
+    if not holdings:
+        return {"status": "ok", "rows_updated": 0, "message": "No holdings to refresh."}
+
+    tickers_to_refresh = list({h.ticker for h in holdings}) + ["^GSPC"]
+    count = 0
+
+    for t in tickers_to_refresh:
+        try:
+            df = yf.download(t, period="1y", auto_adjust=True, progress=False)
+            if df is None or df.empty:
+                continue
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+
+            for dt_idx, row_data in df.iterrows():
+                close_val = row_data.get("Close")
+                if close_val is None or (isinstance(close_val, float) and _math.isnan(close_val)):
+                    continue
+                d = dt_idx.date() if hasattr(dt_idx, "date") else dt_idx
+                close_f = round(float(close_val), 4)
+
+                def _safe_float(v, fallback):
+                    try:
+                        f = float(v)
+                        return fallback if _math.isnan(f) else round(f, 4)
+                    except Exception:
+                        return fallback
+
+                existing = (
+                    db.query(PriceHistory)
+                    .filter(PriceHistory.ticker == t, PriceHistory.date == d)
+                    .first()
+                )
+                if existing:
+                    existing.close = close_f
+                else:
+                    db.add(PriceHistory(
+                        ticker=t,
+                        date=d,
+                        close=close_f,
+                        open=_safe_float(row_data.get("Open"), close_f),
+                        high=_safe_float(row_data.get("High"), close_f),
+                        low=_safe_float(row_data.get("Low"), close_f),
+                        volume=_safe_float(row_data.get("Volume"), None),
+                    ))
+                count += 1
+            db.commit()
+        except Exception as exc:
+            print(f"[refresh-prices] Error for {t}: {exc}")
+
+    return {"status": "ok", "rows_updated": count}
+
+
+@app.get("/api/portfolio/metrics")
+def get_portfolio_metrics(authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    """Compute professional portfolio metrics using price_history data."""
+    import math as _math
+
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+
+    holdings = (
+        db.query(PortfolioHolding)
+        .filter(PortfolioHolding.profile_id == profile_id)
+        .all()
+    )
+    if not holdings:
+        return {"metrics": None, "error": "No holdings"}
+
+    def _entry_date(h: PortfolioHolding) -> date:
+        if h.buy_date:
+            return h.buy_date
+        return h.added_at.date() if h.added_at else date.today()
+
+    tickers = [h.ticker for h in holdings]
+    shares_map = {h.ticker: h.shares for h in holdings}
+    entry_map = {h.ticker: _entry_date(h) for h in holdings}
+    cutoff = min(entry_map.values())
+
+    ph_rows = (
+        db.query(PriceHistory.date, PriceHistory.ticker, PriceHistory.close)
+        .filter(PriceHistory.ticker.in_(tickers), PriceHistory.date >= cutoff)
+        .order_by(PriceHistory.date.asc())
+        .all()
+    )
+
+    date_closes: dict[date, dict[str, float]] = {}
+    for r in ph_rows:
+        if r.date not in date_closes:
+            date_closes[r.date] = {}
+        if r.close is not None:
+            date_closes[r.date][r.ticker] = r.close
+
+    history = []
+    for d in sorted(date_closes.keys()):
+        closes = date_closes[d]
+        val = sum(
+            shares_map[t] * closes[t]
+            for t in tickers
+            if t in closes and entry_map[t] <= d
+        )
+        if val > 0:
+            history.append({"date": d, "value": val})
+
+    if len(history) < 10:
+        return {"metrics": None, "error": "Not enough price history — click Refresh Prices to download data first."}
+
+    values = [h["value"] for h in history]
+    daily_returns = [(values[i] - values[i - 1]) / values[i - 1] for i in range(1, len(values))]
+    n = len(daily_returns)
+    mean_r = sum(daily_returns) / n
+    variance = sum((r - mean_r) ** 2 for r in daily_returns) / max(n - 1, 1)
+    std_r = _math.sqrt(variance) if variance > 0 else 0.0
+
+    risk_free_daily = 0.05 / 252
+    sharpe = ((mean_r - risk_free_daily) / std_r * _math.sqrt(252)) if std_r > 0 else None
+    annual_vol = std_r * _math.sqrt(252) * 100
+
+    peak = values[0]
+    max_dd = 0.0
+    for v in values:
+        if v > peak:
+            peak = v
+        dd = (v - peak) / peak
+        if dd < max_dd:
+            max_dd = dd
+    max_drawdown = max_dd * 100
+
+    # Beta vs SPX
+    beta = None
+    spx_ph = (
+        db.query(PriceHistory.date, PriceHistory.close)
+        .filter(PriceHistory.ticker == "^GSPC", PriceHistory.date >= cutoff)
+        .order_by(PriceHistory.date.asc())
+        .all()
+    )
+    if len(spx_ph) >= 10:
+        spx_map = {r.date: r.close for r in spx_ph if r.close}
+        port_map = {h["date"]: h["value"] for h in history}
+        common = sorted(set(spx_map) & set(port_map))
+        if len(common) >= 10:
+            pv = [port_map[d] for d in common]
+            sv = [spx_map[d] for d in common]
+            pr = [(pv[i] - pv[i - 1]) / pv[i - 1] for i in range(1, len(pv))]
+            sr = [(sv[i] - sv[i - 1]) / sv[i - 1] for i in range(1, len(sv))]
+            nr = len(pr)
+            mp = sum(pr) / nr
+            ms = sum(sr) / nr
+            cov = sum((pr[i] - mp) * (sr[i] - ms) for i in range(nr)) / max(nr - 1, 1)
+            var_s = sum((sr[i] - ms) ** 2 for i in range(nr)) / max(nr - 1, 1)
+            beta = round(cov / var_s, 2) if var_s > 0 else None
+
+    # Win rate + best/worst using latest close from price_history
+    wins = 0
+    best_ticker = None
+    best_pct: Optional[float] = None
+    worst_ticker = None
+    worst_pct: Optional[float] = None
+
+    for h in holdings:
+        lp = (
+            db.query(PriceHistory)
+            .filter(PriceHistory.ticker == h.ticker)
+            .order_by(PriceHistory.date.desc())
+            .first()
+        )
+        if lp and lp.close and h.buy_price > 0:
+            pct = ((lp.close - h.buy_price) / h.buy_price) * 100
+            if pct >= 0:
+                wins += 1
+            if best_pct is None or pct > best_pct:
+                best_pct = pct
+                best_ticker = h.ticker
+            if worst_pct is None or pct < worst_pct:
+                worst_pct = pct
+                worst_ticker = h.ticker
+
+    win_rate = round((wins / len(holdings)) * 100, 1) if holdings else None
+
+    # Weighted avg EdgeScan score by current value
+    score_num = 0.0
+    score_den = 0.0
+    for h in holdings:
+        sr = (
+            db.query(ScanResult)
+            .filter(ScanResult.ticker == h.ticker)
+            .order_by(ScanResult.scanned_at.desc())
+            .first()
+        )
+        if sr and sr.score is not None:
+            lp = (
+                db.query(PriceHistory)
+                .filter(PriceHistory.ticker == h.ticker)
+                .order_by(PriceHistory.date.desc())
+                .first()
+            )
+            price = (lp.close if lp and lp.close else h.buy_price) or h.buy_price
+            w = h.shares * price
+            score_num += sr.score * w
+            score_den += w
+
+    avg_score = round(score_num / score_den, 1) if score_den > 0 else None
+
+    return {
+        "metrics": {
+            "sharpe_ratio": round(sharpe, 2) if sharpe is not None else None,
+            "max_drawdown_pct": round(max_drawdown, 2),
+            "annual_volatility_pct": round(annual_vol, 2),
+            "beta": beta,
+            "win_rate_pct": win_rate,
+            "best_position": {"ticker": best_ticker, "return_pct": round(best_pct, 2)} if best_ticker else None,
+            "worst_position": {"ticker": worst_ticker, "return_pct": round(worst_pct, 2)} if worst_ticker else None,
+            "avg_score": avg_score,
+            "data_points": len(history),
+        }
+    }
+
+
+# ---------------------------------------------------------------------------
 # Backtest endpoints
 # ---------------------------------------------------------------------------
 

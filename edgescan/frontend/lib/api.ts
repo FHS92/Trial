@@ -10,6 +10,8 @@ import type {
   EarningsCalendarResponse,
   NewsResponse,
   WeeklySnapshotResponse,
+  ScanMoversResponse,
+  PortfolioMetricsResponse,
 } from './types'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -99,5 +101,24 @@ export const api = {
 
   weeklySnapshot(): Promise<WeeklySnapshotResponse> {
     return get<WeeklySnapshotResponse>('/api/weekly-snapshot')
+  },
+
+  scanMovers(topN = 10): Promise<ScanMoversResponse> {
+    return get<ScanMoversResponse>(`/api/scan/movers?top_n=${topN}`)
+  },
+
+  portfolioMetrics(): Promise<PortfolioMetricsResponse> {
+    return fetch(`${BASE}/api/portfolio/metrics`, {
+      cache: 'no-store',
+      headers: { ...authHeaders() },
+    }).then(r => r.json())
+  },
+
+  refreshPortfolioPrices(): Promise<{ status: string; rows_updated: number; message?: string }> {
+    return fetch(`${BASE}/api/portfolio/refresh-prices`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { ...authHeaders() },
+    }).then(r => r.json())
   },
 }

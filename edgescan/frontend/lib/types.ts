@@ -211,6 +211,44 @@ export interface PortfolioResponse {
   summary: PortfolioSummary
 }
 
+// ─── Scan movers ─────────────────────────────────────────────────────────────
+
+export interface ScanMover {
+  ticker: string
+  name: string | null
+  sector: string | null
+  score: number
+  prev_score: number
+  score_change: number
+  current_price: number | null
+}
+
+export interface ScanMoversResponse {
+  risers: ScanMover[]
+  fallers: ScanMover[]
+  current_scan: string | null
+  previous_scan: string | null
+}
+
+// ─── Portfolio metrics ────────────────────────────────────────────────────────
+
+export interface PortfolioMetrics {
+  sharpe_ratio: number | null
+  max_drawdown_pct: number
+  annual_volatility_pct: number
+  beta: number | null
+  win_rate_pct: number | null
+  best_position: { ticker: string; return_pct: number } | null
+  worst_position: { ticker: string; return_pct: number } | null
+  avg_score: number | null
+  data_points: number
+}
+
+export interface PortfolioMetricsResponse {
+  metrics: PortfolioMetrics | null
+  error?: string
+}
+
 // ─── Signal display helpers ───────────────────────────────────────────────────
 
 export type SignalStatus = 'green' | 'amber' | 'red'

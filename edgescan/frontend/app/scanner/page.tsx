@@ -4,11 +4,20 @@ import StockRow from '@/components/StockRow'
 import MarketStrip from '@/components/MarketStrip'
 import UniverseBadge from '@/components/UniverseBadge'
 import ScanButton from '@/components/ScanButton'
-import type { StockResult } from '@/lib/types'
+import type { StockResult, ScanMover } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
 const SECTORS = ['All', 'Technology', 'Financials', 'Healthcare', 'Energy', 'Industrials', 'Consumer']
+
+async function getMovers(): Promise<{ risers: ScanMover[]; fallers: ScanMover[] }> {
+  try {
+    const data = await api.scanMovers(5)
+    return { risers: data.risers ?? [], fallers: data.fallers ?? [] }
+  } catch {
+    return { risers: [], fallers: [] }
+  }
+}
 
 async function getTopStocks(): Promise<{
   results: StockResult[]
@@ -44,7 +53,10 @@ export default async function ScannerPage({
 }: {
   searchParams: { sector?: string; show?: string }
 }) {
-  const { results, meta, lastScannedMinutesAgo, totalScanned } = await getTopStocks()
+  const [{ results, meta, lastScannedMinutesAgo, totalScanned }, movers] = await Promise.all([
+    getTopStocks(),
+    getMovers(),
+  ])
   const activeSector = searchParams?.sector ?? 'All'
   const showAll = searchParams?.show === 'all'
 
@@ -125,6 +137,72 @@ export default async function ScannerPage({
           <ScanButton />
           </div>
         </div>
+
+        {/* What Changed — score movers */}
+        {(movers.risers.length > 0 || movers.fallers.length > 0) && (
+          <div className="mb-6">
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-text-2)' }}>
+              What Changed
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Risers */}
+              <div
+                className="rounded-xl p-3"
+                style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.18)' }}
+              >
+                <p className="text-xs font-semibold mb-2" style={{ color: '#22c55e' }}>▲ Top Risers</p>
+                {movers.risers.map(m => (
+                  <Link
+                    key={m.ticker}
+                    href={`/stock/${m.ticker}`}
+                    className="flex items-center justify-between py-1 group"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-bold group-hover:underline truncate" style={{ color: 'var(--color-text)' }}>
+                        {m.ticker}
+                      </span>
+                      <span className="text-xs" style={{ color: 'var(--color-text-2)' }}>{m.score}</span>
+                    </div>
+                    <span
+                      className="text-xs font-bold px-1.5 py-0.5 rounded ml-2 shrink-0"
+                      style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}
+                    >
+                      +{m.score_change}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Fallers */}
+              <div
+                className="rounded-xl p-3"
+                style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.18)' }}
+              >
+                <p className="text-xs font-semibold mb-2" style={{ color: '#ef4444' }}>▼ Top Fallers</p>
+                {movers.fallers.map(m => (
+                  <Link
+                    key={m.ticker}
+                    href={`/stock/${m.ticker}`}
+                    className="flex items-center justify-between py-1 group"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-bold group-hover:underline truncate" style={{ color: 'var(--color-text)' }}>
+                        {m.ticker}
+                      </span>
+                      <span className="text-xs" style={{ color: 'var(--color-text-2)' }}>{m.score}</span>
+                    </div>
+                    <span
+                      className="text-xs font-bold px-1.5 py-0.5 rounded ml-2 shrink-0"
+                      style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}
+                    >
+                      {m.score_change}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Sector filter pills */}
         <div className="flex gap-1.5 sm:gap-2 flex-wrap mb-5">
