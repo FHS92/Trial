@@ -234,10 +234,11 @@ export interface ScanMoversResponse {
 
 export interface PortfolioMetrics {
   sharpe_ratio: number | null
-  max_drawdown_pct: number
-  annual_volatility_pct: number
+  max_drawdown_pct: number | null
+  annual_volatility_pct: number | null
   beta: number | null
   win_rate_pct: number | null
+  total_return_pct: number | null
   best_position: { ticker: string; return_pct: number } | null
   worst_position: { ticker: string; return_pct: number } | null
   avg_score: number | null

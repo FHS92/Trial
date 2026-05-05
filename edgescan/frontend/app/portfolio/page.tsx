@@ -282,34 +282,16 @@ const loadPortfolio = useCallback(async (user: string) => {
 
             const cards = [
               {
-                label: 'Sharpe Ratio',
-                value: metrics.sharpe_ratio !== null ? metrics.sharpe_ratio.toFixed(2) : '—',
-                color: metricColor(metrics.sharpe_ratio, [0, 1]),
-                hint: 'Risk-adj. return (>1 = good)',
-              },
-              {
-                label: 'Max Drawdown',
-                value: metrics.max_drawdown_pct !== undefined ? `${metrics.max_drawdown_pct.toFixed(1)}%` : '—',
-                color: metricColor(metrics.max_drawdown_pct, [-20, -10], true),
-                hint: 'Largest peak-to-trough loss',
-              },
-              {
-                label: 'Ann. Volatility',
-                value: `${metrics.annual_volatility_pct.toFixed(1)}%`,
-                color: metricColor(metrics.annual_volatility_pct, [15, 30], true),
-                hint: 'Annualised std of daily returns',
-              },
-              {
-                label: 'Beta vs SPX',
-                value: metrics.beta !== null ? metrics.beta.toFixed(2) : '—',
-                color: metricColor(metrics.beta, [0.8, 1.3], true),
-                hint: 'Sensitivity to S&P 500 moves',
+                label: 'Total Return',
+                value: metrics.total_return_pct !== null ? `${metrics.total_return_pct >= 0 ? '+' : ''}${metrics.total_return_pct.toFixed(2)}%` : '—',
+                color: metricColor(metrics.total_return_pct, [0, 10]),
+                hint: 'Overall portfolio return since purchase',
               },
               {
                 label: 'Win Rate',
                 value: metrics.win_rate_pct !== null ? `${metrics.win_rate_pct.toFixed(0)}%` : '—',
                 color: metricColor(metrics.win_rate_pct, [40, 60]),
-                hint: '% of positions profitable',
+                hint: '% of positions currently profitable',
               },
               {
                 label: 'Best Position',
@@ -326,6 +308,36 @@ const loadPortfolio = useCallback(async (user: string) => {
                   : '—',
                 color: '#ef4444',
                 hint: 'Lowest returning holding',
+              },
+              {
+                label: 'Avg Score',
+                value: metrics.avg_score !== null ? metrics.avg_score.toFixed(0) : '—',
+                color: metricColor(metrics.avg_score, [50, 70]),
+                hint: 'Value-weighted EdgeScan score',
+              },
+              {
+                label: 'Sharpe Ratio',
+                value: metrics.sharpe_ratio !== null ? metrics.sharpe_ratio.toFixed(2) : '—',
+                color: metricColor(metrics.sharpe_ratio, [0, 1]),
+                hint: 'Risk-adj. return — needs price history',
+              },
+              {
+                label: 'Max Drawdown',
+                value: metrics.max_drawdown_pct !== null ? `${metrics.max_drawdown_pct.toFixed(1)}%` : '—',
+                color: metricColor(metrics.max_drawdown_pct, [-20, -10], true),
+                hint: 'Largest peak-to-trough loss — needs price history',
+              },
+              {
+                label: 'Ann. Volatility',
+                value: metrics.annual_volatility_pct !== null ? `${metrics.annual_volatility_pct.toFixed(1)}%` : '—',
+                color: metricColor(metrics.annual_volatility_pct, [15, 30], true),
+                hint: 'Annualised std of daily returns — needs price history',
+              },
+              {
+                label: 'Beta vs SPX',
+                value: metrics.beta !== null ? metrics.beta.toFixed(2) : '—',
+                color: metricColor(metrics.beta, [0.8, 1.3], true),
+                hint: 'Sensitivity to S&P 500 — needs price history',
               },
             ]
 
