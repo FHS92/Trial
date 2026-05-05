@@ -114,11 +114,16 @@ export const api = {
     }).then(r => r.json())
   },
 
-  refreshPortfolioPrices(): Promise<{ status: string; rows_updated: number; message?: string }> {
-    return fetch(`${BASE}/api/portfolio/refresh-prices`, {
+  async refreshPortfolioPrices(): Promise<{ status: string; rows_updated: number; message?: string }> {
+    const r = await fetch(`${BASE}/api/portfolio/refresh-prices`, {
       method: 'POST',
       cache: 'no-store',
       headers: { ...authHeaders() },
-    }).then(r => r.json())
+    })
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}))
+      throw new Error(body.detail ?? `Server error ${r.status}`)
+    }
+    return r.json()
   },
 }

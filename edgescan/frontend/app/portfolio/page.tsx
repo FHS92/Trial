@@ -113,6 +113,7 @@ export default function PortfolioPage() {
   const [metricsLoading, setMetricsLoading] = useState(false)
   const [metricsError, setMetricsError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [refreshSuccess, setRefreshSuccess] = useState<string | null>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [ticker, setTicker] = useState('')
@@ -153,11 +154,14 @@ export default function PortfolioPage() {
   const handleRefreshPrices = useCallback(async () => {
     setRefreshing(true)
     setMetricsError(null)
+    setRefreshSuccess(null)
     try {
-      await api.refreshPortfolioPrices()
+      const result = await api.refreshPortfolioPrices()
+      setRefreshSuccess(`Updated ${result.rows_updated} price rows. Recalculating metrics…`)
       await fetchMetrics()
-    } catch {
-      setMetricsError('Price refresh failed. Is the backend running?')
+      setRefreshSuccess(null)
+    } catch (e: unknown) {
+      setMetricsError(e instanceof Error ? e.message : 'Price refresh failed. Is the backend running?')
     } finally {
       setRefreshing(false)
     }
@@ -299,13 +303,20 @@ export default function PortfolioPage() {
             </button>
           </div>
 
-          {metricsError && !metrics && (
-            <p className="text-xs px-3 py-2 rounded-lg mb-2" style={{ background: 'rgba(79,142,247,0.08)', color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.2)' }}>
-              {metricsError} Click <strong>Refresh Prices</strong> to download price history.
+          {refreshSuccess && (
+            <p className="text-xs px-3 py-2 rounded-lg mb-2" style={{ background: 'rgba(34,197,94,0.08)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)' }}>
+              {refreshSuccess}
             </p>
           )}
 
-          {metricsLoading && !metrics && (
+          {metricsError && (
+            <p className="text-xs px-3 py-2 rounded-lg mb-2" style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
+              {metricsError}
+              {!metrics && <span> — click <strong>Refresh Prices</strong> to download price history first.</span>}
+            </p>
+          )}
+
+          {metricsLoading && (
             <p className="text-xs" style={{ color: 'var(--color-text-2)' }}>Loading metrics…</p>
           )}
 
