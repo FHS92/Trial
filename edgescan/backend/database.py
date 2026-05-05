@@ -70,10 +70,23 @@ def _run_migrations() -> None:
                         name TEXT NOT NULL,
                         pin_hash TEXT,
                         avatar_colour TEXT NOT NULL DEFAULT '#4F8EF7',
+                        avatar_emoji TEXT,
+                        theme_pref TEXT NOT NULL DEFAULT 'dark',
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """))
                 conn.commit()
+
+                # Add new columns to existing profiles table if missing (SQLite)
+                prof_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(profiles)")).fetchall()]
+                if "avatar_emoji" not in prof_cols:
+                    conn.execute(text("ALTER TABLE profiles ADD COLUMN avatar_emoji TEXT"))
+                    conn.commit()
+                    print("[database] Added avatar_emoji to profiles")
+                if "theme_pref" not in prof_cols:
+                    conn.execute(text("ALTER TABLE profiles ADD COLUMN theme_pref TEXT NOT NULL DEFAULT 'dark'"))
+                    conn.commit()
+                    print("[database] Added theme_pref to profiles")
 
                 # Add profile_id to portfolio_holdings if missing
                 ph_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(portfolio_holdings)")).fetchall()]
@@ -132,8 +145,24 @@ def _run_migrations() -> None:
                         name VARCHAR(64) NOT NULL,
                         pin_hash TEXT,
                         avatar_colour VARCHAR(7) NOT NULL DEFAULT '#4F8EF7',
+                        avatar_emoji VARCHAR(8),
+                        theme_pref VARCHAR(10) NOT NULL DEFAULT 'dark',
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
+                """))
+                conn.commit()
+
+                # Add new columns to existing profiles table if missing (PostgreSQL)
+                conn.execute(text("""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                                       WHERE table_name='profiles' AND column_name='avatar_emoji')
+                        THEN ALTER TABLE profiles ADD COLUMN avatar_emoji VARCHAR(8); END IF;
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                                       WHERE table_name='profiles' AND column_name='theme_pref')
+                        THEN ALTER TABLE profiles ADD COLUMN theme_pref VARCHAR(10) NOT NULL DEFAULT 'dark'; END IF;
+                    END $$;
                 """))
                 conn.commit()
 

@@ -17,6 +17,7 @@ interface Entry {
   profile_id: string
   name: string
   avatar_colour: string
+  avatar_emoji: string | null
   return_pct: number
   weekly_return_pct: number
   monthly_return_pct: number
@@ -33,13 +34,13 @@ interface HoldingItem {
   pnl_pct: number | null
 }
 
-function Avatar({ name, colour, size = 48 }: { name: string; colour: string; size?: number }) {
+function Avatar({ name, colour, emoji, size = 48 }: { name: string; colour: string; emoji?: string | null; size?: number }) {
   return (
     <div
       className="rounded-full flex items-center justify-center font-bold text-white shrink-0"
-      style={{ width: size, height: size, background: colour, fontSize: Math.round(size * 0.38) }}
+      style={{ width: size, height: size, background: colour, fontSize: emoji ? Math.round(size * 0.5) : Math.round(size * 0.38) }}
     >
-      {name.charAt(0).toUpperCase()}
+      {emoji ?? name.charAt(0).toUpperCase()}
     </div>
   )
 }
@@ -179,7 +180,7 @@ export default function VsPage({ params }: { params: { a: string; b: string } })
             {/* VS banner */}
             <div className="flex items-center gap-4">
               <div className="flex-1 flex flex-col items-center gap-1.5 text-center">
-                <Avatar name={entryA.name} colour={entryA.avatar_colour} size={56} />
+                <Avatar name={entryA.name} colour={entryA.avatar_colour} emoji={entryA.avatar_emoji} size={56} />
                 <p className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>{entryA.name}</p>
                 <div className="flex gap-0.5 justify-center min-h-[20px]">
                   {entryA.badges.map(b => (
@@ -196,7 +197,7 @@ export default function VsPage({ params }: { params: { a: string; b: string } })
               </div>
 
               <div className="flex-1 flex flex-col items-center gap-1.5 text-center">
-                <Avatar name={entryB.name} colour={entryB.avatar_colour} size={56} />
+                <Avatar name={entryB.name} colour={entryB.avatar_colour} emoji={entryB.avatar_emoji} size={56} />
                 <p className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>{entryB.name}</p>
                 <div className="flex gap-0.5 justify-center min-h-[20px]">
                   {entryB.badges.map(b => (

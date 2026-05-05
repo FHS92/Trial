@@ -25,6 +25,7 @@ interface Entry {
   profile_id: string
   name: string
   avatar_colour: string
+  avatar_emoji: string | null
   total_value: number
   total_cost: number
   return_pct: number
@@ -115,13 +116,13 @@ function rankEntries(entries: Entry[], window: TimeWindow): RankedEntry[] {
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
-function Avatar({ name, colour, size = 48 }: { name: string; colour: string; size?: number }) {
+function Avatar({ name, colour, emoji, size = 48 }: { name: string; colour: string; emoji?: string | null; size?: number }) {
   return (
     <div
       className="rounded-full flex items-center justify-center font-bold text-white shrink-0"
-      style={{ width: size, height: size, background: colour, fontSize: Math.round(size * 0.38) }}
+      style={{ width: size, height: size, background: colour, fontSize: emoji ? Math.round(size * 0.5) : Math.round(size * 0.38) }}
     >
-      {name.charAt(0).toUpperCase()}
+      {emoji ?? name.charAt(0).toUpperCase()}
     </div>
   )
 }
@@ -276,7 +277,7 @@ function HoldingsModal({ entry, onClose }: { entry: Entry; onClose: () => void }
           style={{ background: 'var(--color-card)', borderBottom: '1px solid var(--color-border)' }}
         >
           <div className="flex items-center gap-3">
-            <Avatar name={entry.name} colour={entry.avatar_colour} size={36} />
+            <Avatar name={entry.name} colour={entry.avatar_colour} emoji={entry.avatar_emoji} size={36} />
             <div>
               <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>{entry.name}</p>
               <div className="flex items-center gap-1.5">
@@ -463,7 +464,7 @@ function Podium({
 
               {/* Avatar */}
               <div className="relative mb-1">
-                <Avatar name={entry.name} colour={entry.avatar_colour} size={isTop ? 64 : 50} />
+                <Avatar name={entry.name} colour={entry.avatar_colour} emoji={entry.avatar_emoji} size={isTop ? 64 : 50} />
                 {isTop && (
                   <div
                     className="absolute inset-0 rounded-full"
@@ -557,7 +558,7 @@ function RankRow({
         </span>
 
         <div className="relative shrink-0">
-          <Avatar name={entry.name} colour={entry.avatar_colour} size={36} />
+          <Avatar name={entry.name} colour={entry.avatar_colour} emoji={entry.avatar_emoji} size={36} />
           {entry.is_me && (
             <div className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center"
               style={{ width: 16, height: 16, background: '#4f8ef7', fontSize: 7, color: '#fff', fontWeight: 700 }}>

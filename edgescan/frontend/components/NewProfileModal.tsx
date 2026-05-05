@@ -14,7 +14,7 @@ const AVATAR_COLOURS = [
 ]
 
 interface Props {
-  onSuccess: (token: string, profileName: string) => void
+  onSuccess: (token: string, profileName: string, profileId: string, themePref: string) => void
   onClose: () => void
 }
 
@@ -59,7 +59,7 @@ export default function NewProfileModal({ onSuccess, onClose }: Props) {
         return
       }
       const unlockData = await unlockRes.json()
-      onSuccess(unlockData.token, profile.name)
+      onSuccess(unlockData.token, profile.name, profile.id, unlockData.themePref ?? 'dark')
     } catch {
       setError('Network error, please try again')
     } finally {

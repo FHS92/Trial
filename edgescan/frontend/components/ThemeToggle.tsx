@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
 export default function ThemeToggle() {
   const [light, setLight] = useState(false)
 
@@ -12,7 +14,7 @@ export default function ThemeToggle() {
     }
   }, [])
 
-  function toggle() {
+  async function toggle() {
     const next = !light
     setLight(next)
     if (next) {
@@ -21,6 +23,16 @@ export default function ThemeToggle() {
     } else {
       document.documentElement.classList.remove('light')
       localStorage.setItem('edgescan_theme', 'dark')
+    }
+
+    const token = sessionStorage.getItem('edgescan_profile_token')
+    const profileId = sessionStorage.getItem('edgescan_profile_id')
+    if (token && profileId) {
+      fetch(`${BASE}/api/profiles/${profileId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ themePref: next ? 'light' : 'dark' }),
+      }).catch(() => {})
     }
   }
 

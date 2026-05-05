@@ -7,7 +7,7 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 interface Props {
   profileId: string
   profileName: string
-  onSuccess: (token: string) => void
+  onSuccess: (token: string, profileId: string, themePref: string) => void
   onClose: () => void
 }
 
@@ -28,7 +28,7 @@ export default function PinModal({ profileId, profileName, onSuccess, onClose }:
       })
       if (res.ok) {
         const data = await res.json()
-        onSuccess(data.token)
+        onSuccess(data.token, profileId, data.themePref ?? 'dark')
       } else if (res.status === 401) {
         setError('Incorrect PIN, try again')
         setPin('')

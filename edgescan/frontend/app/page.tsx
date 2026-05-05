@@ -8,10 +8,21 @@ import NewProfileModal from '@/components/NewProfileModal'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
+function applyTheme(pref: string) {
+  if (pref === 'light') {
+    document.documentElement.classList.add('light')
+    localStorage.setItem('edgescan_theme', 'light')
+  } else {
+    document.documentElement.classList.remove('light')
+    localStorage.setItem('edgescan_theme', 'dark')
+  }
+}
+
 interface Profile {
   id: string
   name: string
   avatarColour: string
+  avatarEmoji: string | null
   hasPin: boolean
   createdAt: string | null
 }
@@ -57,6 +68,9 @@ export default function ProfilePickerPage() {
         const data = await res.json()
         sessionStorage.setItem('edgescan_profile_token', data.token)
         sessionStorage.setItem('edgescan_profile_name', profile.name)
+        sessionStorage.setItem('edgescan_profile_id', profile.id)
+        if (data.themePref) sessionStorage.setItem('edgescan_theme_pref', data.themePref)
+        applyTheme(data.themePref ?? 'dark')
         router.push('/scanner')
       }
     } catch {
@@ -64,16 +78,22 @@ export default function ProfilePickerPage() {
     }
   }
 
-  function handlePinSuccess(token: string, profileName: string) {
+  function handlePinSuccess(token: string, profileName: string, profileId?: string, themePref?: string) {
     sessionStorage.setItem('edgescan_profile_token', token)
     sessionStorage.setItem('edgescan_profile_name', profileName)
+    if (profileId) sessionStorage.setItem('edgescan_profile_id', profileId)
+    if (themePref) sessionStorage.setItem('edgescan_theme_pref', themePref)
+    applyTheme(themePref ?? 'dark')
     setPinProfile(null)
     router.push('/scanner')
   }
 
-  function handleNewProfileSuccess(token: string, profileName: string) {
+  function handleNewProfileSuccess(token: string, profileName: string, profileId?: string, themePref?: string) {
     sessionStorage.setItem('edgescan_profile_token', token)
     sessionStorage.setItem('edgescan_profile_name', profileName)
+    if (profileId) sessionStorage.setItem('edgescan_profile_id', profileId)
+    if (themePref) sessionStorage.setItem('edgescan_theme_pref', themePref)
+    applyTheme(themePref ?? 'dark')
     setShowNew(false)
     router.push('/scanner')
   }
@@ -125,16 +145,17 @@ export default function ProfilePickerPage() {
             >
               {/* Avatar circle */}
               <div
-                className="relative flex items-center justify-center rounded-full text-xl font-bold"
+                className="relative flex items-center justify-center rounded-full font-bold"
                 style={{
                   width: '56px',
                   height: '56px',
                   background: profile.avatarColour,
                   color: '#fff',
                   flexShrink: 0,
+                  fontSize: profile.avatarEmoji ? '26px' : '22px',
                 }}
               >
-                {profile.name.charAt(0).toUpperCase()}
+                {profile.avatarEmoji ?? profile.name.charAt(0).toUpperCase()}
                 {profile.hasPin && (
                   <span
                     className="absolute -bottom-1 -right-1 flex items-center justify-center rounded-full"
@@ -199,7 +220,7 @@ export default function ProfilePickerPage() {
         <PinModal
           profileId={pinProfile.id}
           profileName={pinProfile.name}
-          onSuccess={(token) => handlePinSuccess(token, pinProfile.name)}
+          onSuccess={(token, profileId, themePref) => handlePinSuccess(token, pinProfile.name, profileId, themePref)}
           onClose={() => setPinProfile(null)}
         />
       )}
@@ -207,7 +228,7 @@ export default function ProfilePickerPage() {
       {/* New Profile Modal */}
       {showNew && (
         <NewProfileModal
-          onSuccess={handleNewProfileSuccess}
+          onSuccess={(token, name, id, theme) => handleNewProfileSuccess(token, name, id, theme)}
           onClose={() => setShowNew(false)}
         />
       )}

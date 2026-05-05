@@ -26,8 +26,10 @@ class Profile(Base):
 
     id            = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name          = Column(String(64), nullable=False)
-    pin_hash      = Column(Text, nullable=True)   # bcrypt hash, NULL = no PIN
+    pin_hash      = Column(Text, nullable=True)
     avatar_colour = Column(String(7), nullable=False, default="#4F8EF7")
+    avatar_emoji  = Column(String(8), nullable=True)    # e.g. "🦁", NULL = use letter initial
+    theme_pref    = Column(String(10), nullable=False, default="dark")  # "dark" | "light"
     created_at    = Column(DateTime, default=datetime.utcnow)
 
 

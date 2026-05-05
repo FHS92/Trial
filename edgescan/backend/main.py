@@ -133,10 +133,19 @@ class ProfileCreateIn(BaseModel):
     name: str
     pin: Optional[str] = None
     avatarColour: str = "#4F8EF7"
+    avatarEmoji: Optional[str] = None
 
 
 class ProfilePatchIn(BaseModel):
-    name: str
+    name: Optional[str] = None
+    avatarColour: Optional[str] = None
+    avatarEmoji: Optional[str] = None   # empty string = clear emoji
+    themePref: Optional[str] = None     # "dark" | "light"
+
+
+class PinUpdateIn(BaseModel):
+    currentPin: Optional[str] = None   # required if profile already has a PIN
+    newPin: Optional[str] = None       # None / empty = remove PIN
 
 
 class UnlockIn(BaseModel):
@@ -189,6 +198,8 @@ def _profile_to_dict(p: Profile) -> dict:
         "id": p.id,
         "name": p.name,
         "avatarColour": p.avatar_colour,
+        "avatarEmoji": p.avatar_emoji or None,
+        "themePref": p.theme_pref or "dark",
         "hasPin": p.pin_hash is not None,
         "createdAt": p.created_at.isoformat() if p.created_at else None,
     }
@@ -206,6 +217,7 @@ def create_profile(body: ProfileCreateIn, db: Session = Depends(get_db)):
         name=body.name.strip()[:64],
         pin_hash=_pin_hash(body.pin) if body.pin else None,
         avatar_colour=body.avatarColour,
+        avatar_emoji=body.avatarEmoji or None,
     )
     db.add(p)
     db.commit()
@@ -226,10 +238,40 @@ def patch_profile(
     p = db.query(Profile).filter(Profile.id == profile_id).first()
     if not p:
         raise HTTPException(status_code=404, detail="Profile not found")
-    p.name = body.name.strip()[:64]
+    if body.name is not None:
+        p.name = body.name.strip()[:64]
+    if body.avatarColour is not None:
+        p.avatar_colour = body.avatarColour
+    if body.avatarEmoji is not None:
+        p.avatar_emoji = body.avatarEmoji if body.avatarEmoji else None
+    if body.themePref in ("dark", "light"):
+        p.theme_pref = body.themePref
     db.commit()
     db.refresh(p)
     return _profile_to_dict(p)
+
+
+@app.patch("/api/profiles/{profile_id}/pin")
+def update_pin(
+    profile_id: str,
+    body: PinUpdateIn,
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    pid = _get_profile_id_from_token(authorization)
+    if pid != profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    p = db.query(Profile).filter(Profile.id == profile_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    # Verify current PIN if one is set
+    if p.pin_hash is not None:
+        if not body.currentPin or _pin_hash(body.currentPin) != p.pin_hash:
+            raise HTTPException(status_code=401, detail="Current PIN is incorrect")
+    # Set or clear new PIN
+    p.pin_hash = _pin_hash(body.newPin) if body.newPin else None
+    db.commit()
+    return {"hasPin": p.pin_hash is not None}
 
 
 @app.delete("/api/profiles/{profile_id}", status_code=204)
@@ -249,6 +291,20 @@ def delete_profile(
     _delete_sessions_for_profile(profile_id)
 
 
+@app.delete("/api/profiles/{profile_id}/watchlist", status_code=200)
+def clear_watchlist(
+    profile_id: str,
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    pid = _get_profile_id_from_token(authorization)
+    if pid != profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    deleted = db.query(WatchlistItem).filter(WatchlistItem.profile_id == profile_id).delete()
+    db.commit()
+    return {"cleared": deleted}
+
+
 @app.post("/api/profiles/{profile_id}/unlock")
 def unlock_profile(
     profile_id: str,
@@ -265,7 +321,11 @@ def unlock_profile(
 
     token = secrets.token_urlsafe(32)
     _create_session(token, profile_id)
-    return {"token": token}
+    return {
+        "token": token,
+        "avatarEmoji": p.avatar_emoji or None,
+        "themePref": p.theme_pref or "dark",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -383,6 +443,7 @@ def get_leaderboard(
             "profile_id":          profile.id,
             "name":                profile.name,
             "avatar_colour":       profile.avatar_colour,
+            "avatar_emoji":        profile.avatar_emoji or None,
             "total_cost":          round(total_cost, 2),
             "total_value":         round(total_value, 2),
             "leaderboard_cost":    round(leaderboard_cost, 2),
