@@ -32,7 +32,7 @@ interface PortfolioData {
   monthly_history: MonthHistory[]
 }
 
-type Universe = 'sp500' | 'russell'
+type Universe = 'sp500'
 
 function usd(n: number) {
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -48,7 +48,6 @@ function pctColor(n: number) {
 
 const UNIVERSE_OPTIONS: { value: Universe; label: string }[] = [
   { value: 'sp500', label: 'S&P 500' },
-  { value: 'russell', label: 'Russell 1000' },
 ]
 
 export default function PaperTradingPage() {
@@ -109,8 +108,7 @@ export default function PaperTradingPage() {
   }
 
   useEffect(() => {
-    const stored = localStorage.getItem('edgescan_universe') as Universe | null
-    if (stored === 'sp500' || stored === 'russell') setUniverse(stored)
+    localStorage.setItem('edgescan_universe', 'sp500')
   }, [])
 
   useEffect(() => {
@@ -150,26 +148,6 @@ export default function PaperTradingPage() {
           </p>
         </div>
 
-        {/* Universe selector */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {UNIVERSE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => handleUniverseChange(opt.value)}
-              disabled={loading || rebalancing}
-              className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 transition-colors"
-              style={{
-                background: universe === opt.value ? '#4f8ef7' : 'var(--color-border)',
-                color: universe === opt.value ? '#fff' : '#a0aec0',
-                border: '1px solid',
-                borderColor:
-                  universe === opt.value ? '#4f8ef7' : 'var(--color-border-2)',
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
 
         {/* Loading state */}
         {loading && (

@@ -165,15 +165,14 @@ function ActionColumn({ title, icon, borderColor, bgColor, children, emptyMsg, i
 }
 
 export default function RebalancePage() {
-  const [universe, setUniverse] = useState<'sp500' | 'russell'>('sp500')
+  const [universe] = useState<'sp500'>('sp500')
   const [data, setData] = useState<RebalanceSuggestions | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [noData, setNoData] = useState(false)
 
   useEffect(() => {
-    const stored = localStorage.getItem('edgescan_universe')
-    if (stored === 'sp500' || stored === 'russell') setUniverse(stored)
+    localStorage.setItem('edgescan_universe', 'sp500')
   }, [])
 
   async function loadSuggestions(uni: string) {
@@ -211,12 +210,6 @@ export default function RebalancePage() {
     loadSuggestions(universe)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  function handleUniverseChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const val = e.target.value as 'sp500' | 'russell'
-    setUniverse(val)
-    loadSuggestions(val)
-  }
 
   // Derived maps
   const topPickMap: Record<string, PickEntry> = {}
@@ -282,35 +275,6 @@ export default function RebalancePage() {
             marginBottom: 24,
           }}
         >
-          {/* Universe selector */}
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, color: 'var(--color-text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Universe
-            </span>
-            <select
-              value={universe}
-              onChange={handleUniverseChange}
-              style={{
-                background: 'var(--color-card)',
-                border: '1px solid var(--color-border-3)',
-                borderRadius: 8,
-                color: 'var(--color-text)',
-                fontSize: 13,
-                padding: '6px 32px 6px 10px',
-                cursor: 'pointer',
-                appearance: 'none',
-                backgroundImage:
-                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7a99' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 8px center',
-                outline: 'none',
-              }}
-            >
-              <option value="sp500">S&amp;P 500</option>
-              <option value="russell">Russell 2000</option>
-            </select>
-          </label>
-
           {/* Load button */}
           <button
             onClick={() => loadSuggestions(universe)}

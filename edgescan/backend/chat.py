@@ -14,7 +14,7 @@ _api_key = os.getenv("ANTHROPIC_API_KEY", "")
 client = Anthropic(api_key=_api_key) if _api_key else None
 
 SYSTEM_PROMPT = """You are EdgeScan AI, an expert stock analysis assistant.
-You have access to EdgeScan's composite scoring data for S&P 500 and Russell 1000 stocks.
+You have access to EdgeScan's composite scoring data for S&P 500 stocks.
 Each stock is scored 0-100 combining:
 - Technical score (max ~36 pts): RSI, MACD, 200MA position, directional volume, 52-week high distance
 - Fundamental score (max ~60 pts): revenue growth, EPS growth, FCF yield, ROE, gross margin, D/E ratio, trailing P/E vs sector median
