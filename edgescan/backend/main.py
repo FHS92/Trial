@@ -1832,7 +1832,7 @@ def _ensure_price_history(tickers: list, db: Session) -> None:
                 df.columns = df.columns.get_level_values(0)
             for dt_idx, row_data in df.iterrows():
                 close_val = row_data.get("Close")
-                if close_val is None or (isinstance(close_val, float) and _math.isnan(close_val)):
+                if close_val is None or pd.isna(close_val):
                     continue
                 d = dt_idx.date() if hasattr(dt_idx, "date") else dt_idx
                 close_f = round(float(close_val), 4)
@@ -1886,9 +1886,12 @@ def get_portfolio_metrics(authorization: str = Header(default=""), db: Session =
     # Auto-populate price_history for any ticker that has no recent data
     _ensure_price_history(tickers + ["^GSPC"], db)
 
+    # Always query a full year back — entry_map[t] <= d in the loop enforces per-ticker start dates
+    from datetime import timedelta as _td
+    one_year_ago = date.today() - _td(days=365)
     ph_rows = (
         db.query(PriceHistory.date, PriceHistory.ticker, PriceHistory.close)
-        .filter(PriceHistory.ticker.in_(tickers), PriceHistory.date >= cutoff)
+        .filter(PriceHistory.ticker.in_(tickers), PriceHistory.date >= one_year_ago)
         .order_by(PriceHistory.date.asc())
         .all()
     )
