@@ -138,6 +138,91 @@ def _store_price_history(ticker: str, db) -> None:
     db.commit()
 
 
+def run_price_refresh() -> dict:
+    """
+    Lightweight price refresh — batch-downloads the latest close price for
+    all S&P 500 tickers in a single yfinance request (no scoring).
+
+    Updates:
+      - ScanResult.current_price  (most recent row per ticker)
+      - PriceHistory              (upserts today's close)
+
+    Runs every 30 minutes during market hours (Mon–Fri 9:00–16:30 ET).
+    """
+    import yfinance as yf
+    import pandas as pd
+    from datetime import date
+
+    print(f"\n[price_refresh] Starting at {datetime.utcnow().isoformat()} UTC")
+
+    try:
+        # Single batch request — much faster than 500 individual calls
+        df = yf.download(
+            SP500_TICKERS,
+            period="5d",        # last 5 days handles weekends / holidays
+            interval="1d",
+            auto_adjust=True,
+            progress=False,
+            threads=True,
+        )
+
+        if df.empty:
+            print("[price_refresh] No data returned from yfinance")
+            return {"updated": 0, "error": "no data"}
+
+        # df["Close"] → DataFrame with tickers as columns; take last valid row
+        close_df = df["Close"].dropna(how="all")
+        if close_df.empty:
+            print("[price_refresh] Close data empty after dropna")
+            return {"updated": 0, "error": "empty close"}
+
+        latest_close: dict[str, float] = {}
+        for ticker in SP500_TICKERS:
+            if ticker in close_df.columns:
+                series = close_df[ticker].dropna()
+                if not series.empty:
+                    latest_close[ticker] = float(series.iloc[-1])
+
+        db = SessionLocal()
+        updated = 0
+        today = date.today()
+
+        try:
+            for ticker, price in latest_close.items():
+                # Update current_price on the most recent ScanResult row
+                row = (
+                    db.query(ScanResult)
+                    .filter(ScanResult.ticker == ticker)
+                    .order_by(ScanResult.scanned_at.desc())
+                    .first()
+                )
+                if row:
+                    row.current_price = price
+                    updated += 1
+
+                # Upsert today's close in PriceHistory
+                ph = (
+                    db.query(PriceHistory)
+                    .filter(PriceHistory.ticker == ticker, PriceHistory.date == today)
+                    .first()
+                )
+                if ph:
+                    ph.close = price
+                else:
+                    db.add(PriceHistory(ticker=ticker, date=today, close=price))
+
+            db.commit()
+        finally:
+            db.close()
+
+        print(f"[price_refresh] Done — {updated}/{len(SP500_TICKERS)} tickers updated")
+        return {"updated": updated, "total": len(SP500_TICKERS)}
+
+    except Exception as e:
+        print(f"[price_refresh] Failed: {e}")
+        return {"updated": 0, "error": str(e)}
+
+
 def start_scheduler(blocking: bool = True):
     """
     Start APScheduler.
@@ -149,6 +234,7 @@ def start_scheduler(blocking: bool = True):
     SchedulerClass = BlockingScheduler if blocking else BackgroundScheduler
     scheduler = SchedulerClass(timezone=SCAN_TIMEZONE)
 
+    # Full score + price scan — 3x daily
     for hour in SCAN_HOURS:
         scheduler.add_job(
             run_full_scan,
@@ -158,6 +244,21 @@ def start_scheduler(blocking: bool = True):
             replace_existing=True,
         )
         print(f"[scheduler] Registered scan job: {hour:02d}:00 ET daily")
+
+    # Price-only refresh — every 30 min during market hours (Mon–Fri 9–16 ET)
+    scheduler.add_job(
+        run_price_refresh,
+        trigger=CronTrigger(
+            day_of_week="mon-fri",
+            hour="9-16",
+            minute="0,30",
+            timezone=SCAN_TIMEZONE,
+        ),
+        id="price_refresh_30min",
+        name="Price refresh every 30min (market hours)",
+        replace_existing=True,
+    )
+    print("[scheduler] Registered price refresh job: every 30min Mon–Fri 9:00–16:30 ET")
 
     print(f"[scheduler] Next run times:")
     for job in scheduler.get_jobs():

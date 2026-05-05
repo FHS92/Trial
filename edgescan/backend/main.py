@@ -1007,6 +1007,24 @@ def trigger_scan(
 
 
 # ---------------------------------------------------------------------------
+# Price refresh trigger
+# ---------------------------------------------------------------------------
+
+@app.post("/api/prices/refresh")
+def trigger_price_refresh(x_scan_secret: str = Header(default="")):
+    """
+    Manually trigger a lightweight price refresh for all S&P 500 tickers.
+    Protected by X-Scan-Secret header. Completes in ~10-20 seconds.
+    """
+    if x_scan_secret != SCAN_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid scan secret")
+
+    from scheduler import run_price_refresh
+    result = run_price_refresh()
+    return {"status": "ok", **result}
+
+
+# ---------------------------------------------------------------------------
 # Industry multiples
 # ---------------------------------------------------------------------------
 
