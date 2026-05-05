@@ -286,8 +286,10 @@ def get_leaderboard(
     my_profile_id = _get_profile_id_from_token(authorization)
 
     today = date.today()
-    week_ago  = today - timedelta(days=7)
-    month_ago = today - timedelta(days=30)
+    week_ago   = today - timedelta(days=7)
+    month_ago  = today - timedelta(days=30)
+    # Universal leaderboard start date — all returns measured from here
+    START_DATE = date(2026, 5, 1)
 
     profiles = db.query(Profile).order_by(Profile.created_at.asc()).all()
     if not profiles:
@@ -324,6 +326,7 @@ def get_leaderboard(
 
     weekly_prices  = hist_prices(week_ago)
     monthly_prices = hist_prices(month_ago)
+    start_prices   = hist_prices(START_DATE)
 
     # Group holdings by profile
     by_profile: dict[str, list] = {p.id: [] for p in profiles}
@@ -341,6 +344,16 @@ def get_leaderboard(
             for h in holdings
         )
 
+        # Fair baseline: use May 1st price for holdings owned before the start date;
+        # use actual buy price for holdings added on/after the start date.
+        def start_baseline_price(h) -> float:
+            buy_date = h.buy_date if h.buy_date else START_DATE
+            if buy_date < START_DATE:
+                return start_prices.get(h.ticker.upper(), h.buy_price)
+            return h.buy_price
+
+        leaderboard_cost = sum(h.shares * start_baseline_price(h) for h in holdings)
+
         def port_val_at(prices: dict[str, float]) -> float:
             return sum(
                 h.shares * prices.get(
@@ -353,7 +366,8 @@ def get_leaderboard(
         val_week_ago  = port_val_at(weekly_prices)
         val_month_ago = port_val_at(monthly_prices)
 
-        return_pct        = round((total_value - total_cost) / total_cost * 100, 2) if total_cost > 0 else 0.0
+        # Overall return measured from May 1st baseline
+        return_pct        = round((total_value - leaderboard_cost) / leaderboard_cost * 100, 2) if leaderboard_cost > 0 else 0.0
         weekly_return_pct = round((total_value - val_week_ago) / val_week_ago * 100, 2) if val_week_ago > 0 else 0.0
         monthly_return_pct = round((total_value - val_month_ago) / val_month_ago * 100, 2) if val_month_ago > 0 else 0.0
         weekly_gain       = round(total_value - val_week_ago, 2)
@@ -364,6 +378,7 @@ def get_leaderboard(
             "avatar_colour":       profile.avatar_colour,
             "total_cost":          round(total_cost, 2),
             "total_value":         round(total_value, 2),
+            "leaderboard_cost":    round(leaderboard_cost, 2),
             "return_pct":          return_pct,
             "weekly_return_pct":   weekly_return_pct,
             "monthly_return_pct":  monthly_return_pct,
