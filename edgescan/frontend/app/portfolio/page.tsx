@@ -140,9 +140,14 @@ export default function PortfolioPage() {
       if (res.metrics) {
         setMetrics(res.metrics)
       } else {
-        setMetricsError(res.error != null ? String(res.error) : 'No metrics available.')
+        setMetrics(null)
+        // "No holdings" is not an error — the holdings list already shows that state
+        if (res.error && res.error !== 'No holdings') {
+          setMetricsError(String(res.error))
+        }
       }
     } catch {
+      setMetrics(null)
       setMetricsError('Could not load metrics.')
     } finally {
       setMetricsLoading(false)
@@ -198,8 +203,9 @@ const loadPortfolio = useCallback(async (user: string) => {
       setTicker(''); setAmount(''); setBuyPrice(''); setBuyDate('')
       setShowForm(false)
       await loadPortfolio(username)
-    } catch {
-      setError('Failed to add holding.')
+      fetchMetrics()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to add holding.')
     } finally {
       setSubmitting(false)
     }
@@ -207,8 +213,13 @@ const loadPortfolio = useCallback(async (user: string) => {
 
   async function handleDelete(t: string) {
     if (!username) return
-    await api.deleteHolding(username, t)
-    await loadPortfolio(username)
+    try {
+      await api.deleteHolding(username, t)
+      await loadPortfolio(username)
+      fetchMetrics()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete holding.')
+    }
   }
 
   // Blank screen while session check is in flight

@@ -69,7 +69,13 @@ export const api = {
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ ticker, amount, buy_price: buyPrice, buy_date: buyDate ?? null }),
       cache: 'no-store',
-    }).then(r => r.json())
+    }).then(async r => {
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        throw new Error(body.detail ?? `Server error ${r.status}`)
+      }
+      return r.json()
+    })
   },
 
   deleteHolding(username: string, ticker: string): Promise<{ status: string; ticker: string }> {
@@ -77,14 +83,26 @@ export const api = {
       method: 'DELETE',
       headers: { ...authHeaders() },
       cache: 'no-store',
-    }).then(r => r.json())
+    }).then(async r => {
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        throw new Error(body.detail ?? `Server error ${r.status}`)
+      }
+      return r.json()
+    })
   },
 
   portfolioHistory(): Promise<{ history: { date: string; value: number }[] }> {
     return fetch(`${BASE}/api/portfolio/history`, {
       cache: 'no-store',
       headers: { ...authHeaders() },
-    }).then(r => r.json())
+    }).then(async r => {
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        throw new Error(body.detail ?? `Server error ${r.status}`)
+      }
+      return r.json()
+    })
   },
 
   scoreHistory(ticker: string): Promise<ScoreHistoryResponse> {
