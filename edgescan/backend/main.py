@@ -1607,7 +1607,7 @@ def get_portfolio_metrics(authorization: str = Header(default=""), db: Session =
     avg_score = round(score_num / score_den, 1) if score_den > 0 else None
     total_return_pct = round(((total_value - total_cost) / total_cost) * 100, 2) if total_cost > 0 else None
 
-    # --- Advanced metrics from price_history (null if not enough data yet) ---
+    # --- Advanced metrics from price_history with ScanResult fallback ---
     sharpe, annual_vol, max_drawdown_pct, beta = None, None, None, None
     data_points = 0
 
@@ -1647,6 +1647,41 @@ def get_portfolio_metrics(authorization: str = Header(default=""), db: Session =
         )
         if val > 0:
             history.append({"date": d, "value": val})
+
+    # Fallback: if price_history is sparse, build a synthetic series from ScanResult snapshots.
+    # Each scan stores a current_price per ticker at a point in time — good enough for estimates.
+    if len(history) < 10:
+        sr_rows = (
+            db.query(ScanResult.ticker, ScanResult.current_price, ScanResult.scanned_at)
+            .filter(
+                ScanResult.ticker.in_(tickers),
+                ScanResult.current_price.isnot(None),
+                ScanResult.scanned_at >= datetime(one_year_ago.year, one_year_ago.month, one_year_ago.day),
+            )
+            .order_by(ScanResult.scanned_at.asc())
+            .all()
+        )
+        # Group by calendar date, taking the latest scan price for that date per ticker
+        scan_date_closes: dict[date, dict[str, float]] = {}
+        for r in sr_rows:
+            d = r.scanned_at.date()
+            if d not in scan_date_closes:
+                scan_date_closes[d] = {}
+            scan_date_closes[d][r.ticker] = float(r.current_price)
+
+        scan_history = []
+        for d in sorted(scan_date_closes.keys()):
+            closes = scan_date_closes[d]
+            val = sum(
+                shares_map[t] * closes[t]
+                for t in tickers
+                if t in closes and entry_map[t] <= d
+            )
+            if val > 0:
+                scan_history.append({"date": d, "value": val})
+
+        if len(scan_history) > len(history):
+            history = scan_history
 
     data_points = len(history)
     if data_points >= 10:
