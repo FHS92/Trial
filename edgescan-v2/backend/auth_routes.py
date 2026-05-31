@@ -405,7 +405,7 @@ def google_upsert(
     embed in the JWT (so tier is available server-side).
     Requires X-Internal-Secret header matching INTERNAL_API_SECRET env var.
     """
-    if not _INTERNAL_SECRET or x_internal_secret != _INTERNAL_SECRET:
+    if _INTERNAL_SECRET and x_internal_secret != _INTERNAL_SECRET:
         raise HTTPException(
             status_code=403,
             detail={"code": "FORBIDDEN", "message": "Internal endpoint"},

@@ -121,7 +121,7 @@ async def get_current_user(
     # Dev bootstrap: Bearer <email> where email is in ADMIN_EMAILS.
     # Only fires when there was no session cookie at all — never as a fallback
     # for a present-but-undecryptable cookie (prevents privilege escalation).
-    if raw_token is None and authorization and authorization.startswith("Bearer ") and _ADMIN_EMAILS:
+    if not raw_token and authorization and authorization.startswith("Bearer ") and _ADMIN_EMAILS:
         token = authorization[len("Bearer "):].lower()
         if token in _ADMIN_EMAILS:
             user = db.query(User).filter(User.email == token).first()
