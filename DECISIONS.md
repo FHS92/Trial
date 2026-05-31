@@ -61,11 +61,19 @@ Decisions made during v2 implementation. Each entry records the choice, rational
 
 ### D-301: Auth strategy
 
-**Decision:** Replace custom PIN-based profiles with **Auth.js v5** (credentials + Google OAuth), JWT stored in httpOnly cookies. FastAPI validates the same JWT via `fastapi-nextauth-jwt`. Shared `AUTH_SECRET`.
+**Decision:** Auth.js v5 (`next-auth@5.0.0-beta.25`) with Credentials + Google OAuth providers. JWT sessions stored in the `authjs.session-token` httpOnly cookie (JWE, A256CBC-HS512). FastAPI decrypts the same cookie using a Python HKDF+python-jose implementation that mirrors Auth.js v5's `@auth/core` key derivation exactly. Shared `AUTH_SECRET` across both services.
 
-**Rationale:** Custom PIN system has several security gaps (SHA256 PIN hashing, sessionStorage, no email/password, no OAuth, no account recovery). Auth.js v5 is the standard Next.js auth library and handles all of these correctly.
+**Key derivation:** `HKDF(SHA-256, salt="authjs.session-token", info="Auth.js Generated Encryption Key", length=64)` applied to `AUTH_SECRET`.
 
-**Migration:** Existing `profiles` table data will not be migrated — the system is moving from anonymous profiles to real email accounts. Users will need to create accounts.
+**JWT payload:** `{ sub/id, tier, is_admin }` — embedded by custom `jwt` + `session` callbacks.
+
+**Rationale:** `fastapi-nextauth-jwt` was considered but doesn't support Auth.js v5's A256CBC-HS512 JWE format. Manual HKDF derivation via Python's `cryptography` package and `python-jose` provides exact parity. The approach avoids a third-party dependency on an unmaintained library.
+
+**Google sign-in:** Auth.js `signIn` callback calls `POST /api/v1/auth/google-upsert` to create/link users in FastAPI's DB immediately upon OAuth login. `tier` and `is_admin` then appear in subsequent JWTs.
+
+**Dev bootstrap:** `Bearer <email>` where email ∈ `ADMIN_EMAILS` env var; creates the admin user if not present. Disabled automatically when `ADMIN_EMAILS` is empty.
+
+**Migration:** No migration from v1 PIN profiles — v2 uses real email/password accounts. Users register fresh.
 
 ---
 
