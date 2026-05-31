@@ -31,7 +31,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           await fetch(`${API}/api/v1/auth/google-upsert`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Internal-Secret': process.env.INTERNAL_API_SECRET ?? '',
+            },
             body: JSON.stringify({
               google_id: account.providerAccountId,
               email: user.email,

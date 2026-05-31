@@ -19,21 +19,21 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   scanner: {
     list: (params?: { sector?: string }) =>
-      apiFetch<ScannerResponse>(`/scanner${params?.sector ? `?sector=${params.sector}` : ''}`),
+      apiFetch<ScannerResponse>(`/scanner${params?.sector ? `?sector=${encodeURIComponent(params.sector)}` : ''}`),
     movers: () =>
       apiFetch<{ risers: ScanResult[]; fallers: ScanResult[] }>('/scanner/movers'),
   },
   stocks: {
     detail: (ticker: string) => apiFetch<ScanResult>(`/stocks/${ticker}`),
     history: (ticker: string, period: '3m' | '6m' | '1y' = '1y') =>
-      apiFetch<{ bars: OHLCVBar[] }>(`/stocks/${ticker}/history?period=${period}`),
+      apiFetch<{ ticker: string; period: string; data: OHLCVBar[] }>(`/stocks/${ticker}/history?period=${period}`),
     scoreHistory: (ticker: string) =>
-      apiFetch<{ history: { score: number; scanned_at: string }[] }>(
+      apiFetch<{ ticker: string; tier: string; history: { date: string; score: number; fundamental_score: number; technical_score: number }[] }>(
         `/stocks/${ticker}/score-history`
       ),
   },
   watchlist: {
-    list: () => apiFetch<{ items: WatchlistItem[] }>('/watchlist'),
+    list: () => apiFetch<{ watchlist: WatchlistItem[]; count: number; limit: number | null }>('/watchlist'),
     add: (ticker: string) =>
       apiFetch<void>(`/watchlist/${ticker}`, { method: 'POST' }),
     remove: (ticker: string) =>

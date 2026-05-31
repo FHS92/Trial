@@ -25,7 +25,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
 
@@ -47,6 +47,10 @@ from models import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Secret shared between FastAPI and the Next.js server for internal-only endpoints.
+# Must be set in production; falls back to empty string (endpoint disabled) if unset.
+_INTERNAL_SECRET = os.environ.get("INTERNAL_API_SECRET", "")
+
 _ADMIN_EMAILS = {
     e.strip().lower()
     for e in os.environ.get("ADMIN_EMAILS", "").split(",")
@@ -62,11 +66,14 @@ def _hash_password(plain: str) -> str:
 
 
 def _verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+    try:
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except ValueError:
+        return False
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.utcnow()
 
 
 def _generate_token() -> str:
@@ -205,6 +212,12 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=401,
             detail={"code": "INVALID_CREDENTIALS", "message": "Invalid email or password"},
+        )
+
+    if not user.email_verified:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "EMAIL_NOT_VERIFIED", "message": "Please verify your email address before signing in"},
         )
 
     return _user_dict(user)
@@ -374,18 +387,29 @@ def delete_account(
         db_user.avatar_url = None
         db_user.email_verified = False
         db_user.tier = "free"
+        db_user.is_active = False  # invalidates all existing session cookies
         db_user.updated_at = _now()
 
     db.commit()
 
 
 @router.post("/google-upsert")
-def google_upsert(body: GoogleUpsertRequest, db: Session = Depends(get_db)):
+def google_upsert(
+    body: GoogleUpsertRequest,
+    x_internal_secret: Optional[str] = Header(default=None),
+    db: Session = Depends(get_db),
+):
     """
     Called from Auth.js signIn callback when a Google user authenticates.
     Creates or links the user in our DB. Returns the user dict for Auth.js to
     embed in the JWT (so tier is available server-side).
+    Requires X-Internal-Secret header matching INTERNAL_API_SECRET env var.
     """
+    if not _INTERNAL_SECRET or x_internal_secret != _INTERNAL_SECRET:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "FORBIDDEN", "message": "Internal endpoint"},
+        )
     # Look up by google_id first, then by email
     user = db.query(User).filter(User.google_id == body.google_id).first()
 

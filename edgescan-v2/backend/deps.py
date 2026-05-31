@@ -110,7 +110,7 @@ async def get_current_user(
             user_id = payload.get("sub") or payload.get("id")
             if user_id:
                 user = db.query(User).filter(User.id == user_id).first()
-                if user:
+                if user and user.is_active:
                     return CurrentUser(
                         id=user.id,
                         email=user.email,
@@ -118,8 +118,10 @@ async def get_current_user(
                         is_admin=user.is_admin,
                     )
 
-    # Dev bootstrap: Bearer <email> where email is in ADMIN_EMAILS
-    if authorization and authorization.startswith("Bearer ") and _ADMIN_EMAILS:
+    # Dev bootstrap: Bearer <email> where email is in ADMIN_EMAILS.
+    # Only fires when there was no session cookie at all — never as a fallback
+    # for a present-but-undecryptable cookie (prevents privilege escalation).
+    if raw_token is None and authorization and authorization.startswith("Bearer ") and _ADMIN_EMAILS:
         token = authorization[len("Bearer "):].lower()
         if token in _ADMIN_EMAILS:
             user = db.query(User).filter(User.email == token).first()
@@ -153,8 +155,12 @@ async def require_auth(
 
 async def require_pro(
     user: CurrentUser = Depends(require_auth),
+    db: Session = Depends(get_db),
 ) -> CurrentUser:
-    if user.tier != "pro":
+    # Always re-read tier from DB so a cancelled subscription is enforced immediately,
+    # regardless of what the (potentially stale) JWT says.
+    db_user = db.query(User).filter(User.id == user.id).first()
+    if not db_user or db_user.tier != "pro":
         raise HTTPException(
             status_code=402,
             detail={"code": "PRO_REQUIRED", "message": "Upgrade to Pro to access this feature"},

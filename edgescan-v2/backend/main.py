@@ -107,16 +107,16 @@ SCAN_RATE_LIMIT_SECONDS = 3600  # pro users: max 1 on-demand scan per hour
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback  # noqa: PLC0415
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": {
-                "code": "INTERNAL_SERVER_ERROR",
-                "message": str(exc),
-                "trace": traceback.format_exc(),
-            }
-        },
-    )
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    content: dict = {
+        "error": {
+            "code": "INTERNAL_SERVER_ERROR",
+            "message": "An unexpected error occurred",
+        }
+    }
+    if os.environ.get("DEBUG", "").lower() in ("1", "true"):
+        content["error"]["trace"] = traceback.format_exc()
+    return JSONResponse(status_code=500, content=content)
 
 
 @app.exception_handler(HTTPException)

@@ -45,6 +45,7 @@ class User(Base):
     avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tier: Mapped[str] = mapped_column(String(20), default="free")   # "free" | "pro"
     is_admin: Mapped[bool] = mapped_column(default=False)
+    is_active: Mapped[bool] = mapped_column(default=True)
     has_onboarded: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
