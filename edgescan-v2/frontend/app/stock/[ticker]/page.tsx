@@ -19,13 +19,15 @@ interface StockPageProps {
 }
 
 async function StockContent({ ticker }: { ticker: string }) {
-  const currentUser = await getCurrentUser()
+  // Wrap getCurrentUser() so an auth infrastructure error doesn't crash the whole page
+  const currentUser = await getCurrentUser().catch(() => null)
   const tier: Tier = currentUser?.tier ?? 'free'
 
   let stock: ScanResult
   try {
     stock = await api.stocks.detail(ticker.toUpperCase())
-  } catch {
+  } catch (err) {
+    const is404 = err instanceof Error && err.message.includes('404')
     return (
       <div className="p-4 md:p-6 max-w-3xl mx-auto">
         <Link
@@ -37,10 +39,12 @@ async function StockContent({ ticker }: { ticker: string }) {
         </Link>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
           <p className="text-lg font-semibold text-[var(--text)] mb-2">
-            {ticker.toUpperCase()} not found
+            {is404 ? `${ticker.toUpperCase()} not found` : 'Unable to load stock data'}
           </p>
           <p className="text-sm text-[var(--text-muted)] mb-4">
-            This ticker may not be in the current scan universe.
+            {is404
+              ? 'This ticker may not be in the current scan universe.'
+              : 'The service is temporarily unavailable. Please try again.'}
           </p>
           <Link
             href="/scanner"

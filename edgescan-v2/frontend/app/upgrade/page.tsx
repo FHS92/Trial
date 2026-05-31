@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Check, Crown, Zap } from 'lucide-react'
-import { auth } from '@/auth'
+import { getCurrentUser } from '@/lib/auth'
 
 export const metadata = { title: 'Upgrade to Pro — EdgeScan' }
 
@@ -21,9 +21,8 @@ const PRO_FEATURES = [
 ]
 
 export default async function UpgradePage() {
-  const session = await auth()
-  const tier = (session?.user as any)?.tier ?? 'free'
-  const isAlreadyPro = tier === 'pro'
+  const currentUser = await getCurrentUser()
+  const isAlreadyPro = currentUser?.tier === 'pro'
 
   return (
     <div className="min-h-screen bg-[var(--bg)] px-4 py-12">
@@ -62,7 +61,7 @@ export default async function UpgradePage() {
               ))}
             </ul>
             <div className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--text-muted)]">
-              Current plan
+              {isAlreadyPro ? 'Free tier' : 'Current plan'}
             </div>
           </div>
 

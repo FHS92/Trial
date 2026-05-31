@@ -67,7 +67,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
           Close: ${close.value.toFixed(2)}
         </p>
       )}
-      {ma200?.value && (
+      {ma200?.value != null && (
         <p className="font-mono text-[var(--text-muted)] tabular-nums">
           MA200: ${ma200.value.toFixed(2)}
         </p>
