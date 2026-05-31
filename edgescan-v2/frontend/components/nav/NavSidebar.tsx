@@ -10,10 +10,13 @@ import {
   MessageSquare,
   TrendingUp,
   User,
+  LogOut,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { signOut } from 'next-auth/react'
 
 interface NavSidebarProps {
   className?: string
@@ -100,7 +103,7 @@ export function NavSidebar({ className }: NavSidebarProps) {
 
       {/* Bottom section */}
       <div className="px-3 py-3 border-t border-[var(--border)] space-y-3">
-        {/* Tier badge */}
+        {/* Tier badge + theme toggle */}
         <div className="flex items-center justify-between">
           <span
             className={cn(
@@ -120,7 +123,7 @@ export function NavSidebar({ className }: NavSidebarProps) {
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--border)]">
             <User className="h-4 w-4 text-[var(--text-muted)]" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-[var(--text)]">
               {user?.name ?? 'Guest'}
             </p>
@@ -129,6 +132,38 @@ export function NavSidebar({ className }: NavSidebarProps) {
             </p>
           </div>
         </div>
+
+        {/* Account + Sign out row */}
+        {user ? (
+          <div className="flex items-center gap-1">
+            <Link
+              href="/account"
+              className={cn(
+                'flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium',
+                'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--border)]/50 transition-colors',
+                pathname === '/account' && 'text-[var(--accent)]'
+              )}
+            >
+              <Settings className="h-3.5 w-3.5 shrink-0" />
+              Account
+            </Link>
+            <button
+              onClick={() => signOut({ redirectTo: '/login' })}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-red-400 hover:bg-[var(--border)]/50 transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="h-3.5 w-3.5 shrink-0" />
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="flex w-full items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+          >
+            Sign in
+          </Link>
+        )}
       </div>
     </aside>
   )

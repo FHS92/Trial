@@ -100,3 +100,27 @@ export interface WatchlistItem {
   current_price: number | null
   added_at: string
 }
+
+// Augment next-auth session types
+declare module 'next-auth' {
+  interface User {
+    id: string
+    tier: Tier
+    is_admin: boolean
+  }
+  interface Session {
+    user: User & {
+      id: string
+      tier: Tier
+      is_admin: boolean
+    }
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id: string
+    tier: Tier
+    is_admin: boolean
+  }
+}

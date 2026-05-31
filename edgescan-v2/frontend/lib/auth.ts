@@ -1,10 +1,18 @@
-import type { User } from './types'
+import { auth } from '@/auth'
+import type { Session } from 'next-auth'
 
-// STUB — Phase 3 replaces with real Auth.js v5 session
-export async function getCurrentUser(): Promise<User | null> {
-  return null // anonymous for now
+export async function getSession(): Promise<Session | null> {
+  return auth()
 }
 
-export function useRequireAuth() {
-  // Phase 3 will redirect to /login if not authenticated
+export async function getCurrentUser() {
+  const session = await getSession()
+  if (!session?.user) return null
+  return {
+    id: (session.user as any).id ?? '',
+    email: session.user.email ?? '',
+    name: session.user.name ?? null,
+    tier: ((session.user as any).tier ?? 'free') as import('./types').Tier,
+    isAdmin: (session.user as any).is_admin ?? false,
+  }
 }
