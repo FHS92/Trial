@@ -3,6 +3,13 @@ import type { ScanResult, ScannerResponse, OHLCVBar, WatchlistItem } from './typ
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const V1 = `${BASE}/api/v1`
 
+export class ApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${V1}${path}`, {
     credentials: 'include',
@@ -11,7 +18,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body?.error?.message ?? `HTTP ${res.status}`)
+    throw new ApiError(res.status, body?.error?.message ?? `HTTP ${res.status}`)
   }
   return res.json()
 }

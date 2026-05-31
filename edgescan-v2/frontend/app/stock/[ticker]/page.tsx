@@ -9,7 +9,7 @@ import { ProLock } from '@/components/ui/ProLock'
 import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { PriceChart } from './PriceChart'
 import { SignalsPanel } from './SignalsPanel'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { formatPrice, formatPercent } from '@/lib/utils'
 import type { ScanResult, Tier } from '@/lib/types'
@@ -19,15 +19,14 @@ interface StockPageProps {
 }
 
 async function StockContent({ ticker }: { ticker: string }) {
-  // Wrap getCurrentUser() so an auth infrastructure error doesn't crash the whole page
-  const currentUser = await getCurrentUser().catch(() => null)
+  const currentUser = await getCurrentUser()
   const tier: Tier = currentUser?.tier ?? 'free'
 
   let stock: ScanResult
   try {
     stock = await api.stocks.detail(ticker.toUpperCase())
   } catch (err) {
-    const is404 = err instanceof Error && err.message.includes('404')
+    const is404 = err instanceof ApiError && err.status === 404
     return (
       <div className="p-4 md:p-6 max-w-3xl mx-auto">
         <Link
