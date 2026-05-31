@@ -1,80 +1,152 @@
 """
-deps.py — FastAPI dependency injection stubs for EdgeScan v2.
+deps.py — FastAPI dependency injection for EdgeScan v2.
 
-Auth is stubbed for Phase 2 (current). Phase 3 replaces these with real
-JWT validation tied to Auth.js v5 httpOnly cookies.
+Auth.js v5 stores sessions as encrypted JWTs (JWE) in the
+`authjs.session-token` httpOnly cookie, using:
+  - Key derivation: HKDF(SHA-256, salt="authjs.session-token",
+                         info="Auth.js Generated Encryption Key", length=64)
+  - Encryption:     A256CBC-HS512 (direct key, no wrapping)
 
-Tier enforcement:
-  free  — up to 10 scanner results, watchlist limited to 5 items
-  pro   — full scanner, unlimited watchlist, on-demand scans
+FastAPI decrypts the JWE using the shared AUTH_SECRET, then loads a
+fresh User row to get the authoritative tier and is_admin status.
 
-Admin enforcement:
-  is_admin flag on User model — only admin users can trigger manual scans
-  via the admin-only endpoints.
+For local dev without a valid session cookie, the bootstrap admin check
+(ADMIN_EMAILS env var + matching Bearer token) remains for convenience.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+import logging
+import os
+from dataclasses import dataclass
 from typing import Optional
 
-from fastapi import Depends, Header, HTTPException
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from fastapi import Cookie, Depends, Header, HTTPException
+from jose import jwe as jose_jwe
+from sqlalchemy.orm import Session
+
+from database import get_db
+from models import User
+
+logger = logging.getLogger(__name__)
+
+_ADMIN_EMAILS = {
+    e.strip().lower()
+    for e in os.environ.get("ADMIN_EMAILS", "").split(",")
+    if e.strip()
+}
 
 
 @dataclass
 class CurrentUser:
     id: str
     email: str
-    tier: str          # "free" | "pro"
+    tier: str       # "free" | "pro"
     is_admin: bool = False
 
 
 # ---------------------------------------------------------------------------
-# STUB auth — Phase 3 replaces this with real JWT validation
+# Auth.js v5 JWE decryption
+# ---------------------------------------------------------------------------
+
+def _derive_key(auth_secret: str, salt: str = "authjs.session-token") -> bytes:
+    """
+    Derive the 64-byte AES-256-CBC + HMAC-SHA-512 key from AUTH_SECRET.
+    Mirrors Auth.js v5's hkdf() call in @auth/core/src/jwt.ts.
+    """
+    hkdf = HKDF(
+        algorithm=hashes.SHA256(),
+        length=64,
+        salt=salt.encode("utf-8"),
+        info=b"Auth.js Generated Encryption Key",
+    )
+    return hkdf.derive(auth_secret.encode("utf-8"))
+
+
+def _decrypt_session_token(token: str) -> Optional[dict]:
+    """
+    Decrypt an Auth.js v5 session token (compact JWE).
+    Returns the payload dict, or None on any failure.
+    """
+    secret = os.environ.get("AUTH_SECRET", "")
+    if not secret or not token:
+        return None
+    try:
+        key = _derive_key(secret)
+        decrypted_bytes = jose_jwe.decrypt(token, key)
+        return json.loads(decrypted_bytes.decode("utf-8"))
+    except Exception as exc:
+        logger.debug("Session token decryption failed: %s", exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Dependencies
 # ---------------------------------------------------------------------------
 
 async def get_current_user(
-    authorization: Optional[str] = Header(default=None)
+    # Auth.js v5 uses "authjs.session-token" (no __Secure- prefix on localhost)
+    session_token: Optional[str] = Cookie(default=None, alias="authjs.session-token"),
+    secure_session_token: Optional[str] = Cookie(default=None, alias="__Secure-authjs.session-token"),
+    authorization: Optional[str] = Header(default=None),
+    db: Session = Depends(get_db),
 ) -> Optional[CurrentUser]:
     """
-    Stub auth dependency. Returns None (anonymous) for all requests.
+    Try to resolve the calling user.
 
-    Phase 3 implementation will:
-      1. Extract the JWT from the "session" httpOnly cookie set by Auth.js v5
-      2. Verify signature using AUTH_SECRET from environment
-      3. Load the User row from the DB to check tier and is_admin
-      4. Return a CurrentUser, or None if the session is invalid/missing
-
-    For now, every request is treated as anonymous (free tier).
+    Order of precedence:
+    1. Secure session cookie (production HTTPS)
+    2. Regular session cookie (development HTTP)
+    3. Bearer <email> token matching ADMIN_EMAILS (dev bootstrap only)
     """
-    # Check for ADMIN_EMAILS env var to support bootstrap admin access
-    import os  # noqa: PLC0415
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization[len("Bearer "):]
-        admin_emails_raw = os.getenv("ADMIN_EMAILS", "")
-        admin_emails = {e.strip().lower() for e in admin_emails_raw.split(",") if e.strip()}
-        # Simple token=email check for local dev only — NOT for production
-        if token.lower() in admin_emails:
-            return CurrentUser(
-                id="bootstrap-admin",
-                email=token.lower(),
-                tier="pro",
-                is_admin=True,
-            )
+    raw_token = secure_session_token or session_token
+
+    if raw_token:
+        payload = _decrypt_session_token(raw_token)
+        if payload:
+            user_id = payload.get("sub") or payload.get("id")
+            if user_id:
+                user = db.query(User).filter(User.id == user_id).first()
+                if user:
+                    return CurrentUser(
+                        id=user.id,
+                        email=user.email,
+                        tier=user.tier,
+                        is_admin=user.is_admin,
+                    )
+
+    # Dev bootstrap: Bearer <email> where email is in ADMIN_EMAILS
+    if authorization and authorization.startswith("Bearer ") and _ADMIN_EMAILS:
+        token = authorization[len("Bearer "):].lower()
+        if token in _ADMIN_EMAILS:
+            user = db.query(User).filter(User.email == token).first()
+            if not user:
+                from datetime import datetime  # noqa: PLC0415
+                user = User(
+                    email=token,
+                    name="Admin",
+                    email_verified=True,
+                    is_admin=True,
+                    tier="pro",
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+            return CurrentUser(id=user.id, email=user.email, tier="pro", is_admin=True)
+
     return None
 
 
 async def require_auth(
     user: Optional[CurrentUser] = Depends(get_current_user),
 ) -> CurrentUser:
-    """Raise 401 if the request has no valid session."""
     if user is None:
         raise HTTPException(
             status_code=401,
-            detail={
-                "code": "UNAUTHENTICATED",
-                "message": "Sign in required",
-            },
+            detail={"code": "UNAUTHENTICATED", "message": "Sign in required"},
         )
     return user
 
@@ -82,14 +154,10 @@ async def require_auth(
 async def require_pro(
     user: CurrentUser = Depends(require_auth),
 ) -> CurrentUser:
-    """Raise 402 if the authenticated user is not on the pro tier."""
     if user.tier != "pro":
         raise HTTPException(
             status_code=402,
-            detail={
-                "code": "PRO_REQUIRED",
-                "message": "Upgrade to Pro to access this feature",
-            },
+            detail={"code": "PRO_REQUIRED", "message": "Upgrade to Pro to access this feature"},
         )
     return user
 
@@ -97,13 +165,9 @@ async def require_pro(
 async def require_admin(
     user: CurrentUser = Depends(require_auth),
 ) -> CurrentUser:
-    """Raise 403 if the authenticated user is not an admin."""
     if not user.is_admin:
         raise HTTPException(
             status_code=403,
-            detail={
-                "code": "FORBIDDEN",
-                "message": "Admin access required",
-            },
+            detail={"code": "FORBIDDEN", "message": "Admin access required"},
         )
     return user

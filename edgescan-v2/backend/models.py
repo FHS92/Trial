@@ -196,3 +196,32 @@ class ScanRun(Base):
     tickers_failed: Mapped[int] = mapped_column(default=0)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     data_source: Mapped[str] = mapped_column(String(100), default="unknown")
+
+
+# ---------------------------------------------------------------------------
+# Auth tokens (email verification + password reset)
+# ---------------------------------------------------------------------------
+
+class EmailVerificationToken(Base):
+    __tablename__ = "email_verification_tokens"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    token: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    expires_at: Mapped[datetime]
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid4())
+    )
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    token: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    expires_at: Mapped[datetime]
+    used: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

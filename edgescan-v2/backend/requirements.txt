@@ -12,3 +12,8 @@ pytz>=2024.1
 anthropic>=0.40.0
 yfinance>=0.2.54
 python-multipart>=0.0.9
+# Phase 3 — Auth
+bcrypt>=4.0.0
+cryptography>=41.0.0
+python-jose[cryptography]>=3.3.0
+pydantic[email]>=2.0.0

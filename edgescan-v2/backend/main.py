@@ -44,6 +44,7 @@ from models import (
 )
 from scanner import scan_universe, score_stock
 from scheduler import start_scheduler
+from auth_routes import router as auth_router
 
 # ---------------------------------------------------------------------------
 # Provider singleton — initialized at startup
@@ -75,13 +76,22 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("CORS_ORIGINS", "http://localhost:3001,http://localhost:3000").split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_credentials=True,   # required for cookies (Auth.js session token)
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount auth router
+app.include_router(auth_router, prefix="/api/v1")
 
 # Scan rate-limiter state (in-memory, per-instance)
 _last_on_demand_scan: datetime = datetime.utcnow() - timedelta(hours=2)
