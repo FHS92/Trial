@@ -5,6 +5,7 @@ const V1 = `${BASE}/api/v1`
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${V1}${path}`, {
+    credentials: 'include',
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   })
