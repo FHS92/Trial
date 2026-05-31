@@ -11,5 +11,6 @@ Use data_providers.factory.get_provider() to get the configured provider.
 """
 
 from .base import DataProvider, Fundamentals, OHLCV
+from .factory import get_provider
 
-__all__ = ["DataProvider", "Fundamentals", "OHLCV"]
+__all__ = ["DataProvider", "Fundamentals", "OHLCV", "get_provider"]
