@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { ScoreRing } from '@/components/score/ScoreRing'
 import { ScoreBadge } from '@/components/score/ScoreBadge'
 import { ScoreBreakdown } from '@/components/score/ScoreBreakdown'
@@ -10,6 +10,7 @@ import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { PriceChart } from './PriceChart'
 import { SignalsPanel } from './SignalsPanel'
 import { api } from '@/lib/api'
+import { getCurrentUser } from '@/lib/auth'
 import { formatPrice, formatPercent } from '@/lib/utils'
 import type { ScanResult, Tier } from '@/lib/types'
 
@@ -17,11 +18,10 @@ interface StockPageProps {
   params: Promise<{ ticker: string }>
 }
 
-// The tier comes from the API response; for now we read from the scanner.
-// In phase 3 this will come from the session.
-const USER_TIER: Tier = 'free'
-
 async function StockContent({ ticker }: { ticker: string }) {
+  const currentUser = await getCurrentUser()
+  const tier: Tier = currentUser?.tier ?? 'free'
+
   let stock: ScanResult
   try {
     stock = await api.stocks.detail(ticker.toUpperCase())
@@ -55,7 +55,6 @@ async function StockContent({ ticker }: { ticker: string }) {
   }
 
   const upsidePositive = (stock.upside_pct ?? 0) >= 0
-  const tier = USER_TIER
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">

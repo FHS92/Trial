@@ -89,7 +89,7 @@ export function PriceChart({ ticker }: PriceChartProps) {
 
     api.stocks
       .history(ticker, period)
-      .then(({ bars }) => {
+      .then(({ data: bars }) => {
         if (cancelled) return
         setData(computeMA200(bars))
         setLoading(false)
