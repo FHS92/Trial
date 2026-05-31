@@ -48,7 +48,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 # Secret shared between FastAPI and the Next.js server for internal-only endpoints.
-# Must be set in production; falls back to empty string (endpoint disabled) if unset.
+# When set, google-upsert requires a matching X-Internal-Secret header.
+# When unset (dev default), the endpoint is open — set this in all production deployments.
 _INTERNAL_SECRET = os.environ.get("INTERNAL_API_SECRET", "")
 
 _ADMIN_EMAILS = {
