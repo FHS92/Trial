@@ -68,6 +68,49 @@ SP500_TICKERS: list[str] = [
     "NEE", "DUK", "SO", "D", "AEP", "EXC", "SRE", "XEL", "WEC", "ES",
     "ED", "ETR", "FE", "PPL", "CNP", "CMS", "AEE", "DTE", "EVRG", "NI",
     "NRG", "OGE", "PNW", "POR",
+
+    # Additional S&P 500 constituents (IT)
+    "AKAM", "APH", "CDW", "CSCO", "CTLT", "ENPH", "FFIV", "FLIR", "GLW", "IT",
+    "JKHY", "MPWR", "MSI", "MU", "NXPI", "ON", "QRVO", "STX", "TER", "TRMB",
+    "TXN", "VRSN", "WDC", "XLNX",
+
+    # Additional Consumer Discretionary
+    "AMCX", "AN", "BWA", "CPRI", "CZR", "DKNG", "DPZ", "GPC", "GRMN", "HBI",
+    "LAD", "LCID", "MHK", "MTZ", "NWSA", "POOL", "RIVN", "SNA", "TGT", "WHR",
+    "YUM",
+
+    # Additional Healthcare
+    "ABC", "ANTM", "ATRC", "BIO", "CFG", "CRL", "DGX", "ELAN", "GKOS", "ICUI",
+    "INCY", "LH", "PDCO", "PKI", "PRGO", "STE", "STKL", "SWAV", "TDOC", "TNDM",
+    "UTHR", "VCYT",
+
+    # Additional Financials
+    "AIZ", "AJG", "ARES", "BAH", "BGCP", "BLKB", "BRO", "CBRE", "CFR", "CINF",
+    "CIT", "EEFT", "ERIE", "EV", "EWBC", "FAF", "FHN", "GBCI", "GCMG", "HLI",
+    "HOOD", "IBKR", "LAZ", "LPLA", "MFA", "NYCB", "OFG", "PIPR", "PFG", "PRIMERICA",
+    "RJF", "RKT", "SEIC", "SIRI", "SLGN", "SNV", "SQ", "TROW", "VOYA", "WBS",
+    "WSFS",
+
+    # Additional Industrials
+    "AGCO", "AOS", "ATI", "AYI", "BALL", "BWXT", "CFX", "CHRW", "CTAS", "EFX",
+    "EXP", "EXPD", "FDX", "FELE", "GEF", "GFF", "GWW", "HII", "HWM", "JBL",
+    "LCII", "LII", "LKFN", "LSTR", "MHO", "MSA", "NDSN", "OSK", "PCAR", "R",
+    "RBC", "RRX", "SAIA", "SWM", "TDG", "TNC", "TXT", "UNP", "UPS", "WAB",
+    "ACCO", "ALK", "ARNC", "BWA", "CW", "DAL", "HAS", "KBR", "LUV",
+
+    # Additional Energy
+    "AM", "ANDX", "CLB", "CVE", "DCP", "DKL", "ENBL", "ENB", "ET", "FANG",
+    "HFC", "MMP", "MPLX", "NGL", "PAA", "PAGP", "PBFX", "PSXP", "RRC", "SBOW",
+    "SM", "TRGP", "WES",
+
+    # Additional Materials
+    "AMG", "BALL", "BCC", "BMS", "CRS", "FAST", "GEF", "HUN", "IFF", "IMCD",
+    "KGC", "MP", "NGVT", "OLN", "OSI", "PFGC", "RPM", "SLVM", "TREX", "UFPI",
+
+    # Additional Real Estate
+    "AIV", "AIRC", "ALEX", "APLE", "BRSP", "BRT", "COLD", "CORR", "DEA", "EPRT",
+    "GMRE", "GTY", "IIPR", "ILPT", "INDUS", "JBGS", "KREF", "LTC", "MACK", "NSA",
+    "PDM", "PW", "ROIC", "SAFE", "SKT", "STAG", "STOR", "TRNO",
 ]
 
 # Remove any duplicates while preserving order
