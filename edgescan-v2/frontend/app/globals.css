@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f8f9fa;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --accent: #6366f1;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --score-strong: #22c55e;
+  --score-moderate: #f59e0b;
+  --score-weak: #ef4444;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.dark {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --border: #2a2d3a;
+  --accent: #6366f1;
+  --text: #f1f5f9;
+  --text-muted: #64748b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* Tabular figures for all numeric displays */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Custom scrollbar for Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Smooth transitions for theme changes */
+body,
+.surface {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Pro lock blur utility */
+.pro-blur {
+  filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+}
