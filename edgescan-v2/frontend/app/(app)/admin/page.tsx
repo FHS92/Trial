@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import { Users, Crown, TrendingUp, Calendar, BarChart2 } from 'lucide-react'
+import { cookies } from 'next/headers'
 import { getCurrentUser } from '@/lib/auth'
-import { api } from '@/lib/api'
+import { serverFetch, type AdminStatsResponse, type AdminUsersResponse } from '@/lib/api'
 
 export const metadata = { title: 'Admin — EdgeScan' }
 
@@ -32,9 +33,10 @@ function StatCard({
 }
 
 async function AdminContent() {
+  const cookieHeader = (await cookies()).toString()
   const [stats, usersData] = await Promise.all([
-    api.admin.stats(),
-    api.admin.users({ per_page: 20 }),
+    serverFetch<AdminStatsResponse>('/admin/stats', cookieHeader),
+    serverFetch<AdminUsersResponse>('/admin/users?per_page=20', cookieHeader),
   ])
 
   const latestScanAt = stats.latest_scan.started_at

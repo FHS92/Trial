@@ -52,7 +52,7 @@ export function WatchlistClient() {
       await load()
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) return // already in watchlist
-      if (err instanceof ApiError && err.status === 402) { await load(); return } // refresh limit state
+      if (err instanceof ApiError && err.status === 402) { try { await load() } catch { /* ignore */ }; return }
     }
   }
 

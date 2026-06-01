@@ -3,6 +3,10 @@ import type { ScanResult, ScannerResponse, OHLCVBar, WatchlistItem, Subscription
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const V1 = `${BASE}/api/v1`
 
+// For server-side fetches: use internal service URL when available (avoids external round-trip in containers)
+const SERVER_BASE = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+const SERVER_V1 = `${SERVER_BASE}/api/v1`
+
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) {
     super(message)
@@ -21,6 +25,53 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(res.status, body?.error?.message ?? `HTTP ${res.status}`)
   }
   return res.json()
+}
+
+// Server-side fetch: forwards the incoming request's Cookie header to the backend.
+// Call with: const cookieHeader = (await cookies()).toString()
+export async function serverFetch<T>(path: string, cookieHeader: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${SERVER_V1}${path}`, {
+    cache: 'no-store',
+    ...init,
+    headers: { Cookie: cookieHeader, ...init?.headers },
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new ApiError(res.status, body?.error?.message ?? `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
+export type AdminStatsResponse = {
+  total_users: number
+  pro_users: number
+  free_users: number
+  active_subscriptions: number
+  new_users_7d: number
+  total_scan_rows: number
+  latest_scan: { started_at: string | null; completed_at: string | null; tickers_scanned: number }
+}
+
+export type AdminUsersResponse = {
+  users: {
+    id: string; email: string; name: string | null; tier: string
+    is_admin: boolean; created_at: string
+    subscription: { status: string; plan: string; current_period_end: string | null; cancel_at_period_end: boolean } | null
+  }[]
+  total: number; page: number; per_page: number; pages: number
+}
+
+export type EarningsResponse = {
+  tier: string
+  earnings: {
+    ticker: string
+    name: string | null
+    sector: string | null
+    score: number | null
+    earnings_date: string
+    current_price: number | null
+    upside_pct: number | null
+  }[]
 }
 
 export const api = {
@@ -46,47 +97,19 @@ export const api = {
     remove: (ticker: string) =>
       apiFetch<void>(`/watchlist/${ticker}`, { method: 'DELETE' }),
   },
-  earnings: () =>
-    apiFetch<{
-      tier: string
-      earnings: {
-        ticker: string
-        name: string | null
-        sector: string | null
-        score: number | null
-        earnings_date: string
-        current_price: number | null
-        upside_pct: number | null
-      }[]
-    }>('/earnings'),
+  earnings: () => apiFetch<EarningsResponse>('/earnings'),
   search: (q: string) =>
     apiFetch<{ results: { ticker: string; name: string | null; sector: string | null; score: number | null }[] }>(
       `/search?q=${encodeURIComponent(q)}`
     ),
   admin: {
-    stats: () =>
-      apiFetch<{
-        total_users: number
-        pro_users: number
-        free_users: number
-        active_subscriptions: number
-        new_users_7d: number
-        total_scan_rows: number
-        latest_scan: { started_at: string | null; completed_at: string | null; tickers_scanned: number }
-      }>('/admin/stats'),
+    stats: () => apiFetch<AdminStatsResponse>('/admin/stats'),
     users: (params?: { page?: number; per_page?: number; tier?: 'pro' | 'free' }) => {
       const q = new URLSearchParams()
       if (params?.page) q.set('page', String(params.page))
       if (params?.per_page) q.set('per_page', String(params.per_page))
       if (params?.tier) q.set('tier', params.tier)
-      return apiFetch<{
-        users: {
-          id: string; email: string; name: string | null; tier: string
-          is_admin: boolean; created_at: string
-          subscription: { status: string; plan: string; current_period_end: string | null; cancel_at_period_end: boolean } | null
-        }[]
-        total: number; page: number; per_page: number; pages: number
-      }>(`/admin/users${q.toString() ? '?' + q.toString() : ''}`)
+      return apiFetch<AdminUsersResponse>(`/admin/users${q.toString() ? '?' + q.toString() : ''}`)
     },
   },
   health: () =>
