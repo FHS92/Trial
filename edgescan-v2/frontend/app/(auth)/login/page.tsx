@@ -41,12 +41,20 @@ export default function LoginPage() {
     await signIn('google', { redirectTo: callbackUrl })
   }
 
+  const inputClass = [
+    'w-full rounded-lg px-4 py-3 text-sm',
+    'bg-[var(--bg)] border border-[var(--border)]',
+    'text-[var(--text)] placeholder:text-[var(--text-muted)]',
+    'focus:outline-none focus:ring-1 focus:ring-[var(--accent)] focus:border-[var(--accent)]',
+    'transition-colors',
+  ].join(' ')
+
   return (
-    <div className="bg-[#1a1d27] border border-[#2a2d3a] rounded-xl p-8">
-      <h1 className="text-xl font-semibold text-white mb-6">Sign in to EdgeScan</h1>
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8">
+      <h1 className="text-xl font-semibold text-[var(--text)] mb-6">Sign in to EdgeScan</h1>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-900/30 border border-red-700/50 px-4 py-3 text-sm text-red-400">
+        <div className="mb-4 rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400">
           {error}
         </div>
       )}
@@ -56,9 +64,8 @@ export default function LoginPage() {
         type="button"
         onClick={handleGoogle}
         disabled={loading}
-        className="w-full flex items-center justify-center gap-3 bg-transparent border border-[#2a2d3a] hover:border-slate-500 text-white font-medium py-3 rounded-lg transition-colors mb-6 disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-3 border border-[var(--border)] hover:border-[var(--accent)]/50 text-[var(--text)] text-sm font-medium py-3 rounded-lg transition-colors mb-6 disabled:opacity-50"
       >
-        {/* Google logo SVG */}
         <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
           <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -71,16 +78,16 @@ export default function LoginPage() {
 
       <div className="relative mb-6">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-[#2a2d3a]" />
+          <div className="w-full border-t border-[var(--border)]" />
         </div>
-        <div className="relative flex justify-center text-xs text-slate-500 uppercase">
-          <span className="bg-[#1a1d27] px-3">or sign in with email</span>
+        <div className="relative flex justify-center text-xs text-[var(--text-muted)] uppercase">
+          <span className="bg-[var(--surface)] px-3">or sign in with email</span>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1.5">
+          <label htmlFor="email" className="block text-sm font-medium text-[var(--text-muted)] mb-1.5">
             Email
           </label>
           <input
@@ -91,16 +98,16 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full bg-[#0f1117] border border-[#2a2d3a] rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            className={inputClass}
           />
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+            <label htmlFor="password" className="block text-sm font-medium text-[var(--text-muted)]">
               Password
             </label>
-            <Link href="/forgot" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+            <Link href="/forgot" className="text-xs text-[var(--accent)] hover:opacity-80 transition-opacity">
               Forgot password?
             </Link>
           </div>
@@ -112,22 +119,23 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full bg-[#0f1117] border border-[#2a2d3a] rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            className={inputClass}
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+          className="w-full text-white text-sm font-semibold py-3 rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+          style={{ backgroundColor: 'var(--accent)' }}
         >
-          {loading ? 'Signing in...' : 'Sign in'}
+          {loading ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-400">
+      <p className="mt-6 text-center text-sm text-[var(--text-muted)]">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+        <Link href="/signup" className="text-[var(--accent)] hover:opacity-80 font-medium transition-opacity">
           Sign up
         </Link>
       </p>

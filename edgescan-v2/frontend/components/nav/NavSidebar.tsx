@@ -91,6 +91,7 @@ export function NavSidebar({ className }: NavSidebarProps) {
             onChange={e => setSearchQuery(e.target.value)}
             onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
             placeholder="Search tickers…"
+            aria-label="Search stocks"
             className={cn(
               'w-full rounded-md px-3 py-2 text-sm',
               'bg-[var(--bg)] border border-[var(--border)]',
@@ -188,7 +189,8 @@ export function NavSidebar({ className }: NavSidebarProps) {
                 : 'bg-[var(--border)] text-[var(--text-muted)]'
             )}
           >
-            {user?.tier === 'pro' ? '⚡ Pro' : '🔒 Free'}
+            <span aria-hidden="true">{user?.tier === 'pro' ? '⚡' : '🔒'}</span>
+          {user?.tier === 'pro' ? 'Pro' : 'Free'}
           </span>
           <ThemeToggle />
         </div>
@@ -224,10 +226,10 @@ export function NavSidebar({ className }: NavSidebarProps) {
             </Link>
             <button
               onClick={() => signOut({ redirectTo: '/login' })}
+              aria-label="Sign out"
               className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-red-400 hover:bg-[var(--border)]/50 transition-colors"
-              title="Sign out"
             >
-              <LogOut className="h-3.5 w-3.5 shrink-0" />
+              <LogOut className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               Sign out
             </button>
           </div>
