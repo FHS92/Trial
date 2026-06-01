@@ -1,10 +1,12 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { Calendar, ArrowRight, Lock } from 'lucide-react'
-import { api } from '@/lib/api'
+import { cookies } from 'next/headers'
 import { getCurrentUser } from '@/lib/auth'
 import { ScoreRing } from '@/components/score/ScoreRing'
 import { formatPrice, formatPercent, cn } from '@/lib/utils'
+
+const API_V1 = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/v1`
 
 export const metadata = {
   title: 'Earnings Calendar — EdgeScan',
@@ -32,13 +34,32 @@ function groupByDate<T extends { earnings_date: string }>(earnings: T[]) {
   return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
 }
 
-async function EarningsContent() {
-  const currentUser = await getCurrentUser()
-  const isPro = currentUser?.tier === 'pro'
+type EarningsData = {
+  tier: string
+  earnings: {
+    ticker: string
+    name: string | null
+    sector: string | null
+    score: number | null
+    earnings_date: string
+    current_price: number | null
+    upside_pct: number | null
+  }[]
+}
 
-  let data: Awaited<ReturnType<typeof api.earnings>>
+async function EarningsContent() {
+  const [currentUser, cookieStore] = await Promise.all([getCurrentUser(), cookies()])
+  const isPro = currentUser?.tier === 'pro'
+  const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ')
+
+  let data: EarningsData
   try {
-    data = await api.earnings()
+    const res = await fetch(`${API_V1}/earnings`, {
+      headers: { Cookie: cookieHeader },
+      cache: 'no-store',
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    data = await res.json()
   } catch {
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">

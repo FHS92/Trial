@@ -19,7 +19,7 @@ const SAMPLE_STOCKS = [
 
 function ScoreBubble({ score }: { score: number }) {
   const color =
-    score >= 70 ? '#22c55e' : score >= 50 ? '#eab308' : '#ef4444'
+    score >= 80 ? '#22c55e' : score >= 60 ? '#eab308' : '#ef4444'
   return (
     <div
       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white tabular-nums"
@@ -101,7 +101,7 @@ export default async function LandingPage() {
           <div className="px-4 py-3 border-b border-[var(--border)] flex items-center gap-2">
             <BarChart2 className="h-4 w-4 text-[var(--accent)]" />
             <span className="text-sm font-semibold text-[var(--text)]">Top Ranked — Today</span>
-            <span className="ml-auto text-xs text-[var(--text-muted)] font-mono">Live preview</span>
+            <span className="ml-auto text-xs text-[var(--text-muted)] font-mono">Sample data</span>
           </div>
           {SAMPLE_STOCKS.map((s, i) => (
             <div

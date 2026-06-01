@@ -326,10 +326,13 @@ def _on_subscription_deleted(sub_data: dict, db: Session) -> None:
     # Lifecycle email: cancellation confirmation
     if user:
         period_end_str = (
-            sub.current_period_end.strftime("%B %-d, %Y")
+            f"{sub.current_period_end.strftime('%B')} {sub.current_period_end.day}, {sub.current_period_end.year}"
             if sub.current_period_end else None
         )
-        send_cancellation_email(user.email, user.name, period_end_str)
+        try:
+            send_cancellation_email(user.email, user.name, period_end_str)
+        except Exception as exc:
+            logger.error("Failed to send cancellation email for user %s: %s", sub.user_id, exc)
 
 
 def _on_payment_failed(invoice: dict, db: Session) -> None:
@@ -388,4 +391,7 @@ def _upsert_subscription(
 
     # Lifecycle email: send upgrade confirmation once on first activation
     if user and status in ("active", "trialing") and not was_pro:
-        send_upgrade_email(user.email, user.name, plan)
+        try:
+            send_upgrade_email(user.email, user.name, plan)
+        except Exception as exc:
+            logger.error("Failed to send upgrade email for user %s: %s", user_id, exc)
