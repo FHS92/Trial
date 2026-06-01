@@ -28,7 +28,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // Server-side fetch: forwards the incoming request's Cookie header to the backend.
-// Call with: const cookieHeader = (await cookies()).toString()
+// Call with: const cookieHeader = (await cookies()).getAll().map(c => `${c.name}=${c.value}`).join('; ')
+// NOTE: do NOT use (await cookies()).toString() — it encodeURIComponent-encodes values, corrupting session tokens.
 export async function serverFetch<T>(path: string, cookieHeader: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${SERVER_V1}${path}`, {
     cache: 'no-store',
