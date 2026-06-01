@@ -13,14 +13,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       credentials: { email: {}, password: {} },
       async authorize(credentials) {
-        const res = await fetch(`${API}/api/v1/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(credentials),
-        })
-        if (!res.ok) return null
-        const user = await res.json()
-        return user
+        try {
+          const res = await fetch(`${API}/api/v1/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: credentials.email, password: credentials.password }),
+          })
+          if (!res.ok) return null
+          const user = await res.json()
+          return { id: user.id, email: user.email, name: user.name, tier: user.tier, is_admin: user.is_admin }
+        } catch {
+          return null
+        }
       },
     }),
   ],
