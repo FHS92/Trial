@@ -89,9 +89,14 @@ _ALLOWED_ORIGINS = [
     if o.strip()
 ]
 
+# Optional regex for Vercel preview deployments, e.g.:
+# CORS_ORIGIN_REGEX=https://edgescan-v2.*\.vercel\.app
+_CORS_ORIGIN_REGEX = os.environ.get("CORS_ORIGIN_REGEX") or None
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOWED_ORIGINS,
+    allow_origin_regex=_CORS_ORIGIN_REGEX,
     allow_credentials=True,   # required for cookies (Auth.js session token)
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Internal-Secret"],

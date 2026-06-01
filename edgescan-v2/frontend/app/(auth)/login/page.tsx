@@ -8,7 +8,7 @@ import { signIn } from 'next-auth/react'
 export default function LoginPage() {
   const searchParams = useSearchParams()
   const rawCallback = searchParams.get('callbackUrl') ?? '/scanner'
-  const callbackUrl = rawCallback.startsWith('/') ? rawCallback : '/scanner'
+  const callbackUrl = rawCallback.startsWith('/') && !rawCallback.startsWith('//') ? rawCallback : '/scanner'
   const errorParam = searchParams.get('error')
 
   const [email, setEmail] = useState('')

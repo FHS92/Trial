@@ -21,7 +21,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           })
           if (!res.ok) return null
           const user = await res.json()
-          return { id: user.id, email: user.email, name: user.name, tier: user.tier, is_admin: user.is_admin }
+          return { id: String(user.id), email: user.email, name: user.name, tier: user.tier, is_admin: user.is_admin, has_onboarded: user.has_onboarded }
         } catch {
           return null
         }
@@ -30,10 +30,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn({ user, account }) {
-      // For Google sign-ins, upsert the user in our FastAPI DB
+      // For Google sign-ins, upsert the user in our FastAPI DB and copy tier/role back
       if (account?.provider === 'google') {
         try {
-          await fetch(`${API}/api/v1/auth/google-upsert`, {
+          const res = await fetch(`${API}/api/v1/auth/google-upsert`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -46,15 +46,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               avatar_url: user.image,
             }),
           })
+          if (res.ok) {
+            const dbUser = await res.json()
+            ;(user as any).id = String(dbUser.id)
+            ;(user as any).tier = dbUser.tier
+            ;(user as any).is_admin = dbUser.is_admin
+            ;(user as any).has_onboarded = dbUser.has_onboarded
+          }
         } catch { /* non-fatal */ }
       }
       return true
     },
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id
+        token.id = (user as any).id ?? user.id
         token.tier = (user as any).tier ?? 'free'
         token.is_admin = (user as any).is_admin ?? false
+        token.has_onboarded = (user as any).has_onboarded ?? false
       }
       return token
     },
@@ -63,6 +71,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string
         ;(session.user as any).tier = token.tier ?? 'free'
         ;(session.user as any).is_admin = token.is_admin ?? false
+        ;(session.user as any).has_onboarded = token.has_onboarded ?? false
       }
       return session
     },

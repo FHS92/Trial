@@ -25,6 +25,7 @@ AUTH_SECRET=<generate: openssl rand -base64 32>
 ADMIN_EMAILS=f.h.said@gmail.com
 INTERNAL_API_SECRET=<generate: openssl rand -hex 32>
 CORS_ORIGINS=https://edgescan-v2.vercel.app
+CORS_ORIGIN_REGEX=https://edgescan-v2.*\.vercel\.app
 NEXT_PUBLIC_APP_URL=https://edgescan-v2.vercel.app
 DATA_PROVIDER_PRIMARY=yfinance
 ENV=production
