@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { signOut } from 'next-auth/react'
-import { User, Crown, LogOut, Trash2, Check, X, CreditCard } from 'lucide-react'
+import { User, Crown, LogOut, Trash2, Check, X, CreditCard, Loader2 } from 'lucide-react'
+import { api, ApiError } from '@/lib/api'
 import type { Tier } from '@/lib/types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -26,6 +27,30 @@ export default function AccountClient({ user }: Props) {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const [billingLoading, setBillingLoading] = useState(false)
+  const [billingError, setBillingError] = useState<string | null>(null)
+
+  async function handleBillingClick() {
+    setBillingLoading(true)
+    setBillingError(null)
+    try {
+      if (user.tier === 'pro') {
+        const { url } = await api.billing.portal()
+        window.location.href = url
+      } else {
+        window.location.href = '/upgrade'
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        // No billing record — redirect to upgrade page to start a subscription
+        window.location.href = '/upgrade'
+      } else {
+        setBillingError('Unable to open billing portal. Please try again.')
+        setBillingLoading(false)
+      }
+    }
+  }
 
   async function saveName() {
     if (!displayName.trim()) {
@@ -162,13 +187,17 @@ export default function AccountClient({ user }: Props) {
             ? 'You are on the Pro plan.'
             : 'You are on the Free plan. Upgrade to unlock all features.'}
         </p>
-        <a
-          href="#billing"
-          className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+        <button
+          onClick={handleBillingClick}
+          disabled={billingLoading}
+          className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors disabled:opacity-70"
         >
-          <CreditCard className="h-4 w-4" />
+          {billingLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
           {user.tier === 'pro' ? 'Manage billing' : 'Upgrade to Pro'}
-        </a>
+        </button>
+        {billingError && (
+          <p className="mt-2 text-xs text-red-400">{billingError}</p>
+        )}
       </div>
 
       {/* Actions */}

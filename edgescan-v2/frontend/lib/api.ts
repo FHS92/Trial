@@ -1,4 +1,4 @@
-import type { ScanResult, ScannerResponse, OHLCVBar, WatchlistItem } from './types'
+import type { ScanResult, ScannerResponse, OHLCVBar, WatchlistItem, SubscriptionInfo } from './types'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const V1 = `${BASE}/api/v1`
@@ -52,4 +52,15 @@ export const api = {
     ),
   health: () =>
     apiFetch<{ status: string; last_scan: string; data_source: string }>('/health'),
+  billing: {
+    createCheckout: (plan: 'monthly' | 'annual') =>
+      apiFetch<{ url: string }>('/billing/create-checkout', {
+        method: 'POST',
+        body: JSON.stringify({ plan }),
+      }),
+    portal: () =>
+      apiFetch<{ url: string }>('/billing/portal', { method: 'POST' }),
+    subscription: () =>
+      apiFetch<{ subscription: SubscriptionInfo | null }>('/billing/subscription'),
+  },
 }

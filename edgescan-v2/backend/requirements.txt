@@ -17,3 +17,5 @@ bcrypt>=4.0.0
 cryptography>=41.0.0
 python-jose[cryptography]>=3.3.0
 pydantic[email]>=2.0.0
+# Phase 5 — Billing
+stripe>=7.0.0

@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { Check, Crown, Zap } from 'lucide-react'
+import { Check, Crown } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
+import { UpgradeCTA } from './UpgradeCTA'
 
 export const metadata = { title: 'Upgrade to Pro — EdgeScan' }
 
@@ -20,6 +21,21 @@ const PRO_FEATURES = [
   'Priority data refresh',
 ]
 
+const FAQ = [
+  {
+    q: 'Can I cancel anytime?',
+    a: 'Yes. Monthly plans cancel at end of the current billing period with no charge. Annual plans are fully refundable within 14 days of purchase.',
+  },
+  {
+    q: 'What payment methods are accepted?',
+    a: 'All major credit and debit cards (Visa, Mastercard, Amex). Payments are processed securely by Stripe.',
+  },
+  {
+    q: 'What data sources does EdgeScan use?',
+    a: 'Fundamentals from SEC EDGAR, prices from Alpha Vantage, AI theses from Claude (Anthropic). All scores are algorithmic — not personalised financial advice.',
+  },
+]
+
 export default async function UpgradePage() {
   const currentUser = await getCurrentUser()
   const isAlreadyPro = currentUser?.tier === 'pro'
@@ -37,7 +53,7 @@ export default async function UpgradePage() {
             Unlock the full EdgeScan edge
           </h1>
           <p className="text-[var(--text-muted)] text-lg max-w-xl mx-auto">
-            AI-generated trade theses, technical signals, and score trends — everything you need to find opportunities before the crowd.
+            AI-generated trade theses, technical signals, and score trends — everything you need to spot opportunities before the crowd.
           </p>
         </div>
 
@@ -81,7 +97,9 @@ export default async function UpgradePage() {
                 <span className="text-[var(--text-muted)] mb-1">/month</span>
               </div>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                or <span className="font-semibold text-[var(--text)]">$144/year</span> — save 20%
+                or{' '}
+                <span className="font-semibold text-[var(--text)]">$144/year</span>
+                {' '}— save 20%
               </p>
             </div>
             <ul className="space-y-3 mb-6">
@@ -92,6 +110,7 @@ export default async function UpgradePage() {
                 </li>
               ))}
             </ul>
+
             {isAlreadyPro ? (
               <div
                 className="rounded-lg px-4 py-2.5 text-center text-sm font-semibold text-white"
@@ -100,38 +119,30 @@ export default async function UpgradePage() {
                 You&apos;re on Pro
               </div>
             ) : (
-              <button
-                disabled
-                className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white flex items-center justify-center gap-2 opacity-80 cursor-not-allowed"
-                style={{ backgroundColor: 'var(--accent)' }}
-                title="Billing coming soon"
-              >
-                <Zap className="h-4 w-4" />
-                Upgrade to Pro — coming soon
-              </button>
+              <div className="space-y-2">
+                <UpgradeCTA plan="monthly" label="Upgrade monthly — $15/mo" />
+                <UpgradeCTA plan="annual" label="Upgrade annually — $144/yr" />
+              </div>
             )}
           </div>
         </div>
+
+        {/* Annual savings callout */}
+        {!isAlreadyPro && (
+          <div className="max-w-2xl mx-auto mb-10 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 px-5 py-3.5 text-center">
+            <p className="text-sm text-[var(--text)]">
+              <span className="font-semibold text-[var(--accent)]">Save $36/year</span>
+              {' '}by paying annually — that&apos;s two months free.
+            </p>
+          </div>
+        )}
 
         {/* FAQ */}
         <div className="max-w-2xl mx-auto space-y-4">
           <h2 className="text-lg font-semibold text-[var(--text)] mb-6 text-center">
             Frequently asked questions
           </h2>
-          {[
-            {
-              q: 'When will billing launch?',
-              a: 'Stripe billing is coming in the next release. Sign up now to lock in early-adopter pricing.',
-            },
-            {
-              q: 'Can I cancel anytime?',
-              a: 'Yes. Monthly plans cancel at end of the current period. Annual plans are refundable within 14 days.',
-            },
-            {
-              q: 'What data sources does EdgeScan use?',
-              a: 'Fundamentals from SEC EDGAR, prices from Alpha Vantage, AI thesis from Claude (Anthropic).',
-            },
-          ].map(({ q, a }) => (
+          {FAQ.map(({ q, a }) => (
             <div key={q} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
               <p className="font-medium text-[var(--text)] mb-1">{q}</p>
               <p className="text-sm text-[var(--text-muted)]">{a}</p>
@@ -139,8 +150,14 @@ export default async function UpgradePage() {
           ))}
         </div>
 
+        {/* Disclaimer */}
+        <p className="text-xs text-[var(--text-muted)] text-center mt-8 max-w-xl mx-auto leading-relaxed">
+          Not investment advice. All scores and theses are algorithmic estimates for informational purposes only.
+          Prices shown in USD. Subscription managed via Stripe.
+        </p>
+
         {/* Back link */}
-        <div className="text-center mt-10">
+        <div className="text-center mt-6">
           <Link
             href="/scanner"
             className="text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"

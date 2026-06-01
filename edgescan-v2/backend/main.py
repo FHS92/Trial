@@ -45,6 +45,7 @@ from models import (
 from scanner import scan_universe, score_stock
 from scheduler import start_scheduler
 from auth_routes import router as auth_router
+from billing_routes import router as billing_router
 
 # ---------------------------------------------------------------------------
 # Provider singleton — initialized at startup
@@ -90,8 +91,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount auth router
+# Mount routers
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(billing_router, prefix="/api/v1")
 
 # Scan rate-limiter state (in-memory, per-instance)
 _last_on_demand_scan: datetime = datetime.utcnow() - timedelta(hours=2)

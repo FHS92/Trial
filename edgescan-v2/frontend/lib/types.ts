@@ -101,6 +101,13 @@ export interface WatchlistItem {
   added_at: string
 }
 
+export interface SubscriptionInfo {
+  status: 'active' | 'trialing' | 'past_due' | 'canceled'
+  plan: 'monthly' | 'annual'
+  current_period_end: string | null
+  cancel_at_period_end: boolean
+}
+
 // Augment next-auth session types
 declare module 'next-auth' {
   interface User {
