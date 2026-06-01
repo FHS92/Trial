@@ -19,6 +19,8 @@ export function UpgradeCTA({ plan, label }: Props) {
     try {
       const { url } = await api.billing.createCheckout(plan)
       window.location.href = url
+      // If navigation stalls, reset so the user can retry
+      setTimeout(() => setLoading(false), 10_000)
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setError('You already have an active Pro subscription.')

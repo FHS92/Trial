@@ -194,18 +194,13 @@ async def stripe_webhook(
     Stripe-Signature header is verified against STRIPE_WEBHOOK_SECRET.
     This is the authoritative source of truth for subscription state changes.
     """
-    import stripe as _stripe  # noqa: PLC0415
-    key = os.environ.get("STRIPE_SECRET_KEY", "")
-    if not key:
-        raise HTTPException(status_code=503, detail={"code": "BILLING_UNAVAILABLE", "message": "Billing not configured"})
-    _stripe.api_key = key
-
+    stripe = _stripe_client()
     webhook_secret = _webhook_secret()
     payload = await request.body()
 
     try:
-        event = _stripe.Webhook.construct_event(payload, stripe_signature, webhook_secret)
-    except _stripe.error.SignatureVerificationError:
+        event = stripe.Webhook.construct_event(payload, stripe_signature, webhook_secret)
+    except stripe.error.SignatureVerificationError:
         logger.warning("Stripe webhook signature verification failed")
         raise HTTPException(
             status_code=400,
@@ -247,10 +242,8 @@ def _on_checkout_completed(session: dict, db: Session) -> None:
         logger.warning("checkout.session.completed missing user_id or subscription_id")
         return
 
-    import stripe as _stripe  # noqa: PLC0415
-    _stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
     try:
-        stripe_sub = _stripe.Subscription.retrieve(subscription_id)
+        stripe_sub = _stripe_client().Subscription.retrieve(subscription_id)
     except Exception as exc:
         logger.error("Failed to retrieve subscription %s: %s", subscription_id, exc)
         return
@@ -276,8 +269,19 @@ def _on_subscription_upserted(sub_data: dict, db: Session) -> None:
         logger.warning("subscription.updated: no record for sub=%s / customer=%s", subscription_id, customer_id)
         return
 
+    # Guard against stale events for old subscriptions: if we found the row via customer_id
+    # fallback but it already tracks a different subscription_id, this event is for a superseded
+    # subscription and should not overwrite the current row.
+    if sub.stripe_subscription_id and sub.stripe_subscription_id != subscription_id:
+        logger.info(
+            "Skipping stale subscription event for %s — row already tracks %s",
+            subscription_id, sub.stripe_subscription_id,
+        )
+        return
+
     status = sub_data["status"]
-    period_end = datetime.utcfromtimestamp(sub_data["current_period_end"])
+    period_end_ts = sub_data.get("current_period_end")
+    period_end = datetime.utcfromtimestamp(period_end_ts) if period_end_ts is not None else None
     plan = _interval_to_plan(sub_data)
 
     sub.stripe_subscription_id = subscription_id
@@ -339,7 +343,8 @@ def _upsert_subscription(
     db: Session,
 ) -> None:
     status = stripe_sub["status"]
-    period_end = datetime.utcfromtimestamp(stripe_sub["current_period_end"])
+    period_end_ts = stripe_sub.get("current_period_end")
+    period_end = datetime.utcfromtimestamp(period_end_ts) if period_end_ts is not None else None
     plan = _interval_to_plan(stripe_sub)
 
     sub = db.query(Subscription).filter(Subscription.user_id == user_id).first()
