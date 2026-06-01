@@ -48,9 +48,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 # Secret shared between FastAPI and the Next.js server for internal-only endpoints.
-# When set, google-upsert requires a matching X-Internal-Secret header.
-# When unset (dev default), the endpoint is open — set this in all production deployments.
+# Must be set in all deployments — google-upsert fails closed (503) when unset.
 _INTERNAL_SECRET = os.environ.get("INTERNAL_API_SECRET", "")
+
+# Pre-computed dummy hash so bcrypt.checkpw always runs the full algorithm
+# even on "user not found" paths — prevents timing-based user enumeration.
+_DUMMY_HASH: str = bcrypt.hashpw(b"__dummy_timing_password__", bcrypt.gensalt(rounds=12)).decode()
 
 _ADMIN_EMAILS = {
     e.strip().lower()
@@ -205,11 +208,11 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email.lower()).first()
 
     # Use constant-time comparison even on "user not found" to prevent timing attacks
-    dummy_hash = "$2b$12$invalidhashfortimingatxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    dummy_hash = _DUMMY_HASH
     stored_hash = user.password_hash if (user and user.password_hash) else dummy_hash
     password_ok = _verify_password(body.password, stored_hash)
 
-    if not user or not password_ok:
+    if not user or not password_ok or not user.is_active:
         raise HTTPException(
             status_code=401,
             detail={"code": "INVALID_CREDENTIALS", "message": "Invalid email or password"},
@@ -406,7 +409,12 @@ def google_upsert(
     embed in the JWT (so tier is available server-side).
     Requires X-Internal-Secret header matching INTERNAL_API_SECRET env var.
     """
-    if _INTERNAL_SECRET and x_internal_secret != _INTERNAL_SECRET:
+    if not _INTERNAL_SECRET:
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "NOT_CONFIGURED", "message": "Internal endpoint not configured"},
+        )
+    if x_internal_secret != _INTERNAL_SECRET:
         raise HTTPException(
             status_code=403,
             detail={"code": "FORBIDDEN", "message": "Internal endpoint"},

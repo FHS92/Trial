@@ -73,14 +73,15 @@ export interface ScanResult {
   earnings_date: string | null
   scanned_at: string
   data_source?: string
+  thesis?: string | null
 }
 
 export interface ScannerResponse {
   results: ScanResult[]
   tier: Tier
   total_available: number
-  as_of: string
-  data_source: string
+  last_scanned_at: string | null
+  data_source?: string
 }
 
 export interface OHLCVBar {

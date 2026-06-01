@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { cookies } from 'next/headers'
 import { ScoreRing } from '@/components/score/ScoreRing'
 import { ScoreBadge } from '@/components/score/ScoreBadge'
 import { ScoreBreakdown } from '@/components/score/ScoreBreakdown'
@@ -10,7 +11,7 @@ import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { PriceChart } from './PriceChart'
 import { SignalsPanel } from './SignalsPanel'
 import { WatchlistToggle } from './WatchlistToggle'
-import { api, ApiError } from '@/lib/api'
+import { serverFetch, ApiError } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { formatPrice, formatPercent } from '@/lib/utils'
 import type { ScanResult, Tier } from '@/lib/types'
@@ -22,10 +23,11 @@ interface StockPageProps {
 async function StockContent({ ticker }: { ticker: string }) {
   const currentUser = await getCurrentUser()
   const tier: Tier = currentUser?.tier ?? 'free'
+  const cookieHeader = (await cookies()).getAll().map(c => `${c.name}=${c.value}`).join('; ')
 
   let stock: ScanResult
   try {
-    stock = await api.stocks.detail(ticker.toUpperCase())
+    stock = await serverFetch<ScanResult>(`/stocks/${ticker.toUpperCase()}`, cookieHeader)
   } catch (err) {
     const is404 = err instanceof ApiError && err.status === 404
     return (
@@ -149,18 +151,24 @@ async function StockContent({ ticker }: { ticker: string }) {
         <h2 className="text-base font-semibold text-[var(--text)] mb-3">Why Now</h2>
         {tier === 'pro' ? (
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-            <p className="text-sm text-[var(--text-muted)]">
-              Why Now analysis will appear here after first scan.
-            </p>
+            {stock.thesis ? (
+              <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-line">
+                {stock.thesis}
+              </p>
+            ) : (
+              <p className="text-sm text-[var(--text-muted)]">
+                Analysis will be generated on the next scan cycle.
+              </p>
+            )}
           </div>
         ) : (
-          <ProLock benefit={`See the full analysis for ${stock.ticker}`}>
+          <ProLock benefit={`See the AI-generated analysis for ${stock.ticker}`}>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
               <p className="text-sm text-[var(--text)]">
                 {stock.ticker} shows strong fundamental momentum with rising EPS revisions and above-sector margins...
               </p>
               <p className="text-sm text-[var(--text)] mt-2 opacity-60">
-                Technical setup confirms a potential breakout with RSI holding at neutral levels while the stock trades above its 200-day moving average. Analyst consensus has shifted bullish over the past 90 days.
+                Technical setup confirms a potential breakout with RSI holding at neutral levels while the stock trades above its 200-day moving average.
               </p>
             </div>
           </ProLock>

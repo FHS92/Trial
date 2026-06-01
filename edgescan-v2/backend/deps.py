@@ -39,6 +39,8 @@ _ADMIN_EMAILS = {
     if e.strip()
 }
 
+_IS_PRODUCTION = os.environ.get("ENV", "").lower() in ("production", "prod")
+
 
 @dataclass
 class CurrentUser:
@@ -119,9 +121,8 @@ async def get_current_user(
                     )
 
     # Dev bootstrap: Bearer <email> where email is in ADMIN_EMAILS.
-    # Only fires when there was no session cookie at all — never as a fallback
-    # for a present-but-undecryptable cookie (prevents privilege escalation).
-    if not raw_token and authorization and authorization.startswith("Bearer ") and _ADMIN_EMAILS:
+    # Disabled in production (ENV=production). Only fires without a session cookie.
+    if not raw_token and not _IS_PRODUCTION and authorization and authorization.startswith("Bearer ") and _ADMIN_EMAILS:
         token = authorization[len("Bearer "):].lower()
         if token in _ADMIN_EMAILS:
             user = db.query(User).filter(User.email == token).first()

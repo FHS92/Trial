@@ -15,11 +15,14 @@ Environment:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import time
 from datetime import date, datetime, timedelta
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
@@ -70,12 +73,14 @@ def _get_provider():
 # App setup
 # ---------------------------------------------------------------------------
 
+_IS_PRODUCTION = os.environ.get("ENV", "").lower() in ("production", "prod")
+
 app = FastAPI(
     title="EdgeScan v2 API",
     description="S&P 500 stock scoring API — composite fundamental + technical scoring",
     version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if _IS_PRODUCTION else "/docs",
+    redoc_url=None if _IS_PRODUCTION else "/redoc",
 )
 
 _ALLOWED_ORIGINS = [
@@ -88,8 +93,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOWED_ORIGINS,
     allow_credentials=True,   # required for cookies (Auth.js session token)
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Internal-Secret"],
 )
 
 # Mount routers
@@ -102,6 +107,15 @@ _last_on_demand_scan: datetime = datetime.utcnow() - timedelta(hours=2)
 _on_demand_lock = threading.Lock()
 
 SCAN_RATE_LIMIT_SECONDS = 3600  # pro users: max 1 on-demand scan per hour
+
+
+def _redact_triggered_by(value: Optional[str]) -> Optional[str]:
+    """Strip PII (user emails) from triggered_by before returning in public endpoints."""
+    if not value:
+        return value
+    if value.startswith("on_demand:"):
+        return "on_demand"
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -444,7 +458,7 @@ def health(db: Session = Depends(get_db)):
                 if latest_run and latest_run.completed_at
                 else None
             ),
-            "triggered_by": latest_run.triggered_by if latest_run else None,
+            "triggered_by": _redact_triggered_by(latest_run.triggered_by) if latest_run else None,
             "tickers_succeeded": latest_run.tickers_succeeded if latest_run else 0,
         },
         "last_result_at": latest_scan.isoformat() if latest_scan else None,
@@ -584,7 +598,7 @@ def trigger_on_demand_scan(
             )
         _last_on_demand_scan = datetime.utcnow()
 
-    result = run_scan_job(triggered_by=f"on_demand:{user.email}")
+    result = run_scan_job(triggered_by=f"on_demand:{user.id}")
     return {
         "status": "started",
         "run_id": result["run_id"],
@@ -1137,9 +1151,8 @@ def get_scan_status(db: Session = Depends(get_db)):
         "total_scanned": db.query(ScanResult.ticker).distinct().count(),
         "last_run": {
             "id": latest_run.id if latest_run else None,
-            "triggered_by": latest_run.triggered_by if latest_run else None,
+            "triggered_by": _redact_triggered_by(latest_run.triggered_by) if latest_run else None,
             "tickers_succeeded": latest_run.tickers_succeeded if latest_run else 0,
             "tickers_failed": latest_run.tickers_failed if latest_run else 0,
-            "error": latest_run.error if latest_run else None,
         } if latest_run else None,
     }

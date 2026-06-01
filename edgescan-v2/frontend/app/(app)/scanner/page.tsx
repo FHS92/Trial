@@ -1,12 +1,16 @@
 import { Suspense } from 'react'
+import { cookies } from 'next/headers'
 import { SkeletonRow } from '@/components/ui/SkeletonRow'
 import { ScannerClient } from './ScannerClient'
-import { api } from '@/lib/api'
+import { serverFetch } from '@/lib/api'
+import type { ScannerResponse } from '@/lib/types'
 
 async function ScannerContent() {
-  let data
+  const cookieHeader = (await cookies()).getAll().map(c => `${c.name}=${c.value}`).join('; ')
+
+  let data: ScannerResponse
   try {
-    data = await api.scanner.list()
+    data = await serverFetch<ScannerResponse>('/scanner', cookieHeader)
   } catch (err) {
     return (
       <div className="p-4 md:p-6 max-w-4xl mx-auto">
@@ -31,8 +35,8 @@ async function ScannerContent() {
       initialResults={data.results}
       tier={data.tier}
       totalAvailable={data.total_available}
-      asOf={data.as_of}
-      dataSource={data.data_source}
+      asOf={data.last_scanned_at ?? ''}
+      dataSource={data.data_source ?? ''}
     />
   )
 }
