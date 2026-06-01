@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from deps import CurrentUser, require_auth
+from email_service import send_upgrade_email, send_cancellation_email
 from models import Subscription, User
 
 logger = logging.getLogger(__name__)
@@ -322,6 +323,14 @@ def _on_subscription_deleted(sub_data: dict, db: Session) -> None:
     db.commit()
     logger.info("Subscription deleted: %s → user %s downgraded to free", subscription_id, sub.user_id)
 
+    # Lifecycle email: cancellation confirmation
+    if user:
+        period_end_str = (
+            sub.current_period_end.strftime("%B %-d, %Y")
+            if sub.current_period_end else None
+        )
+        send_cancellation_email(user.email, user.name, period_end_str)
+
 
 def _on_payment_failed(invoice: dict, db: Session) -> None:
     customer_id = invoice.get("customer")
@@ -369,9 +378,14 @@ def _upsert_subscription(
         db.add(sub)
 
     user = db.query(User).filter(User.id == user_id).first()
+    was_pro = user.tier == "pro" if user else False
     if user:
         user.tier = "pro" if status in ("active", "trialing") else "free"
         user.updated_at = _now()
 
     db.commit()
     logger.info("Subscription upserted for user %s: status=%s plan=%s", user_id, status, plan)
+
+    # Lifecycle email: send upgrade confirmation once on first activation
+    if user and status in ("active", "trialing") and not was_pro:
+        send_upgrade_email(user.email, user.name, plan)

@@ -63,6 +63,32 @@ export const api = {
     apiFetch<{ results: { ticker: string; name: string | null; sector: string | null; score: number | null }[] }>(
       `/search?q=${encodeURIComponent(q)}`
     ),
+  admin: {
+    stats: () =>
+      apiFetch<{
+        total_users: number
+        pro_users: number
+        free_users: number
+        active_subscriptions: number
+        new_users_7d: number
+        total_scan_rows: number
+        latest_scan: { started_at: string | null; completed_at: string | null; tickers_scanned: number }
+      }>('/admin/stats'),
+    users: (params?: { page?: number; per_page?: number; tier?: 'pro' | 'free' }) => {
+      const q = new URLSearchParams()
+      if (params?.page) q.set('page', String(params.page))
+      if (params?.per_page) q.set('per_page', String(params.per_page))
+      if (params?.tier) q.set('tier', params.tier)
+      return apiFetch<{
+        users: {
+          id: string; email: string; name: string | null; tier: string
+          is_admin: boolean; created_at: string
+          subscription: { status: string; plan: string; current_period_end: string | null; cancel_at_period_end: boolean } | null
+        }[]
+        total: number; page: number; per_page: number; pages: number
+      }>(`/admin/users${q.toString() ? '?' + q.toString() : ''}`)
+    },
+  },
   health: () =>
     apiFetch<{ status: string; last_scan: string; data_source: string }>('/health'),
   billing: {

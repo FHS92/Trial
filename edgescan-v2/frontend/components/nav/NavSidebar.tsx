@@ -14,6 +14,7 @@ import {
   LogOut,
   Settings,
   Zap,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -157,6 +158,23 @@ export function NavSidebar({ className }: NavSidebarProps) {
             </Link>
           )
         })}
+
+        {/* Admin link — only shown to admins */}
+        {user?.isAdmin && (
+          <Link
+            href="/admin"
+            className={cn(
+              'relative flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium',
+              'transition-colors duration-150',
+              pathname === '/admin'
+                ? 'bg-amber-500/10 text-amber-400'
+                : 'text-[var(--text-muted)] hover:text-amber-400 hover:bg-amber-500/5'
+            )}
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            Admin
+          </Link>
+        )}
 
         {/* Upgrade CTA — only shown to free users */}
         {user && user.tier !== 'pro' && (

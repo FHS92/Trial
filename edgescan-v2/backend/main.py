@@ -44,6 +44,7 @@ from models import (
 )
 from scanner import scan_universe, score_stock
 from scheduler import start_scheduler
+from admin_routes import router as admin_router
 from auth_routes import router as auth_router
 from billing_routes import router as billing_router
 
@@ -92,6 +93,7 @@ app.add_middleware(
 )
 
 # Mount routers
+app.include_router(admin_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(billing_router, prefix="/api/v1")
 

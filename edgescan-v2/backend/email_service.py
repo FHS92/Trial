@@ -122,3 +122,55 @@ def send_welcome_email(to: str, name: Optional[str]) -> bool:
 </div>
 """
     return _send(to, "Welcome to EdgeScan", html)
+
+
+def send_upgrade_email(to: str, name: Optional[str], plan: str) -> bool:
+    display = name or "there"
+    plan_label = "Annual" if plan == "annual" else "Monthly"
+    portal_link = f"{_APP_URL}/account"
+    html = f"""
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+  <h2 style="color:#6366f1">You&apos;re now on EdgeScan Pro ⚡</h2>
+  <p>Hi {display},</p>
+  <p>Your <strong>Pro {plan_label}</strong> subscription is now active.
+     You have full access to all 503 S&amp;P 500 stocks, unlimited watchlists,
+     AI-generated theses, and the full earnings calendar.</p>
+  <a href="{_APP_URL}/scanner" style="display:inline-block;background:#6366f1;color:#fff;
+     padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin:16px 0">
+    Open the scanner →
+  </a>
+  <p style="color:#64748b;font-size:12px">
+    Manage your subscription at any time from your{' '}
+    <a href="{portal_link}" style="color:#6366f1">Account Settings</a>.
+  </p>
+  <hr style="border:none;border-top:1px solid #e2e8f0">
+  <p style="color:#94a3b8;font-size:11px">
+    EdgeScan — Not investment advice. Scores are informational only.
+  </p>
+</div>
+"""
+    return _send(to, "You're now on EdgeScan Pro ⚡", html)
+
+
+def send_cancellation_email(to: str, name: Optional[str], period_end: Optional[str]) -> bool:
+    display = name or "there"
+    end_note = f" until {period_end}" if period_end else ""
+    html = f"""
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+  <h2 style="color:#6366f1">Your EdgeScan Pro subscription has been cancelled</h2>
+  <p>Hi {display},</p>
+  <p>Your Pro subscription has been cancelled. You&apos;ll retain Pro access{end_note},
+     after which your account will revert to the Free plan.</p>
+  <p>We&apos;d love to know why you left — if you have a moment, reply to this email
+     with any feedback.</p>
+  <a href="{_APP_URL}/upgrade" style="display:inline-block;background:#6366f1;color:#fff;
+     padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin:16px 0">
+    Reactivate Pro
+  </a>
+  <hr style="border:none;border-top:1px solid #e2e8f0">
+  <p style="color:#94a3b8;font-size:11px">
+    EdgeScan — Not investment advice. Scores are informational only.
+  </p>
+</div>
+"""
+    return _send(to, "Your EdgeScan Pro subscription has been cancelled", html)
