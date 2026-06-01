@@ -33,7 +33,7 @@ function StatCard({
 }
 
 async function AdminContent() {
-  const cookieHeader = (await cookies()).toString()
+  const cookieHeader = (await cookies()).getAll().map(c => `${c.name}=${c.value}`).join('; ')
   const [stats, usersData] = await Promise.all([
     serverFetch<AdminStatsResponse>('/admin/stats', cookieHeader),
     serverFetch<AdminUsersResponse>('/admin/users?per_page=20', cookieHeader),

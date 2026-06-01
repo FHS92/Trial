@@ -36,7 +36,7 @@ function groupByDate<T extends { earnings_date: string }>(earnings: T[]) {
 async function EarningsContent() {
   const currentUser = await getCurrentUser()
   const isPro = currentUser?.tier === 'pro'
-  const cookieHeader = (await cookies()).toString()
+  const cookieHeader = (await cookies()).getAll().map(c => `${c.name}=${c.value}`).join('; ')
 
   let data: EarningsResponse
   try {
