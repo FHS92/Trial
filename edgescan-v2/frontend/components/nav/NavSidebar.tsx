@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState, useRef, useEffect } from 'react'
 import {
   BarChart2,
   Star,
@@ -12,11 +13,13 @@ import {
   User,
   LogOut,
   Settings,
+  Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { signOut } from 'next-auth/react'
+import { api } from '@/lib/api'
 
 interface NavSidebarProps {
   className?: string
@@ -32,7 +35,33 @@ const navItems = [
 
 export function NavSidebar({ className }: NavSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const { user } = useCurrentUser()
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<{ ticker: string; name: string | null }[]>([])
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (searchDebounce.current) clearTimeout(searchDebounce.current)
+    if (!searchQuery.trim()) { setSearchResults([]); setSearchOpen(false); return }
+    searchDebounce.current = setTimeout(async () => {
+      try {
+        const data = await api.search(searchQuery.trim())
+        setSearchResults(data.results.slice(0, 6))
+        setSearchOpen(true)
+      } catch { setSearchResults([]) }
+    }, 200)
+  }, [searchQuery])
+
+  useEffect(() => {
+    function handleOut(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false)
+    }
+    document.addEventListener('mousedown', handleOut)
+    return () => document.removeEventListener('mousedown', handleOut)
+  }, [])
 
   return (
     <aside
@@ -54,11 +83,14 @@ export function NavSidebar({ className }: NavSidebarProps) {
       </div>
 
       {/* Search */}
-      <div className="px-3 py-3 border-b border-[var(--border)]">
+      <div className="px-3 py-3 border-b border-[var(--border)]" ref={searchRef}>
         <div className="relative">
           <input
             type="search"
-            placeholder="Search tickers..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
+            placeholder="Search tickers…"
             className={cn(
               'w-full rounded-md px-3 py-2 text-sm',
               'bg-[var(--bg)] border border-[var(--border)]',
@@ -68,13 +100,35 @@ export function NavSidebar({ className }: NavSidebarProps) {
             )}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                const value = (e.target as HTMLInputElement).value.trim()
+                const value = searchQuery.trim()
                 if (value) {
-                  window.location.href = `/stock/${value.toUpperCase()}`
+                  router.push(`/stock/${value.toUpperCase()}`)
+                  setSearchQuery('')
+                  setSearchOpen(false)
                 }
+              } else if (e.key === 'Escape') {
+                setSearchOpen(false)
               }
             }}
           />
+          {searchOpen && searchResults.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-lg overflow-hidden">
+              {searchResults.map(r => (
+                <button
+                  key={r.ticker}
+                  onMouseDown={() => {
+                    router.push(`/stock/${r.ticker}`)
+                    setSearchQuery('')
+                    setSearchOpen(false)
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-[var(--border)]/50 transition-colors"
+                >
+                  <span className="font-mono font-semibold text-[var(--text)] w-12 shrink-0">{r.ticker}</span>
+                  {r.name && <span className="text-xs text-[var(--text-muted)] truncate">{r.name}</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -87,18 +141,39 @@ export function NavSidebar({ className }: NavSidebarProps) {
               key={href}
               href={href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium',
+                'relative flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium',
                 'transition-colors duration-150',
                 isActive
-                  ? 'bg-[var(--accent)]/10 text-[var(--accent)] border-l-2 border-[var(--accent)] rounded-l-none'
+                  ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--border)]/50'
               )}
             >
+              {isActive && (
+                <span className="absolute left-0 inset-y-1.5 w-0.5 rounded-r bg-[var(--accent)]" />
+              )}
               <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-[var(--accent)]')} />
               {label}
             </Link>
           )
         })}
+
+        {/* Upgrade CTA — only shown to free users */}
+        {user && user.tier !== 'pro' && (
+          <div className="pt-2">
+            <Link
+              href="/upgrade"
+              className={cn(
+                'flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-semibold',
+                'text-white transition-opacity hover:opacity-90',
+                pathname === '/upgrade' && 'opacity-80'
+              )}
+              style={{ backgroundColor: 'var(--accent)' }}
+            >
+              <Zap className="h-4 w-4 shrink-0" />
+              Upgrade to Pro
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* Bottom section */}

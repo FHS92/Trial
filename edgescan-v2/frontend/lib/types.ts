@@ -95,9 +95,12 @@ export interface OHLCVBar {
 
 export interface WatchlistItem {
   ticker: string
-  name: string
-  score: number
+  name: string | null
+  sector: string | null
+  score: number | null
   current_price: number | null
+  price_target_1m: number | null
+  upside_pct: number | null
   added_at: string
 }
 

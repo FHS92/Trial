@@ -9,6 +9,7 @@ import { ProLock } from '@/components/ui/ProLock'
 import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { PriceChart } from './PriceChart'
 import { SignalsPanel } from './SignalsPanel'
+import { WatchlistToggle } from './WatchlistToggle'
 import { api, ApiError } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { formatPrice, formatPercent } from '@/lib/utils'
@@ -61,14 +62,17 @@ async function StockContent({ ticker }: { ticker: string }) {
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
-      {/* Back */}
-      <Link
-        href="/scanner"
-        className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Scanner
-      </Link>
+      {/* Back + watchlist */}
+      <div className="flex items-center justify-between">
+        <Link
+          href="/scanner"
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Scanner
+        </Link>
+        <WatchlistToggle ticker={ticker} />
+      </div>
 
       {/* Hero */}
       <div className="flex items-start justify-between gap-4 flex-wrap">

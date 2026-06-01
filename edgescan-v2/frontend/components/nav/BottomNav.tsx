@@ -7,7 +7,7 @@ import {
   Star,
   Briefcase,
   Calendar,
-  MessageSquare,
+  UserCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -20,7 +20,7 @@ const navItems = [
   { label: 'Watchlist', href: '/watchlist', icon: Star },
   { label: 'Portfolio', href: '/portfolio', icon: Briefcase },
   { label: 'Earnings', href: '/earnings', icon: Calendar },
-  { label: 'Chat', href: '/chat', icon: MessageSquare },
+  { label: 'Account', href: '/account', icon: UserCircle },
 ]
 
 export function BottomNav({ className }: BottomNavProps) {

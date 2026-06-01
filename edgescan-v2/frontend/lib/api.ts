@@ -46,8 +46,21 @@ export const api = {
     remove: (ticker: string) =>
       apiFetch<void>(`/watchlist/${ticker}`, { method: 'DELETE' }),
   },
+  earnings: () =>
+    apiFetch<{
+      tier: string
+      earnings: {
+        ticker: string
+        name: string | null
+        sector: string | null
+        score: number | null
+        earnings_date: string
+        current_price: number | null
+        upside_pct: number | null
+      }[]
+    }>('/earnings'),
   search: (q: string) =>
-    apiFetch<{ results: { ticker: string; name: string; sector: string }[] }>(
+    apiFetch<{ results: { ticker: string; name: string | null; sector: string | null; score: number | null }[] }>(
       `/search?q=${encodeURIComponent(q)}`
     ),
   health: () =>
