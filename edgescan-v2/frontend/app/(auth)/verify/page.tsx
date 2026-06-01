@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -50,39 +51,29 @@ export default function VerifyPage() {
   }, [token])
 
   return (
-    <div className="bg-[#1a1d27] border border-[#2a2d3a] rounded-xl p-8 text-center">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
       {status === 'loading' && (
         <>
           <div className="mb-4 flex justify-center">
-            <svg
-              className="h-8 w-8 animate-spin text-indigo-400"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-            </svg>
+            <Loader2 className="h-10 w-10 animate-spin text-[var(--accent)]" />
           </div>
-          <p className="text-slate-300 text-sm">Verifying your email...</p>
+          <p className="text-[var(--text-muted)] text-sm">Verifying your email…</p>
         </>
       )}
 
       {status === 'success' && (
         <>
           <div className="mb-4 flex justify-center">
-            <div className="h-12 w-12 rounded-full bg-green-900/40 border border-green-700/50 flex items-center justify-center">
-              <svg className="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
+            <CheckCircle2 className="h-12 w-12 text-green-400" />
           </div>
-          <h2 className="text-lg font-semibold text-white mb-2">Email verified!</h2>
-          <p className="text-slate-400 text-sm mb-6">
+          <h2 className="text-lg font-semibold text-[var(--text)] mb-2">Email verified!</h2>
+          <p className="text-[var(--text-muted)] text-sm mb-6">
             Your email has been confirmed. You can now sign in to your account.
           </p>
           <Link
             href="/login"
-            className="inline-block bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm"
+            className="inline-block text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--accent)' }}
           >
             Sign in
           </Link>
@@ -92,17 +83,13 @@ export default function VerifyPage() {
       {status === 'error' && (
         <>
           <div className="mb-4 flex justify-center">
-            <div className="h-12 w-12 rounded-full bg-red-900/40 border border-red-700/50 flex items-center justify-center">
-              <svg className="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
+            <XCircle className="h-12 w-12 text-red-400" />
           </div>
-          <h2 className="text-lg font-semibold text-white mb-2">Verification failed</h2>
-          <p className="text-slate-400 text-sm mb-6">{message}</p>
+          <h2 className="text-lg font-semibold text-[var(--text)] mb-2">Verification failed</h2>
+          <p className="text-[var(--text-muted)] text-sm mb-6">{message}</p>
           <Link
             href="/login"
-            className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+            className="text-[var(--accent)] hover:opacity-80 text-sm font-medium transition-opacity"
           >
             Back to sign in
           </Link>

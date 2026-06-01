@@ -8,6 +8,8 @@ const PUBLIC_PATHS = [
   '/verify',
   '/forgot',
   '/reset',
+  '/legal',
+  '/methodology',
   '/api/auth',
 ]
 
