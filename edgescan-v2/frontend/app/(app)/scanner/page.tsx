@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { SkeletonRow } from '@/components/ui/SkeletonRow'
 import { ScannerClient } from './ScannerClient'
-import { serverFetch } from '@/lib/api'
+import { serverFetch, ApiError } from '@/lib/api'
 import type { ScannerResponse } from '@/lib/types'
 
 export const metadata: Metadata = {
@@ -18,7 +18,7 @@ async function ScannerContent() {
   try {
     data = await serverFetch<ScannerResponse>('/scanner', cookieHeader)
   } catch (err) {
-    const isAuthErr = err instanceof Error && err.message.includes('401')
+    const isAuthErr = err instanceof ApiError && err.status === 401
     return (
       <div className="p-4 md:p-6 max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold text-[var(--text)] mb-2">Scanner</h1>

@@ -507,6 +507,7 @@ def get_scanner(
             "total_available": total_available,
             "returned": len(results),
             "last_scanned_at": last_scan.isoformat() if last_scan else None,
+            "data_source": provider.name,
         },
         headers={
             "X-Data-As-Of": last_scan.isoformat() if last_scan else datetime.utcnow().isoformat(),
