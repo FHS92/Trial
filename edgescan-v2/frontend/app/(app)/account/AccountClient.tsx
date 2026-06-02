@@ -19,6 +19,7 @@ interface Props {
 }
 
 export default function AccountClient({ user }: Props) {
+  const [savedName, setSavedName] = useState(user.name ?? '')
   const [displayName, setDisplayName] = useState(user.name ?? '')
   const [editingName, setEditingName] = useState(false)
   const [savingName, setSavingName] = useState(false)
@@ -67,6 +68,7 @@ export default function AccountClient({ user }: Props) {
         credentials: 'include',
       })
       if (!res.ok) throw new Error('Failed to update name.')
+      setSavedName(displayName.trim())
       setEditingName(false)
     } catch (err: any) {
       setNameError(err.message ?? 'Something went wrong.')
@@ -102,14 +104,14 @@ export default function AccountClient({ user }: Props) {
             <User className="h-7 w-7 text-[var(--text-muted)]" />
           </div>
           <div>
-            <p className="font-semibold text-[var(--text)]">{user.name ?? 'No name set'}</p>
+            <p className="font-semibold text-[var(--text)]">{savedName || 'No name set'}</p>
             <p className="text-sm text-[var(--text-muted)]">{user.email}</p>
           </div>
           <div className="ml-auto">
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
                 user.tier === 'pro'
-                  ? 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/50'
+                  ? 'bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30'
                   : 'bg-[var(--border)] text-[var(--text-muted)]'
               }`}
             >
@@ -150,7 +152,7 @@ export default function AccountClient({ user }: Props) {
                 <Check className="h-4 w-4 text-white" />
               </button>
               <button
-                onClick={() => { setEditingName(false); setDisplayName(user.name ?? '') }}
+                onClick={() => { setEditingName(false); setDisplayName(savedName) }}
                 className="p-2 rounded-lg border border-[var(--border)] hover:border-slate-500 transition-colors"
                 title="Cancel"
               >
@@ -159,7 +161,7 @@ export default function AccountClient({ user }: Props) {
             </div>
           ) : (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text)]">{user.name ?? '—'}</span>
+              <span className="text-sm text-[var(--text)]">{savedName || '—'}</span>
               <button
                 onClick={() => setEditingName(true)}
                 className="text-xs text-[var(--accent)] hover:opacity-80 font-medium transition-opacity"

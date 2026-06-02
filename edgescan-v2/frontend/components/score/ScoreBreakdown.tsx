@@ -97,6 +97,7 @@ export function ScoreBreakdown({
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--border)]/30 transition-colors"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        aria-controls="score-breakdown-content"
       >
         <span className="text-sm font-semibold text-[var(--text)]">Score Breakdown</span>
         <span className="flex items-center gap-2 text-[var(--text-muted)]">
@@ -105,7 +106,7 @@ export function ScoreBreakdown({
       </button>
 
       {open && (
-        <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[var(--border)]">
+        <div id="score-breakdown-content" className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-[var(--border)]">
           {/* Fundamental */}
           <div>
             <div className="flex items-center justify-between mt-3 mb-2">

@@ -95,7 +95,9 @@ export function WatchlistClient() {
     return (
       <div className="p-4 md:p-6 max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold text-[var(--text)] mb-1">Watchlist</h1>
-        <p className="text-sm text-red-400 mt-4">{error}</p>
+        <div className="mt-4 rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400" role="alert">
+          {error}
+        </div>
       </div>
     )
   }
