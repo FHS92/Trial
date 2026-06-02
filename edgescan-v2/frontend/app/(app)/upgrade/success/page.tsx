@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { CheckCircle, Crown } from 'lucide-react'
 import { auth } from '@/auth'
+import { SessionRefresh } from './SessionRefresh'
 
 export const metadata = { title: 'Welcome to Pro — EdgeScan' }
 
@@ -10,6 +11,8 @@ export default async function UpgradeSuccessPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center px-4">
+      {/* Silently refresh the NextAuth session so the Pro tier is reflected immediately */}
+      <SessionRefresh />
       <div className="max-w-md w-full text-center">
         {/* Icon */}
         <div className="flex justify-center mb-6">

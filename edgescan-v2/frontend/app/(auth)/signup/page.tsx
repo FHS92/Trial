@@ -89,7 +89,7 @@ export default function SignupPage() {
       <h1 className="text-xl font-semibold text-[var(--text)] mb-6">Create your account</h1>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400">
+        <div className="mb-4 rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400" role="alert">
           {error}
         </div>
       )}

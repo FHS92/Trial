@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { cookies } from 'next/headers'
+import type { Metadata } from 'next'
 import { ScoreRing } from '@/components/score/ScoreRing'
 import { ScoreBadge } from '@/components/score/ScoreBadge'
 import { ScoreBreakdown } from '@/components/score/ScoreBreakdown'
@@ -18,6 +19,24 @@ import type { ScanResult, Tier } from '@/lib/types'
 
 interface StockPageProps {
   params: Promise<{ ticker: string }>
+}
+
+export async function generateMetadata({ params }: StockPageProps): Promise<Metadata> {
+  const { ticker } = await params
+  const upper = ticker.toUpperCase()
+  try {
+    const cookieHeader = (await cookies()).getAll().map(c => `${c.name}=${c.value}`).join('; ')
+    const stock = await serverFetch<ScanResult>(`/stocks/${upper}`, cookieHeader)
+    return {
+      title: `${upper} — EdgeScan`,
+      description: `${stock.name} (${upper}) scores ${stock.score}/100 on EdgeScan. Fundamental score: ${stock.fundamental_score}, Technical score: ${stock.technical_score}.`,
+    }
+  } catch {
+    return {
+      title: `${upper} — EdgeScan`,
+      description: `View the EdgeScan score, fundamentals, and technicals for ${upper}.`,
+    }
+  }
 }
 
 async function StockContent({ ticker }: { ticker: string }) {
