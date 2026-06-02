@@ -25,6 +25,7 @@ export function ScannerClient({
   dataSource,
 }: ScannerClientProps) {
   const [results, setResults] = useState(initialResults)
+  const [currentTotal, setCurrentTotal] = useState(totalAvailable)
   const [isPending, startTransition] = useTransition()
   const [filterError, setFilterError] = useState(false)
   const [activeSector, setActiveSector] = useState<string | undefined>(undefined)
@@ -36,6 +37,7 @@ export function ScannerClient({
       try {
         const data = await api.scanner.list({ sector })
         setResults(data.results)
+        setCurrentTotal(data.total_available)
       } catch {
         setFilterError(true)
         // Keep existing results on error
@@ -104,14 +106,15 @@ export function ScannerClient({
             ))}
 
             {/* Free tier upgrade prompt */}
-            {tier === 'free' && totalAvailable > results.length && (
+            {tier === 'free' && currentTotal > results.length && (
               <div className="flex items-center justify-between px-4 py-3 bg-[var(--accent)]/5 border-t border-[var(--accent)]/20">
                 <div>
                   <p className="text-sm font-medium text-[var(--text)]">
-                    Showing {results.length} of {totalAvailable} stocks
+                    Showing {results.length} of {currentTotal} stocks
+                    {activeSector ? ` in ${activeSector}` : ''}
                   </p>
                   <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                    Upgrade to see all S&P 500 stocks ranked
+                    Upgrade to see all {activeSector ? `${activeSector} ` : 'S&P 500 '}stocks ranked
                   </p>
                 </div>
                 <Link

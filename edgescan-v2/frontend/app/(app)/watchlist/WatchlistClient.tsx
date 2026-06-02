@@ -129,9 +129,11 @@ export function WatchlistClient() {
       )}
       {atLimit && isFree && (
         <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4 text-sm">
-          <p className="font-medium text-[var(--text)] mb-1">Watchlist full (5/5)</p>
+          <p className="font-medium text-[var(--text)] mb-1">
+            Watchlist full ({limit}/{limit})
+          </p>
           <p className="text-[var(--text-muted)] text-xs mb-3">
-            Free accounts can track up to 5 stocks. Upgrade to Pro for unlimited watchlists.
+            Free accounts can track up to {limit} stocks. Upgrade to Pro for unlimited watchlists.
           </p>
           <Link
             href="/upgrade"

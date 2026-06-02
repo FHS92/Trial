@@ -196,7 +196,7 @@ export default async function LandingPage() {
             <p className="text-3xl font-bold text-[var(--text)] mb-4">$0</p>
             <ul className="space-y-2 text-sm text-[var(--text-muted)] mb-6">
               {[
-                'Top 20 stocks in real-time',
+                'Top 10 stocks in real-time',
                 '5-stock watchlist',
                 'Score breakdown & methodology',
                 'Price charts & technicals',
