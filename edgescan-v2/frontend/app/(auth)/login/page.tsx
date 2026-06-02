@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isVerifyError, setIsVerifyError] = useState(false)
   const [error, setError] = useState<string | null>(
     errorParam ? 'Sign-in failed. Please check your credentials.' : null
   )
@@ -29,7 +30,15 @@ export default function LoginPage() {
       redirect: false,
     })
     if (res?.error) {
-      setError('Invalid email or password.')
+      // Auth.js wraps error codes — check for email-not-verified pattern
+      const errMsg = res.error ?? ''
+      if (errMsg.includes('EMAIL_NOT_VERIFIED') || errMsg.includes('verify')) {
+        setIsVerifyError(true)
+        setError('Please verify your email address before signing in.')
+      } else {
+        setIsVerifyError(false)
+        setError('Invalid email or password.')
+      }
       setLoading(false)
     }
     if (res?.url) {
@@ -55,8 +64,11 @@ export default function LoginPage() {
       <h1 className="text-xl font-semibold text-[var(--text)] mb-6">Sign in to EdgeScan</h1>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400">
+        <div className="mb-4 rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400" role="alert">
           {error}
+          {isVerifyError && (
+            <span> Check your inbox (and spam folder) for the verification link.</span>
+          )}
         </div>
       )}
 
