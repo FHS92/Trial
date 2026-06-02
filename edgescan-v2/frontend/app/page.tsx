@@ -7,6 +7,16 @@ export const metadata = {
   title: 'EdgeScan — AI-Powered S&P 500 Stock Scanner',
   description:
     'EdgeScan scores every S&P 500 stock using fundamental and technical analysis. Find undervalued stocks with strong momentum.',
+  openGraph: {
+    title: 'EdgeScan — AI-Powered S&P 500 Stock Scanner',
+    description: 'EdgeScan scores every S&P 500 stock using fundamental and technical analysis. Find undervalued stocks with strong momentum.',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'EdgeScan — AI-Powered S&P 500 Stock Scanner',
+    description: 'EdgeScan scores every S&P 500 stock using fundamental and technical analysis.',
+  },
 }
 
 const SAMPLE_STOCKS = [
