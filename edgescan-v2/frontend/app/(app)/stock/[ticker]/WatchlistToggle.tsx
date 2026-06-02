@@ -1,15 +1,33 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Star, Check, Loader2 } from 'lucide-react'
+import { Star, Check, Loader2, X } from 'lucide-react'
 import Link from 'next/link'
 import { api, ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
+
+/** Small inline toast that auto-dismisses after 3 seconds */
+function InlineToast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 3000)
+    return () => clearTimeout(t)
+  }, [onDismiss])
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] animate-fade-in">
+      <Check className="h-3 w-3 text-[#22c55e] shrink-0" />
+      {message}
+      <button onClick={onDismiss} className="ml-0.5 opacity-60 hover:opacity-100" aria-label="Dismiss">
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  )
+}
 
 export function WatchlistToggle({ ticker }: { ticker: string }) {
   const [inWatchlist, setInWatchlist] = useState(false)
   const [loading, setLoading] = useState(false)
   const [limitReached, setLimitReached] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   // Check current status on mount
   useEffect(() => {
@@ -25,13 +43,16 @@ export function WatchlistToggle({ ticker }: { ticker: string }) {
   async function handleToggle() {
     setLoading(true)
     setLimitReached(false)
+    setToast(null)
     try {
       if (inWatchlist) {
         await api.watchlist.remove(ticker)
         setInWatchlist(false)
+        setToast(`${ticker} removed from watchlist`)
       } else {
         await api.watchlist.add(ticker)
         setInWatchlist(true)
+        setToast(`${ticker} added to watchlist`)
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
@@ -68,6 +89,9 @@ export function WatchlistToggle({ ticker }: { ticker: string }) {
         )}
         <span>{inWatchlist ? 'In Watchlist' : 'Watch'}</span>
       </button>
+      {toast && (
+        <InlineToast message={toast} onDismiss={() => setToast(null)} />
+      )}
       {limitReached && (
         <p className="text-xs text-[var(--text-muted)]">
           Watchlist full.{' '}

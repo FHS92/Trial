@@ -61,13 +61,11 @@ const FUNDAMENTAL_FACTORS: ScoreRow[] = [
 ]
 
 const TECHNICAL_FACTORS: ScoreRow[] = [
-  { factor: 'RSI (14-day)', maxPts: 8, description: 'RSI in the 40–70 range earns full points. Overbought (>70) is slightly penalised; oversold (<30) earns partial credit given mean-reversion potential.' },
-  { factor: 'MACD', maxPts: 8, description: 'Bullish crossover earns full credit. Above-signal-line earns partial. Below-signal or bearish crossover loses points.' },
-  { factor: 'vs 200-day MA', maxPts: 8, description: 'Percentage gap above or below the 200-day moving average. Rewards stocks in confirmed uptrends while flagging those in structural downtrends.' },
-  { factor: 'Volume trend', maxPts: 6, description: 'OBV slope and recent volume vs. 50-day average. Rising volume on up-days vs. flat/falling on down-days signals institutional accumulation.' },
-  { factor: '52-week position', maxPts: 6, description: 'Position within the trailing 52-week range. Rewards stocks near highs (momentum) while not excessively penalising recent dips in strong fundamentals names.' },
-  { factor: 'OBV slope', maxPts: 6, description: 'On-balance volume 30-day slope as a standalone confirmation of volume-price agreement.' },
-  { factor: 'ROC (20-day)', maxPts: 6, description: '20-day rate of change — a momentum proxy. Rewards recent positive momentum without double-counting the 200MA factor.' },
+  { factor: 'RSI (14-day)', maxPts: 10, description: 'RSI in the 40–70 range earns full points. Overbought (>70) is slightly penalised; oversold (<30) earns partial credit given mean-reversion potential.' },
+  { factor: 'MACD', maxPts: 10, description: 'Bullish crossover earns full credit. Above-signal-line earns partial. Below-signal or bearish crossover loses points.' },
+  { factor: '200-day MA', maxPts: 10, description: 'Percentage gap above or below the 200-day moving average. Rewards stocks in confirmed uptrends while flagging those in structural downtrends.' },
+  { factor: 'Volume trend', maxPts: 10, description: 'OBV slope and recent volume vs. 50-day average. Rising volume on up-days vs. flat/falling on down-days signals institutional accumulation.' },
+  { factor: '52W high proximity', maxPts: 10, description: 'Position relative to the 52-week high. Rewards stocks near highs (momentum) without excessively penalising recent dips in strong fundamentals names.' },
   { factor: 'Earnings penalty', maxPts: -8, description: 'Up to −8 points deducted when earnings are within 14 days (−8) or 30 days (−4). Reduces false positives from pre-earnings volatility.' },
 ]
 
