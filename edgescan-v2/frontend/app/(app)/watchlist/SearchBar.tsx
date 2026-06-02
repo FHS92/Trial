@@ -81,6 +81,10 @@ export function SearchBar({ onAdd, existingTickers }: SearchBarProps) {
           onChange={e => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder="Search ticker or company name…"
+          aria-label="Search stocks to add to watchlist"
+          aria-expanded={open && results.length > 0}
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
           className={cn(
             'w-full rounded-xl pl-9 pr-4 py-2.5 text-sm',
             'bg-[var(--surface)] border border-[var(--border)]',
@@ -92,7 +96,7 @@ export function SearchBar({ onAdd, existingTickers }: SearchBarProps) {
       </div>
 
       {open && results.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg overflow-hidden">
+        <div role="listbox" aria-label="Search results" className="absolute z-50 mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg overflow-hidden">
           {results.map(r => {
             const already = existingTickers.includes(r.ticker)
             return (

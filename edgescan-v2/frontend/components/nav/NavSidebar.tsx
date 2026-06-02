@@ -93,6 +93,9 @@ export function NavSidebar({ className }: NavSidebarProps) {
             onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
             placeholder="Search tickers…"
             aria-label="Search stocks"
+            aria-expanded={searchOpen && searchResults.length > 0}
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
             className={cn(
               'w-full rounded-md px-3 py-2 text-sm',
               'bg-[var(--bg)] border border-[var(--border)]',
@@ -114,10 +117,16 @@ export function NavSidebar({ className }: NavSidebarProps) {
             }}
           />
           {searchOpen && searchResults.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-lg overflow-hidden">
+            <div
+              role="listbox"
+              aria-label="Search results"
+              className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-lg overflow-hidden"
+            >
               {searchResults.map(r => (
                 <button
                   key={r.ticker}
+                  role="option"
+                  aria-selected={false}
                   onMouseDown={() => {
                     router.push(`/stock/${r.ticker}`)
                     setSearchQuery('')

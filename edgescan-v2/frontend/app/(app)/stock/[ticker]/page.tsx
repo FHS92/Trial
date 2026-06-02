@@ -142,7 +142,9 @@ async function StockContent({ ticker }: { ticker: string }) {
         <div className="shrink-0 flex flex-col items-center gap-1">
           <ScoreRing score={stock.score} size={120} showLabel />
           <p className="text-xs text-[var(--text-muted)]">
-            F{stock.fundamental_score} · T{stock.technical_score}
+            <span title="Fundamental score">F{stock.fundamental_score}</span>
+            {' · '}
+            <span title="Technical score">T{stock.technical_score}</span>
           </p>
         </div>
       </div>
