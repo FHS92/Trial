@@ -20,18 +20,18 @@ import { getCurrentUser } from '@/lib/auth'
 export const metadata = {
   title: 'EdgeScan — The Edge That Moves Markets',
   description:
-    'Quantitative stock intelligence platform. EdgeScan scans 5,000+ US equities daily combining fundamental + technical analysis into a single 0–100 conviction score.',
+    'Quantitative stock intelligence platform. EdgeScan scores all 503 S&P 500 stocks daily using fundamental + technical analysis into a single 0–100 conviction score.',
   openGraph: {
     title: 'EdgeScan — The Edge That Moves Markets',
     description:
-      'Quantitative stock intelligence. 5,000+ stocks scanned daily. Find high-conviction opportunities with institutional-grade analysis.',
+      'Quantitative stock intelligence. 503 S&P 500 stocks scored daily. Find high-conviction opportunities with institutional-grade analysis.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'EdgeScan — The Edge That Moves Markets',
     description:
-      'Quantitative stock intelligence. 5,000+ stocks scanned daily.',
+      'Quantitative stock intelligence. 503 S&P 500 stocks scored daily.',
   },
 }
 
@@ -48,7 +48,7 @@ const STEPS = [
   {
     num: '01',
     title: 'We Scan',
-    desc: 'Every trading day our engine ingests earnings data, analyst revisions, price action, volume, and macro signals for 5,000+ US equities.',
+    desc: 'Every trading day our engine ingests earnings data, analyst revisions, price action, volume, and macro signals for all 503 S&P 500 stocks.',
     icon: Activity,
   },
   {
@@ -120,19 +120,19 @@ const TECH_SIGNALS = [
 
 /* ─── Pricing features ──────────────────────────────────────── */
 const FREE_FEATURES = [
-  'Top 10 results per scan',
-  'Basic score breakdown',
-  'Watchlist (10 stocks)',
+  'Top 10 S&P 500 stocks ranked',
+  'Full score breakdown per stock',
+  'Watchlist (up to 5 stocks)',
   'Updated every market day',
 ]
 
 const PRO_FEATURES = [
-  'Full 50+ results per scan',
-  'Complete signal breakdown',
+  'All 503 S&P 500 stocks ranked',
+  'AI "Why Now?" thesis per stock',
+  'Technical signals panel',
   'Unlimited watchlist',
-  'Priority data refresh',
-  'Earnings calendar integration',
-  'Score history & trends',
+  'Full earnings calendar',
+  'Score history (90 days)',
 ]
 
 /* ─── Sub-components ──────────────────────────────────────────── */
@@ -270,7 +270,7 @@ export default async function LandingPage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
             </span>
-            5,000+ stocks scanned every market day
+            503 S&amp;P 500 stocks scored · Updated 3× daily
           </div>
 
           {/* Headline */}
@@ -338,9 +338,9 @@ export default async function LandingPage() {
         <div className="max-w-5xl mx-auto px-6 py-6">
           <div className="flex flex-wrap justify-center gap-x-0 gap-y-4 divide-x divide-white/10">
             {[
-              { value: '5,000+', label: 'Stocks Scanned Daily' },
-              { value: '100+', label: 'Signals Per Stock' },
-              { value: 'Daily', label: 'Data Refresh' },
+              { value: '503', label: 'S&P 500 Stocks Covered' },
+              { value: '15+', label: 'Signals Per Stock' },
+              { value: '3×', label: 'Daily Data Refresh' },
               { value: '$0', label: 'To Get Started' },
             ].map((stat, i) => (
               <div
@@ -745,10 +745,10 @@ export default async function LandingPage() {
                   Pro
                 </p>
                 <div className="flex items-end gap-1.5">
-                  <span className="text-5xl font-black text-white">$19</span>
+                  <span className="text-5xl font-black text-white">$15</span>
                   <span className="text-zinc-500 mb-2">/month</span>
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">or $190/year — save 17%</p>
+                <p className="text-xs text-zinc-500 mt-1">or $144/year — save 20%</p>
               </div>
               <ul className="space-y-3 mb-8 flex-1">
                 {PRO_FEATURES.map((f) => (
@@ -808,7 +808,7 @@ export default async function LandingPage() {
           </h2>
           <p className="text-lg text-zinc-400 mb-10 max-w-lg mx-auto">
             Join investors who have stopped guessing and started scanning.
-            5,000+ stocks. One score. Total clarity.
+            503 S&amp;P 500 stocks. One score. Total clarity.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
