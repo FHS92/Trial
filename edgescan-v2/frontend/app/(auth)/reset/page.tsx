@@ -78,7 +78,7 @@ export default function ResetPage() {
       <p className="text-[var(--text-muted)] text-sm mb-6">Choose a strong password for your account.</p>
 
       {!token && (
-        <div className="mb-4 rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400">
+        <div className="mb-4 rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400" role="alert">
           Missing reset token. Please use the link from your email.
         </div>
       )}

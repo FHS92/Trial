@@ -1,5 +1,7 @@
 import { Briefcase } from 'lucide-react'
 
+export const metadata = { title: 'Portfolio — EdgeScan' }
+
 export default function PortfolioPage() {
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
