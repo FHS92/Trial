@@ -201,10 +201,14 @@ export function PriceChart({ ticker }: PriceChartProps) {
 
       <p className="text-xs text-[var(--text-muted)]">
         <span style={{ color: '#6366f1' }}>—</span> Price{' '}
-        <span className="ml-2" style={{ color: '#f59e0b' }}>
-          - - -
-        </span>{' '}
-        200-day MA
+        {data.length >= 100 && (
+          <>
+            <span className="ml-2" style={{ color: '#f59e0b' }}>
+              - - -
+            </span>{' '}
+            200-day MA
+          </>
+        )}
       </p>
     </div>
   )

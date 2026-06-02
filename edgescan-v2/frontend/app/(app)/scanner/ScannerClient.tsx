@@ -35,7 +35,7 @@ export function ScannerClient({
     setActiveSector(sector)
     startTransition(async () => {
       try {
-        const data = await api.scanner.list({ sector })
+        const data = await api.scanner.list({ sector, limit: 500 })
         setResults(data.results)
         setCurrentTotal(data.total_available)
       } catch {

@@ -78,8 +78,13 @@ export type EarningsResponse = {
 
 export const api = {
   scanner: {
-    list: (params?: { sector?: string }) =>
-      apiFetch<ScannerResponse>(`/scanner${params?.sector ? `?sector=${encodeURIComponent(params.sector)}` : ''}`),
+    list: (params?: { sector?: string; limit?: number }) => {
+      const q = new URLSearchParams()
+      if (params?.sector) q.set('sector', params.sector)
+      if (params?.limit) q.set('limit', String(params.limit))
+      const qs = q.toString()
+      return apiFetch<ScannerResponse>(`/scanner${qs ? `?${qs}` : ''}`)
+    },
     movers: () =>
       apiFetch<{ risers: ScanResult[]; fallers: ScanResult[] }>('/scanner/movers'),
   },
