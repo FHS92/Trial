@@ -50,14 +50,14 @@ function ScoreTable({ rows }: { rows: ScoreRow[] }) {
 }
 
 const FUNDAMENTAL_FACTORS: ScoreRow[] = [
-  { factor: 'FCF yield', maxPts: 12, description: 'Free cash flow yield relative to sector median. High FCF yield signals undervaluation and capital generation capacity.' },
+  { factor: 'Revenue growth', maxPts: 15, description: 'Year-over-year revenue growth rate. Rewards consistent top-line expansion without penalising early-stage acceleration.' },
+  { factor: 'EPS growth', maxPts: 15, description: 'Earnings per share growth. Combined with revenue growth to filter out margin-improvement-only stories.' },
+  { factor: 'FCF yield', maxPts: 10, description: 'Free cash flow yield relative to sector median. High FCF yield signals undervaluation and capital generation capacity.' },
   { factor: 'ROE', maxPts: 10, description: 'Return on equity vs. sector peers. Rewards capital-efficient businesses with durable competitive advantages.' },
   { factor: 'Gross margin', maxPts: 10, description: 'Gross margin level and trend. Expanding margins indicate pricing power or improving operational leverage.' },
-  { factor: 'Revenue growth', maxPts: 8, description: 'Year-over-year revenue growth rate. Rewards consistent top-line expansion without penalising early-stage acceleration.' },
-  { factor: 'EPS growth', maxPts: 8, description: 'Earnings per share growth. Combined with revenue growth to filter out margin-improvement-only stories.' },
-  { factor: 'Debt / equity', maxPts: 6, description: 'Balance-sheet leverage relative to sector. Penalises over-leveraged companies that face refinancing risk.' },
-  { factor: 'Analyst consensus', maxPts: 4, description: 'Weighted buy/hold/sell ratio from covering analysts. Acts as a sentiment sanity check, not a primary driver.' },
-  { factor: 'Forward P/E', maxPts: 2, description: 'Forward P/E vs. sector average. A small valuation tiebreaker — reward cheapness, penalise extreme premiums.' },
+  { factor: 'Debt / equity', maxPts: 10, description: 'Balance-sheet leverage relative to sector. Penalises over-leveraged companies that face refinancing risk.' },
+  { factor: 'EPS revision', maxPts: 10, description: 'Analyst EPS estimate revisions. Upgrades signal improving business momentum; downgrades flag deteriorating outlook.' },
+  { factor: 'Forward P/E', maxPts: 10, description: 'Forward P/E vs. sector average. A valuation tiebreaker — rewards cheapness, penalises extreme premiums.' },
 ]
 
 const TECHNICAL_FACTORS: ScoreRow[] = [
@@ -92,22 +92,23 @@ export default function MethodologyPage() {
       <Section title="Score structure">
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-center">
-            <p className="text-3xl font-bold text-[var(--text)] mb-1">60</p>
-            <p className="text-sm text-[var(--text-muted)]">Fundamental points</p>
+            <p className="text-3xl font-bold text-[var(--text)] mb-1">8</p>
+            <p className="text-sm text-[var(--text-muted)]">Fundamental factors</p>
           </div>
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-center">
-            <p className="text-3xl font-bold text-[var(--text)] mb-1">40</p>
-            <p className="text-sm text-[var(--text-muted)]">Technical points</p>
+            <p className="text-3xl font-bold text-[var(--text)] mb-1">5</p>
+            <p className="text-sm text-[var(--text-muted)]">Technical factors</p>
           </div>
         </div>
         <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-          The 60/40 split reflects the view that sustainable edge in stock selection derives primarily
-          from business quality (fundamentals), with technical analysis used to improve entry timing
-          and filter noise.
+          Each factor earns a partial score based on how the stock ranks relative to its S&amp;P 500 peers.
+          Raw points are normalized to a 0–100 composite score. Fundamental factors carry more weight,
+          reflecting the view that business quality (fundamentals) drives sustainable returns,
+          while technical analysis improves entry timing.
         </p>
       </Section>
 
-      <Section title="Fundamental factors (60 pts)">
+      <Section title="Fundamental factors">
         <ScoreTable rows={FUNDAMENTAL_FACTORS} />
         <p className="text-xs text-[var(--text-muted)]">
           Fundamentals sourced from SEC EDGAR XBRL filings (quarterly, with annual supplementation)
@@ -116,7 +117,7 @@ export default function MethodologyPage() {
         </p>
       </Section>
 
-      <Section title="Technical factors (40 pts, incl. penalties)">
+      <Section title="Technical factors (incl. penalties)">
         <ScoreTable rows={TECHNICAL_FACTORS} />
         <p className="text-xs text-[var(--text-muted)]">
           Technical indicators computed on adjusted close prices using a 252-trading-day lookback

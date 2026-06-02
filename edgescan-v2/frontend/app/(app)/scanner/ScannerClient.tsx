@@ -26,16 +26,25 @@ export function ScannerClient({
 }: ScannerClientProps) {
   const [results, setResults] = useState(initialResults)
   const [isPending, startTransition] = useTransition()
+  const [filterError, setFilterError] = useState(false)
+  const [activeSector, setActiveSector] = useState<string | undefined>(undefined)
 
   const handleSectorChange = (sector: string | undefined) => {
+    setFilterError(false)
+    setActiveSector(sector)
     startTransition(async () => {
       try {
         const data = await api.scanner.list({ sector })
         setResults(data.results)
       } catch {
+        setFilterError(true)
         // Keep existing results on error
       }
     })
+  }
+
+  const handleResetSector = () => {
+    handleSectorChange(undefined)
   }
 
   const formattedDate = asOf
@@ -46,18 +55,27 @@ export function ScannerClient({
       })
     : 'unknown'
 
+  const dataSourceLabel = dataSource && dataSource !== 'unknown' ? ` · ${dataSource}` : ''
+
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-4xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-[var(--text)]">Scanner</h1>
         <p className="text-sm text-[var(--text-muted)] mt-0.5">
-          Updated {formattedDate} &middot; {dataSource}
+          Updated {formattedDate}{dataSourceLabel}
         </p>
       </div>
 
       {/* Sector filter */}
-      <SectorFilter onSectorChange={handleSectorChange} />
+      <SectorFilter onSectorChange={handleSectorChange} currentSector={activeSector} />
+
+      {/* Filter error banner */}
+      {filterError && (
+        <div className="rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400" role="alert">
+          Failed to filter by sector. Showing previous results.
+        </div>
+      )}
 
       {/* Results list */}
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
@@ -68,10 +86,16 @@ export function ScannerClient({
             ))}
           </>
         ) : results.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center gap-3">
             <p className="text-[var(--text-muted)] text-sm">
-              No results for this sector — try All
+              No stocks found for this sector.
             </p>
+            <button
+              onClick={handleResetSector}
+              className="text-xs text-[var(--accent)] hover:opacity-80 font-medium transition-opacity"
+            >
+              Show all sectors
+            </button>
           </div>
         ) : (
           <>

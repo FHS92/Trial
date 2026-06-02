@@ -1,9 +1,15 @@
 import { Suspense } from 'react'
+import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { SkeletonRow } from '@/components/ui/SkeletonRow'
 import { ScannerClient } from './ScannerClient'
 import { serverFetch } from '@/lib/api'
 import type { ScannerResponse } from '@/lib/types'
+
+export const metadata: Metadata = {
+  title: 'Scanner — EdgeScan',
+  description: 'Scan all S&P 500 stocks ranked by EdgeScan composite score.',
+}
 
 async function ScannerContent() {
   const cookieHeader = (await cookies()).getAll().map(c => `${c.name}=${c.value}`).join('; ')
@@ -12,18 +18,16 @@ async function ScannerContent() {
   try {
     data = await serverFetch<ScannerResponse>('/scanner', cookieHeader)
   } catch (err) {
+    const isAuthErr = err instanceof Error && err.message.includes('401')
     return (
       <div className="p-4 md:p-6 max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold text-[var(--text)] mb-2">Scanner</h1>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
           <p className="text-[var(--text-muted)] text-sm mb-1">
-            Could not load scanner data.
+            {isAuthErr ? 'Please sign in to view the scanner.' : 'Scanner data is temporarily unavailable.'}
           </p>
           <p className="text-xs text-[var(--text-muted)]">
-            Make sure the backend is running at{' '}
-            <code className="font-mono text-[var(--accent)]">
-              {process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}
-            </code>
+            {isAuthErr ? 'Your session may have expired.' : 'Please try refreshing the page in a moment.'}
           </p>
         </div>
       </div>

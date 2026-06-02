@@ -6,9 +6,9 @@ import { UpgradeCTA } from './UpgradeCTA'
 export const metadata = { title: 'Upgrade to Pro — EdgeScan' }
 
 const FREE_FEATURES = [
-  'Full S&P 500 scanner with scores',
-  'Fundamental & technical breakdown',
-  'Watchlist (up to 10 stocks)',
+  'Top 20 stocks in the S&P 500 scanner',
+  'Fundamental & technical score breakdown',
+  'Watchlist (up to 5 stocks)',
   'Price history chart',
 ]
 

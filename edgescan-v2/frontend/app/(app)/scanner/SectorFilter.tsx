@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 const SECTORS = [
@@ -25,6 +25,11 @@ interface SectorFilterProps {
 
 export function SectorFilter({ onSectorChange, currentSector }: SectorFilterProps) {
   const [active, setActive] = useState(currentSector ?? 'All')
+
+  // Sync with external reset (e.g. "Show all sectors" button)
+  useEffect(() => {
+    setActive(currentSector ?? 'All')
+  }, [currentSector])
 
   const handleClick = (sector: string) => {
     setActive(sector)

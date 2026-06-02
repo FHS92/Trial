@@ -133,7 +133,7 @@ export default function AccountClient({ user }: Props) {
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-indigo-500 transition-colors"
+                className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] focus:border-[var(--accent)] transition-colors"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') saveName()
@@ -143,7 +143,8 @@ export default function AccountClient({ user }: Props) {
               <button
                 onClick={saveName}
                 disabled={savingName}
-                className="p-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition-colors disabled:opacity-50"
+                className="p-2 rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: 'var(--accent)' }}
                 title="Save"
               >
                 <Check className="h-4 w-4 text-white" />
@@ -161,7 +162,7 @@ export default function AccountClient({ user }: Props) {
               <span className="text-sm text-[var(--text)]">{user.name ?? '—'}</span>
               <button
                 onClick={() => setEditingName(true)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+                className="text-xs text-[var(--accent)] hover:opacity-80 font-medium transition-opacity"
               >
                 Edit
               </button>
@@ -190,7 +191,8 @@ export default function AccountClient({ user }: Props) {
         <button
           onClick={handleBillingClick}
           disabled={billingLoading}
-          className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors disabled:opacity-70"
+          className="inline-flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-opacity hover:opacity-90 disabled:opacity-70"
+          style={{ backgroundColor: 'var(--accent)' }}
         >
           {billingLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
           {user.tier === 'pro' ? 'Manage billing' : 'Upgrade to Pro'}

@@ -27,11 +27,11 @@ interface NavSidebarProps {
 }
 
 const navItems = [
-  { label: 'Scan', href: '/scanner', icon: BarChart2 },
-  { label: 'Watchlist', href: '/watchlist', icon: Star },
-  { label: 'Portfolio', href: '/portfolio', icon: Briefcase },
-  { label: 'Earnings', href: '/earnings', icon: Calendar },
-  { label: 'Chat', href: '/chat', icon: MessageSquare },
+  { label: 'Scan', href: '/scanner', icon: BarChart2, soon: false },
+  { label: 'Watchlist', href: '/watchlist', icon: Star, soon: false },
+  { label: 'Portfolio', href: '/portfolio', icon: Briefcase, soon: true },
+  { label: 'Earnings', href: '/earnings', icon: Calendar, soon: false },
+  { label: 'Chat', href: '/chat', icon: MessageSquare, soon: true },
 ]
 
 export function NavSidebar({ className }: NavSidebarProps) {
@@ -136,7 +136,7 @@ export function NavSidebar({ className }: NavSidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ label, href, icon: Icon }) => {
+        {navItems.map(({ label, href, icon: Icon, soon }) => {
           const isActive = pathname === href || pathname.startsWith(href + '/')
           return (
             <Link
@@ -155,6 +155,11 @@ export function NavSidebar({ className }: NavSidebarProps) {
               )}
               <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-[var(--accent)]')} />
               {label}
+              {soon && (
+                <span className="ml-auto shrink-0 rounded-full bg-[var(--border)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-muted)]">
+                  Soon
+                </span>
+              )}
             </Link>
           )
         })}
@@ -254,7 +259,8 @@ export function NavSidebar({ className }: NavSidebarProps) {
         ) : (
           <Link
             href="/login"
-            className="flex w-full items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+            className="flex w-full items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--accent)' }}
           >
             Sign in
           </Link>
