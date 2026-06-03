@@ -141,8 +141,8 @@ export function PriceChart({ ticker }: PriceChartProps) {
             <ComposedChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid
@@ -179,11 +179,11 @@ export function PriceChart({ ticker }: PriceChartProps) {
               <Area
                 type="monotone"
                 dataKey="close"
-                stroke="#6366f1"
+                stroke="#10b981"
                 strokeWidth={2}
                 fill="url(#priceGrad)"
                 dot={false}
-                activeDot={{ r: 4, fill: '#6366f1' }}
+                activeDot={{ r: 4, fill: '#10b981' }}
               />
               <Line
                 type="monotone"
@@ -200,7 +200,7 @@ export function PriceChart({ ticker }: PriceChartProps) {
       </div>
 
       <p className="text-xs text-[var(--text-muted)]">
-        <span style={{ color: '#6366f1' }}>—</span> Price{' '}
+        <span style={{ color: '#10b981' }}>—</span> Price{' '}
         {data.length >= 100 && (
           <>
             <span className="ml-2" style={{ color: '#f59e0b' }}>

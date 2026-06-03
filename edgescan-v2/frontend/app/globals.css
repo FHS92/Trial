@@ -4,7 +4,7 @@
   --bg: #f8f9fa;
   --surface: #ffffff;
   --border: #e2e8f0;
-  --accent: #6366f1;
+  --accent: #059669;
   --text: #0f172a;
   --text-muted: #64748b;
   --score-strong: #22c55e;
@@ -14,12 +14,12 @@
 }
 
 .dark {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --border: #2a2d3a;
-  --accent: #6366f1;
+  --bg: #09090c;
+  --surface: #111118;
+  --border: #1c1c2a;
+  --accent: #10b981;
   --text: #f1f5f9;
-  --text-muted: #64748b;
+  --text-muted: #6b7280;
 }
 
 * {
@@ -137,6 +137,21 @@ body,
   to   { stroke-dashoffset: var(--target-offset); }
 }
 
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.25; }
+  50%       { opacity: 0.7; }
+}
+
+@keyframes border-spin {
+  from { --border-angle: 0deg; }
+  to   { --border-angle: 360deg; }
+}
+
 @utility animate-blob {
   animation: blob 7s infinite;
 }
@@ -165,6 +180,14 @@ body,
   animation: fade-in 0.8s ease-out both;
 }
 
+@utility animate-ticker {
+  animation: ticker-scroll 50s linear infinite;
+}
+
+@utility animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
 /* Dot grid overlay */
 .dot-grid {
   background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
@@ -182,7 +205,7 @@ body,
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, #10b981, #6366f1, #10b981);
+  background: linear-gradient(135deg, #10b981, #059669, #34d399);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
