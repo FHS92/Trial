@@ -899,9 +899,10 @@ def generate_stock(ticker: str, target_score: float | None = None) -> dict:
     # Adjust price to reflect quality slightly
     price_factor = gauss_clamp(0.85 + q * 0.3, 0.08, 0.70, 1.30)
     current_price = round(base_price * price_factor, 2)
-    upside = round((analyst_tgt / current_price - 1) * 100, 1)
-    # 1-month target is a fraction of the 12-month analyst consensus
-    price_target_1m = round(current_price * (1 + upside / 100.0 * (1 / 12)), 2)
+    annual_upside = (analyst_tgt / current_price - 1) * 100
+    # 1-month target scales the annual analyst consensus to one month
+    price_target_1m = round(current_price * (1 + annual_upside / 100.0 / 12), 2)
+    upside = round((price_target_1m / current_price - 1) * 100, 1)
 
     # Earnings date: random in next 90 days
     days_out = random.randint(5, 90)
@@ -1013,11 +1014,12 @@ def main() -> None:
     con = sqlite3.connect(DB_PATH)
     cur = con.cursor()
 
-    # Clear existing demo data
-    print("Clearing existing demo scan_results and price_history...")
+    # Clear existing demo data — thesis_cache must be cleared before scan_results
+    # because its scoped DELETE subqueries scan_results for the ticker list.
+    print("Clearing existing demo data...")
+    cur.execute("DELETE FROM thesis_cache WHERE ticker IN (SELECT ticker FROM scan_results WHERE data_source = 'demo_data')")
     cur.execute("DELETE FROM scan_results WHERE data_source = 'demo_data'")
     cur.execute("DELETE FROM price_history WHERE source = 'demo_data'")
-    cur.execute("DELETE FROM thesis_cache WHERE ticker IN (SELECT ticker FROM scan_results WHERE data_source = 'demo_data')")
     cur.execute("DELETE FROM scan_runs WHERE triggered_by = 'seed_script'")
     con.commit()
 
