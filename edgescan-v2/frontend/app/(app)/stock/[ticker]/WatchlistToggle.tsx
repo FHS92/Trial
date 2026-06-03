@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Star, Check, Loader2, X } from 'lucide-react'
 import Link from 'next/link'
 import { api, ApiError } from '@/lib/api'
@@ -28,6 +28,7 @@ export function WatchlistToggle({ ticker }: { ticker: string }) {
   const [loading, setLoading] = useState(false)
   const [limitReached, setLimitReached] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const dismissToast = useCallback(() => setToast(null), [])
 
   // Check current status on mount
   useEffect(() => {
@@ -90,7 +91,7 @@ export function WatchlistToggle({ ticker }: { ticker: string }) {
         <span>{inWatchlist ? 'In Watchlist' : 'Watch'}</span>
       </button>
       {toast && (
-        <InlineToast message={toast} onDismiss={() => setToast(null)} />
+        <InlineToast message={toast} onDismiss={dismissToast} />
       )}
       {limitReached && (
         <p className="text-xs text-[var(--text-muted)]">

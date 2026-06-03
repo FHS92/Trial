@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: StockPageProps): Promise<Meta
     const stock = await serverFetch<ScanResult>(`/stocks/${upper}`, cookieHeader)
     return {
       title: `${upper} — EdgeScan`,
-      description: `${stock.name} (${upper}) scores ${stock.score}/100 on EdgeScan. Fundamental score: ${stock.fundamental_score}, Technical score: ${stock.technical_score}.`,
+      description: `${stock.name ?? upper} (${upper}) scores ${stock.score}/100 on EdgeScan. Fundamental score: ${stock.fundamental_score}, Technical score: ${stock.technical_score}.`,
     }
   } catch {
     return {

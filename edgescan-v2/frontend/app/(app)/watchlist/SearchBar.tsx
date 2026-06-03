@@ -85,6 +85,7 @@ export function SearchBar({ onAdd, existingTickers }: SearchBarProps) {
           aria-expanded={open && results.length > 0}
           aria-autocomplete="list"
           aria-haspopup="listbox"
+          aria-controls="watchlist-search-results"
           className={cn(
             'w-full rounded-xl pl-9 pr-4 py-2.5 text-sm',
             'bg-[var(--surface)] border border-[var(--border)]',
@@ -96,7 +97,7 @@ export function SearchBar({ onAdd, existingTickers }: SearchBarProps) {
       </div>
 
       {open && results.length > 0 && (
-        <div role="listbox" aria-label="Search results" className="absolute z-50 mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg overflow-hidden">
+        <div id="watchlist-search-results" role="listbox" aria-label="Search results" className="absolute z-50 mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-lg overflow-hidden">
           {results.map(r => {
             const already = existingTickers.includes(r.ticker)
             return (

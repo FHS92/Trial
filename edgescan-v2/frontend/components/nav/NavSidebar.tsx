@@ -96,6 +96,7 @@ export function NavSidebar({ className }: NavSidebarProps) {
             aria-expanded={searchOpen && searchResults.length > 0}
             aria-autocomplete="list"
             aria-haspopup="listbox"
+            aria-controls="nav-search-results"
             className={cn(
               'w-full rounded-md px-3 py-2 text-sm',
               'bg-[var(--bg)] border border-[var(--border)]',
@@ -118,6 +119,7 @@ export function NavSidebar({ className }: NavSidebarProps) {
           />
           {searchOpen && searchResults.length > 0 && (
             <div
+              id="nav-search-results"
               role="listbox"
               aria-label="Search results"
               className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-lg overflow-hidden"
