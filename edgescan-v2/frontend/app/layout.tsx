@@ -20,7 +20,7 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <SessionProvider session={session}>
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
             {children}
           </ThemeProvider>
         </SessionProvider>
