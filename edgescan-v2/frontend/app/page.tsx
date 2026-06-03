@@ -21,17 +21,17 @@ import { ScrollReveal } from '@/components/ui/ScrollReveal'
 export const metadata = {
   title: 'EdgeScan — The Edge That Moves Markets',
   description:
-    'Quantitative stock intelligence platform. EdgeScan scores all 503 S&P 500 stocks daily using fundamental + technical analysis into a single 0–100 conviction score.',
+    'Quantitative stock intelligence platform. EdgeScan scores all 500 S&P 500 stocks daily using fundamental + technical analysis into a single 0–100 conviction score.',
   openGraph: {
     title: 'EdgeScan — The Edge That Moves Markets',
     description:
-      'Quantitative stock intelligence. 503 S&P 500 stocks scored daily. Find high-conviction opportunities with institutional-grade analysis.',
+      'Quantitative stock intelligence. 500 S&P 500 stocks scored daily. Find high-conviction opportunities with institutional-grade analysis.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'EdgeScan — The Edge That Moves Markets',
-    description: 'Quantitative stock intelligence. 503 S&P 500 stocks scored daily.',
+    description: 'Quantitative stock intelligence. 500 S&P 500 stocks scored daily.',
   },
 }
 
@@ -64,7 +64,7 @@ const STEPS = [
   {
     num: '01',
     title: 'We Scan',
-    desc: 'Every trading day our engine ingests earnings data, analyst revisions, price action, volume, and macro signals for all 503 S&P 500 stocks.',
+    desc: 'Every trading day our engine ingests earnings data, analyst revisions, price action, volume, and macro signals for all 500 S&P 500 stocks.',
     icon: Activity,
   },
   {
@@ -168,7 +168,7 @@ const FREE_FEATURES = [
 ]
 
 const PRO_FEATURES = [
-  'All 503 S&P 500 stocks ranked',
+  'All 500 S&P 500 stocks ranked',
   'AI "Why Now?" thesis per stock',
   'Technical signals panel',
   'Unlimited watchlist',
@@ -315,7 +315,7 @@ function HeroScanner() {
 
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-2.5 text-[11px] text-zinc-600 bg-white/[0.01]">
-          <span className="font-mono">Showing top 7 of 503 stocks</span>
+          <span className="font-mono">Showing top 7 of 500 stocks</span>
           <span className="text-emerald-500/50 font-semibold">Updated 14 min ago</span>
         </div>
       </div>
@@ -394,7 +394,7 @@ export default async function LandingPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                 </span>
-                503 S&amp;P 500 stocks scored · Updated 3× daily
+                500 S&amp;P 500 stocks scored · Updated 3× daily
               </div>
 
               <h1
@@ -430,7 +430,7 @@ export default async function LandingPage() {
                 style={{ animation: 'slide-up 0.6s ease-out 0.5s both' }}
               >
                 {[
-                  { val: '503', label: 'Stocks' },
+                  { val: '500', label: 'Stocks' },
                   { val: '15+', label: 'Signals' },
                   { val: '3×', label: 'Daily' },
                 ].map((s) => (
@@ -503,7 +503,7 @@ export default async function LandingPage() {
         <div className="max-w-5xl mx-auto px-6 py-8">
           <div className="flex flex-wrap justify-center divide-x divide-white/8">
             {[
-              { value: '503', label: 'S&P 500 Stocks Covered' },
+              { value: '500', label: 'S&P 500 Stocks Covered' },
               { value: '15+', label: 'Signals Per Stock' },
               { value: '3×',  label: 'Daily Data Refresh' },
               { value: '$0',  label: 'To Get Started' },
@@ -1003,7 +1003,7 @@ export default async function LandingPage() {
 
           <ScrollReveal variant="fade-up" delay={160}>
             <p className="text-lg text-zinc-400 mb-10 max-w-lg mx-auto">
-              503 S&amp;P 500 stocks. 15+ signals. One conviction score. Total clarity.
+              500 S&amp;P 500 stocks. 15+ signals. One conviction score. Total clarity.
             </p>
           </ScrollReveal>
 
