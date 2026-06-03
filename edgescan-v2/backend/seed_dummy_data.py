@@ -14,11 +14,13 @@ Generates:
 
 import json
 import math
+import os
 import random
-import sqlite3
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
+
+from sqlalchemy import create_engine, text
 
 sys.path.insert(0, str(Path(__file__).parent))
 from sp500_tickers import SP500_TICKERS  # noqa: E402
@@ -1000,8 +1002,12 @@ def generate_price_history(ticker: str, current_price: float, sector: str, n_day
         close = price
         adj_close = close
         volume = int(gauss_clamp(5_000_000, 3_000_000, 100_000, 50_000_000))
-        rows.append((ticker, d.isoformat(), round(open_, 2), round(high, 2), round(low, 2),
-                     round(close, 2), round(adj_close, 2), volume, "demo_data"))
+        rows.append({
+            "ticker": ticker, "date": d.isoformat(),
+            "open": round(open_, 2), "high": round(high, 2), "low": round(low, 2),
+            "close": round(close, 2), "adj_close": round(adj_close, 2),
+            "volume": volume, "source": "demo_data",
+        })
     return rows
 
 
@@ -1010,131 +1016,146 @@ def generate_price_history(ticker: str, current_price: float, sector: str, n_day
 # ─────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    print(f"Connecting to {DB_PATH}")
-    con = sqlite3.connect(DB_PATH)
-    cur = con.cursor()
+    raw_url = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
+    database_url = raw_url.replace("postgres://", "postgresql://", 1)
+    label = database_url.split("@")[-1] if "@" in database_url else database_url
+    print(f"Connecting to {label}")
 
-    # Clear existing demo data — thesis_cache must be cleared before scan_results
-    # because its scoped DELETE subqueries scan_results for the ticker list.
-    print("Clearing existing demo data...")
-    cur.execute("DELETE FROM thesis_cache WHERE ticker IN (SELECT ticker FROM scan_results WHERE data_source = 'demo_data')")
-    cur.execute("DELETE FROM scan_results WHERE data_source = 'demo_data'")
-    cur.execute("DELETE FROM price_history WHERE source = 'demo_data'")
-    cur.execute("DELETE FROM scan_runs WHERE triggered_by = 'seed_script'")
-    con.commit()
+    is_sqlite = database_url.startswith("sqlite")
+    connect_args = {"check_same_thread": False} if is_sqlite else {"connect_timeout": 15}
+    pool_kwargs = {} if is_sqlite else {"pool_pre_ping": True, "pool_size": 3, "max_overflow": 5}
+    engine = create_engine(database_url, connect_args=connect_args, **pool_kwargs)
 
-    tickers = SP500_TICKERS
-    print(f"Generating data for {len(tickers)} tickers...")
-
-    scan_rows = []
-    for ticker in tickers:
-        target = SCORE_OVERRIDES.get(ticker)
-        row = generate_stock(ticker, target_score=target)
-        scan_rows.append(row)
-
-    # Sort by score descending (scanner expects this ordering)
-    scan_rows.sort(key=lambda r: r["score"], reverse=True)
-
-    # Insert scan_results
-    print(f"Inserting {len(scan_rows)} scan_results rows...")
-    cur.executemany(
-        """
-        INSERT INTO scan_results
-          (ticker, name, sector, industry, score, fundamental_score, technical_score,
-           current_price, price_target_1m, upside_pct, score_breakdown_json,
-           metrics_json, signals_json, earnings_date, data_source, scanned_at)
+    # ON CONFLICT syntax works on PostgreSQL and SQLite 3.24+ (Python 3.8+)
+    PH_UPSERT = text("""
+        INSERT INTO price_history
+          (ticker, date, open, high, low, close, adj_close, volume, source)
         VALUES
-          (:ticker, :name, :sector, :industry, :score, :fundamental_score, :technical_score,
-           :current_price, :price_target_1m, :upside_pct, :score_breakdown_json,
-           :metrics_json, :signals_json, :earnings_date, :data_source, :scanned_at)
-        """,
-        scan_rows,
-    )
-    con.commit()
+          (:ticker, :date, :open, :high, :low, :close, :adj_close, :volume, :source)
+        ON CONFLICT (ticker, date) DO NOTHING
+    """)
+    TC_UPSERT = text("""
+        INSERT INTO thesis_cache (ticker, thesis_text, score_at_generation, generated_at)
+        VALUES (:ticker, :thesis_text, :score_at_generation, :generated_at)
+        ON CONFLICT (ticker) DO UPDATE SET
+          thesis_text = EXCLUDED.thesis_text,
+          score_at_generation = EXCLUDED.score_at_generation,
+          generated_at = EXCLUDED.generated_at
+    """)
 
-    # Insert price_history in batches
-    ticker_prices = {r["ticker"]: (r["current_price"], r["sector"]) for r in scan_rows}
-    print(f"Generating price_history for {len(tickers)} tickers (~{len(tickers) * 252} rows)...")
+    with engine.connect() as con:
+        # Clear existing demo data — thesis_cache first (subquery needs scan_results rows)
+        print("Clearing existing demo data...")
+        con.execute(text("DELETE FROM thesis_cache WHERE ticker IN (SELECT ticker FROM scan_results WHERE data_source = 'demo_data')"))
+        con.execute(text("DELETE FROM scan_results WHERE data_source = 'demo_data'"))
+        con.execute(text("DELETE FROM price_history WHERE source = 'demo_data'"))
+        con.execute(text("DELETE FROM scan_runs WHERE triggered_by = 'seed_script'"))
+        con.commit()
 
-    batch: list[tuple] = []
-    BATCH_SIZE = 5000
-    total_price_rows = 0
-    for i, ticker in enumerate(tickers):
-        current_price, sector = ticker_prices.get(ticker, (50.0, "Information Technology"))
-        rows = generate_price_history(ticker, current_price, sector, n_days=252)
-        batch.extend(rows)
-        total_price_rows += len(rows)
+        tickers = SP500_TICKERS
+        print(f"Generating data for {len(tickers)} tickers...")
 
-        if len(batch) >= BATCH_SIZE:
-            cur.executemany(
-                "INSERT OR IGNORE INTO price_history (ticker, date, open, high, low, close, adj_close, volume, source) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                batch,
-            )
-            con.commit()
-            batch = []
+        scan_rows = []
+        for ticker in tickers:
+            target = SCORE_OVERRIDES.get(ticker)
+            row = generate_stock(ticker, target_score=target)
+            scan_rows.append(row)
 
-        if (i + 1) % 50 == 0:
-            print(f"  price_history: {i + 1}/{len(tickers)} tickers done...")
+        scan_rows.sort(key=lambda r: r["score"], reverse=True)
 
-    if batch:
-        cur.executemany(
-            "INSERT OR IGNORE INTO price_history (ticker, date, open, high, low, close, adj_close, volume, source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            batch,
+        # Insert scan_results
+        print(f"Inserting {len(scan_rows)} scan_results rows...")
+        con.execute(
+            text("""
+                INSERT INTO scan_results
+                  (ticker, name, sector, industry, score, fundamental_score, technical_score,
+                   current_price, price_target_1m, upside_pct, score_breakdown_json,
+                   metrics_json, signals_json, earnings_date, data_source, scanned_at)
+                VALUES
+                  (:ticker, :name, :sector, :industry, :score, :fundamental_score, :technical_score,
+                   :current_price, :price_target_1m, :upside_pct, :score_breakdown_json,
+                   :metrics_json, :signals_json, :earnings_date, :data_source, :scanned_at)
+            """),
+            scan_rows,
         )
         con.commit()
 
-    print(f"Inserted {total_price_rows} price_history rows.")
+        # Insert price_history in batches
+        ticker_prices = {r["ticker"]: (r["current_price"], r["sector"]) for r in scan_rows}
+        print(f"Generating price_history for {len(tickers)} tickers (~{len(tickers) * 252} rows)...")
 
-    # Insert thesis_cache for top 30 stocks by score
-    print("Inserting thesis_cache for top stocks...")
-    top30 = scan_rows[:30]
-    thesis_rows = []
-    for r in top30:
-        t = r["ticker"]
-        text = THESIS_TEXTS.get(t)
-        if not text:
-            text = (
-                f"{r['name']} ({t}) demonstrates compelling fundamentals with a composite score of {r['score']}/100. "
-                f"The company operates in the {r['sector']} sector with a {r['industry']} business model. "
-                f"Strong revenue growth and healthy cash generation support the current valuation, "
-                f"while technical momentum indicators confirm positive price action relative to the broader market. "
-                f"Analyst consensus targets a {r['upside_pct']}% upside from current levels over the near term."
-            )
-        thesis_rows.append({
-            "ticker": t,
-            "thesis_text": text,
-            "score_at_generation": r["score"],
-            "generated_at": datetime.utcnow().isoformat(),
-        })
+        batch: list[dict] = []
+        BATCH_SIZE = 5000
+        total_price_rows = 0
+        for i, ticker in enumerate(tickers):
+            current_price, sector = ticker_prices.get(ticker, (50.0, "Information Technology"))
+            rows = generate_price_history(ticker, current_price, sector, n_days=252)
+            batch.extend(rows)
+            total_price_rows += len(rows)
 
-    cur.executemany(
-        "INSERT OR REPLACE INTO thesis_cache (ticker, thesis_text, score_at_generation, generated_at) "
-        "VALUES (:ticker, :thesis_text, :score_at_generation, :generated_at)",
-        thesis_rows,
-    )
-    con.commit()
-    print(f"Inserted {len(thesis_rows)} thesis_cache rows.")
+            if len(batch) >= BATCH_SIZE:
+                con.execute(PH_UPSERT, batch)
+                con.commit()
+                batch = []
 
-    # Insert scan_run record
-    now = datetime.utcnow()
-    cur.execute(
-        "INSERT INTO scan_runs (started_at, completed_at, triggered_by, tickers_attempted, "
-        "tickers_succeeded, tickers_failed, data_source) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (
-            (now - timedelta(minutes=5)).isoformat(),
-            now.isoformat(),
-            "seed_script",
-            len(tickers),
-            len(tickers),
-            0,
-            "demo_data",
-        ),
-    )
-    con.commit()
+            if (i + 1) % 50 == 0:
+                print(f"  price_history: {i + 1}/{len(tickers)} tickers done...")
 
-    con.close()
+        if batch:
+            con.execute(PH_UPSERT, batch)
+            con.commit()
+
+        print(f"Inserted {total_price_rows} price_history rows.")
+
+        # Insert thesis_cache for top 30 stocks by score
+        print("Inserting thesis_cache for top stocks...")
+        top30 = scan_rows[:30]
+        thesis_rows = []
+        for r in top30:
+            t = r["ticker"]
+            thesis_text = THESIS_TEXTS.get(t)
+            if not thesis_text:
+                thesis_text = (
+                    f"{r['name']} ({t}) demonstrates compelling fundamentals with a composite score of {r['score']}/100. "
+                    f"The company operates in the {r['sector']} sector with a {r['industry']} business model. "
+                    f"Strong revenue growth and healthy cash generation support the current valuation, "
+                    f"while technical momentum indicators confirm positive price action relative to the broader market. "
+                    f"Analyst consensus targets a {r['upside_pct']}% upside from current levels over the near term."
+                )
+            thesis_rows.append({
+                "ticker": t,
+                "thesis_text": thesis_text,
+                "score_at_generation": r["score"],
+                "generated_at": datetime.utcnow().isoformat(),
+            })
+
+        con.execute(TC_UPSERT, thesis_rows)
+        con.commit()
+        print(f"Inserted {len(thesis_rows)} thesis_cache rows.")
+
+        # Insert scan_run record
+        now = datetime.utcnow()
+        con.execute(
+            text("""
+                INSERT INTO scan_runs
+                  (started_at, completed_at, triggered_by, tickers_attempted,
+                   tickers_succeeded, tickers_failed, data_source)
+                VALUES
+                  (:started_at, :completed_at, :triggered_by, :tickers_attempted,
+                   :tickers_succeeded, :tickers_failed, :data_source)
+            """),
+            {
+                "started_at": (now - timedelta(minutes=5)).isoformat(),
+                "completed_at": now.isoformat(),
+                "triggered_by": "seed_script",
+                "tickers_attempted": len(tickers),
+                "tickers_succeeded": len(tickers),
+                "tickers_failed": 0,
+                "data_source": "demo_data",
+            },
+        )
+        con.commit()
+
     print(f"\nDone! Seeded {len(scan_rows)} stocks, {total_price_rows} price bars, {len(thesis_rows)} theses.")
     print("Top 10 by score:")
     for r in scan_rows[:10]:
