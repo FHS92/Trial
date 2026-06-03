@@ -865,7 +865,7 @@ def generate_stock(ticker: str, target_score: float | None = None) -> dict:
     recent_cat   = random.choice([
         "Strong earnings beat", "Raised guidance", "New product launch",
         "Strategic acquisition", "Analyst upgrade", "Market share gains",
-        "Margin expansion", "None",
+        "Margin expansion", "",
     ])
 
     # ── Technical signals ────────────────────────────────────────
@@ -900,7 +900,8 @@ def generate_stock(ticker: str, target_score: float | None = None) -> dict:
     price_factor = gauss_clamp(0.85 + q * 0.3, 0.08, 0.70, 1.30)
     current_price = round(base_price * price_factor, 2)
     upside = round((analyst_tgt / current_price - 1) * 100, 1)
-    price_target_1m = round(current_price * (1 + upside / 100.0), 2)
+    # 1-month target is a fraction of the 12-month analyst consensus
+    price_target_1m = round(current_price * (1 + upside / 100.0 * (1 / 12)), 2)
 
     # Earnings date: random in next 90 days
     days_out = random.randint(5, 90)
@@ -985,7 +986,7 @@ def generate_price_history(ticker: str, current_price: float, sector: str, n_day
 
     days = trading_days(n_days)
     # Simulate backwards: start from a "past" price and walk to current
-    start_price = current_price * math.exp(-(daily_drift * n_days))
+    start_price = current_price * math.exp(-(daily_drift + 0.5 * daily_vol ** 2) * n_days)
     price = start_price
 
     rows = []
@@ -1016,7 +1017,7 @@ def main() -> None:
     print("Clearing existing demo scan_results and price_history...")
     cur.execute("DELETE FROM scan_results WHERE data_source = 'demo_data'")
     cur.execute("DELETE FROM price_history WHERE source = 'demo_data'")
-    cur.execute("DELETE FROM thesis_cache")
+    cur.execute("DELETE FROM thesis_cache WHERE ticker IN (SELECT ticker FROM scan_results WHERE data_source = 'demo_data')")
     cur.execute("DELETE FROM scan_runs WHERE triggered_by = 'seed_script'")
     con.commit()
 
