@@ -1,6 +1,7 @@
 import { NavSidebar } from '@/components/nav/NavSidebar'
 import { BottomNav } from '@/components/nav/BottomNav'
 import { Footer } from '@/components/ui/Footer'
+import { OnboardingWalkthrough } from '@/components/ui/OnboardingWalkthrough'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -23,6 +24,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </main>
       {/* Mobile: bottom tabs */}
       <BottomNav className="md:hidden" />
+      {/* First-visit onboarding walkthrough */}
+      <OnboardingWalkthrough />
     </div>
   )
 }

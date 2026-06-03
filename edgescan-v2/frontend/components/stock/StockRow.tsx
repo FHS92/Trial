@@ -1,13 +1,23 @@
 'use client'
 
 import Link from 'next/link'
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { ScoreRing } from '@/components/score/ScoreRing'
+import { ScoreBadge } from '@/components/score/ScoreBadge'
 import { formatPrice, formatPercent, cn } from '@/lib/utils'
 import type { ScanResult } from '@/lib/types'
 
 interface StockRowProps {
   result: ScanResult
   rank: number
+  isBlurred?: boolean
+}
+
+function MomentumIcon({ upside }: { upside: number | null }) {
+  if (upside == null) return <Minus className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+  if (upside > 5) return <TrendingUp className="h-3.5 w-3.5 text-[#22c55e]" />
+  if (upside < -3) return <TrendingDown className="h-3.5 w-3.5 text-[#ef4444]" />
+  return <Minus className="h-3.5 w-3.5 text-[var(--text-muted)]" />
 }
 
 const SECTOR_COLORS: Record<string, string> = {
@@ -29,7 +39,7 @@ function getSectorClass(sector: string | null): string {
   return SECTOR_COLORS[sector] ?? 'bg-[var(--border)] text-[var(--text-muted)]'
 }
 
-export function StockRow({ result, rank }: StockRowProps) {
+export function StockRow({ result, rank, isBlurred = false }: StockRowProps) {
   const upsidePositive = (result.upside_pct ?? 0) >= 0
 
   return (
@@ -39,8 +49,11 @@ export function StockRow({ result, rank }: StockRowProps) {
         'flex items-center gap-3 px-4 py-3',
         'border-b border-[var(--border)] last:border-b-0',
         'hover:bg-[var(--border)]/30 transition-colors duration-150',
-        'cursor-pointer group'
+        'cursor-pointer group',
+        isBlurred && 'blur-sm pointer-events-none select-none'
       )}
+      tabIndex={isBlurred ? -1 : undefined}
+      aria-hidden={isBlurred || undefined}
     >
       {/* Rank */}
       <span className="w-6 shrink-0 text-right text-xs font-mono text-[var(--text-muted)] tabular-nums">
@@ -54,14 +67,15 @@ export function StockRow({ result, rank }: StockRowProps) {
 
       {/* Ticker + name */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="font-semibold text-sm text-[var(--text)] group-hover:text-[var(--accent)] transition-colors tabular-nums">
             {result.ticker}
           </span>
+          <ScoreBadge score={result.score} />
           {result.sector && (
             <span
               className={cn(
-                'hidden sm:inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
+                'hidden md:inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
                 getSectorClass(result.sector)
               )}
             >
@@ -70,6 +84,11 @@ export function StockRow({ result, rank }: StockRowProps) {
           )}
         </div>
         <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">{result.name}</p>
+      </div>
+
+      {/* Momentum */}
+      <div className="hidden sm:flex shrink-0 items-center">
+        <MomentumIcon upside={result.upside_pct} />
       </div>
 
       {/* Sub-scores */}

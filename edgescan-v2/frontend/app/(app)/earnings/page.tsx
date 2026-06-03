@@ -87,58 +87,98 @@ async function EarningsContent() {
           </p>
         </div>
       ) : (
-        groups.map(([date, items]) => (
-          <div key={date} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-            <div className="px-4 py-2 bg-[var(--border)]/30 border-b border-[var(--border)]">
-              <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
-                {formatEarningsDate(date)}
-              </p>
-            </div>
-            {items.map((item) => {
-              const upsidePositive = (item.upside_pct ?? 0) >= 0
-              return (
-                <Link
-                  key={item.ticker}
-                  href={`/stock/${item.ticker}`}
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-3',
-                    'border-b border-[var(--border)] last:border-b-0',
-                    'hover:bg-[var(--border)]/30 transition-colors group'
-                  )}
-                >
-                  <div className="shrink-0">
-                    <ScoreRing score={item.score ?? 0} size={36} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-[var(--text)] group-hover:text-[var(--accent)] transition-colors font-mono">
-                        {item.ticker}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
-                      {item.name ?? item.ticker}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end shrink-0 gap-0.5">
-                    <span className="text-sm font-mono font-semibold text-[var(--text)] tabular-nums">
-                      {formatPrice(item.current_price)}
-                    </span>
-                    {item.upside_pct != null && (
-                      <span
-                        className={cn(
-                          'text-xs font-mono font-semibold tabular-nums',
-                          upsidePositive ? 'text-[#22c55e]' : 'text-[#ef4444]'
-                        )}
-                      >
-                        {formatPercent(item.upside_pct)}
-                      </span>
+        <div className="space-y-4">
+          {groups.map(([date, items]) => (
+            <div key={date} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+              <div className="px-4 py-2 bg-[var(--border)]/30 border-b border-[var(--border)]">
+                <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+                  {formatEarningsDate(date)}
+                </p>
+              </div>
+              {items.map((item) => {
+                const upsidePositive = (item.upside_pct ?? 0) >= 0
+                return (
+                  <Link
+                    key={item.ticker}
+                    href={`/stock/${item.ticker}`}
+                    className={cn(
+                      'flex items-center gap-3 px-4 py-3',
+                      'border-b border-[var(--border)] last:border-b-0',
+                      'hover:bg-[var(--border)]/30 transition-colors group'
                     )}
+                  >
+                    <div className="shrink-0">
+                      <ScoreRing score={item.score ?? 0} size={36} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-[var(--text)] group-hover:text-[var(--accent)] transition-colors font-mono">
+                          {item.ticker}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
+                        {item.name ?? item.ticker}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end shrink-0 gap-0.5">
+                      <span className="text-sm font-mono font-semibold text-[var(--text)] tabular-nums">
+                        {formatPrice(item.current_price)}
+                      </span>
+                      {item.upside_pct != null && (
+                        <span
+                          className={cn(
+                            'text-xs font-mono font-semibold tabular-nums',
+                            upsidePositive ? 'text-[#22c55e]' : 'text-[#ef4444]'
+                          )}
+                        >
+                          {formatPercent(item.upside_pct)}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
+
+          {/* Free-tier "next 3 weeks" teaser */}
+          {!isPro && (
+            <div className="relative">
+              {/* Blurred fake rows previewing next week */}
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden blur-sm pointer-events-none select-none" aria-hidden="true">
+                <div className="px-4 py-2 bg-[var(--border)]/30 border-b border-[var(--border)]">
+                  <div className="h-3 w-20 rounded bg-[var(--border)]" />
+                </div>
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] last:border-b-0">
+                    <div className="h-9 w-9 rounded-full bg-[var(--border)]" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3 w-12 rounded bg-[var(--border)]" />
+                      <div className="h-2 w-24 rounded bg-[var(--border)]" />
+                    </div>
+                    <div className="h-3 w-14 rounded bg-[var(--border)]" />
                   </div>
+                ))}
+              </div>
+              {/* Overlay CTA */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[var(--surface)]/80 backdrop-blur-sm rounded-xl">
+                <Lock className="h-5 w-5 text-[var(--accent)]" />
+                <p className="text-sm font-semibold text-[var(--text)]">Unlock next 3 weeks</p>
+                <p className="text-xs text-[var(--text-muted)] text-center max-w-xs">
+                  Pro subscribers see the full earnings calendar — up to 30 days ahead
+                </p>
+                <Link
+                  href="/upgrade"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                  style={{ backgroundColor: 'var(--accent)' }}
+                >
+                  Upgrade to Pro
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
-              )
-            })}
-          </div>
-        ))
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

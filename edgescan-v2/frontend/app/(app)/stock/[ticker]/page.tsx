@@ -80,6 +80,7 @@ async function StockContent({ ticker }: { ticker: string }) {
   }
 
   const upsidePositive = (stock.upside_pct ?? 0) >= 0
+  const topPct = Math.max(1, 100 - stock.score)
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
@@ -103,6 +104,9 @@ async function StockContent({ ticker }: { ticker: string }) {
               {stock.ticker}
             </h1>
             <ScoreBadge score={stock.score} />
+            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--border)] text-[var(--text-muted)]">
+              Top {topPct}% of S&amp;P 500
+            </span>
           </div>
           <p className="text-[var(--text-muted)] mt-1 text-sm">{stock.name}</p>
           {(stock.sector || stock.industry) && (
@@ -169,28 +173,41 @@ async function StockContent({ ticker }: { ticker: string }) {
 
       {/* Why Now (AI thesis) */}
       <section>
-        <h2 className="text-base font-semibold text-[var(--text)] mb-3">Why Now</h2>
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-base font-semibold text-[var(--text)]">Why Now</h2>
+          {tier === 'pro' && (
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20">
+              AI Analysis
+            </span>
+          )}
+        </div>
         {tier === 'pro' ? (
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-            {stock.thesis ? (
-              <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-line">
-                {stock.thesis}
-              </p>
-            ) : (
-              <p className="text-sm text-[var(--text-muted)]">
-                Analysis will be generated on the next scan cycle.
-              </p>
-            )}
+          <div className="rounded-xl border border-[var(--accent)]/20 bg-[var(--surface)] p-5 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[var(--accent)]/40 rounded-l-xl" />
+            <div className="pl-3">
+              {stock.thesis ? (
+                <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-line">
+                  {stock.thesis}
+                </p>
+              ) : (
+                <p className="text-sm text-[var(--text-muted)]">
+                  Analysis will be generated on the next scan cycle.
+                </p>
+              )}
+            </div>
           </div>
         ) : (
-          <ProLock benefit={`See the AI-generated analysis for ${stock.ticker}`}>
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-              <p className="text-sm text-[var(--text)]">
-                {stock.ticker} shows strong fundamental momentum with rising EPS revisions and above-sector margins...
-              </p>
-              <p className="text-sm text-[var(--text)] mt-2 opacity-60">
-                Technical setup confirms a potential breakout with RSI holding at neutral levels while the stock trades above its 200-day moving average.
-              </p>
+          <ProLock benefit={`Unlock AI-generated investment thesis for ${stock.ticker}`}>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-[var(--accent)]/40 rounded-l-xl" />
+              <div className="pl-3">
+                <p className="text-sm text-[var(--text)]">
+                  {stock.ticker} shows strong fundamental momentum with rising EPS revisions and above-sector margins...
+                </p>
+                <p className="text-sm text-[var(--text)] mt-2 opacity-60">
+                  Technical setup confirms a potential breakout with RSI holding at neutral levels while the stock trades above its 200-day moving average.
+                </p>
+              </div>
             </div>
           </ProLock>
         )}
