@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const callbackUrl = rawCallback.startsWith('/') && !rawCallback.startsWith('//') ? rawCallback : '/scanner'
   const errorParam = searchParams.get('error')
 
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -41,8 +43,8 @@ export default function LoginPage() {
       }
       setLoading(false)
     }
-    if (res?.url) {
-      window.location.href = res.url
+    if (res?.ok && !res?.error) {
+      router.push(callbackUrl)
     }
   }
 
