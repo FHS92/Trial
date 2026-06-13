@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Check, Crown } from 'lucide-react'
+import { Check, Crown, Zap } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
 import { UpgradeCTA } from './UpgradeCTA'
 
@@ -36,86 +36,125 @@ const FAQ = [
   },
 ]
 
+const TRUST_STATS = [
+  { value: '500', label: 'S&P 500 stocks ranked' },
+  { value: '3×', label: 'Updated daily' },
+  { value: '15+', label: 'Scoring signals' },
+]
+
 export default async function UpgradePage() {
   const currentUser = await getCurrentUser()
   const isAlreadyPro = currentUser?.tier === 'pro'
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] px-4 py-12">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)]/10 px-4 py-1.5 mb-4">
-            <Crown className="h-4 w-4 text-[var(--accent)]" />
-            <span className="text-sm font-semibold text-[var(--accent)]">EdgeScan Pro</span>
+    <div className="px-4 py-10 max-w-4xl mx-auto">
+
+      {/* Header */}
+      <div className="text-center mb-10">
+        <div
+          className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mb-4 border"
+          style={{ background: 'var(--accent-light)', borderColor: 'var(--accent-glow)' }}
+        >
+          <Crown className="h-3.5 w-3.5" style={{ color: 'var(--accent)' }} />
+          <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>EdgeScan Pro</span>
+        </div>
+        <h1 className="text-4xl font-extrabold text-gradient mb-3 tracking-tight">
+          Unlock the full EdgeScan edge
+        </h1>
+        <p className="text-[var(--text-muted)] text-base max-w-xl mx-auto leading-relaxed">
+          AI-generated trade theses, technical signals, and score trends — everything you need to spot opportunities before the crowd.
+        </p>
+      </div>
+
+      {/* Trust stats row */}
+      <div className="flex justify-center gap-6 md:gap-10 mb-10 flex-wrap">
+        {TRUST_STATS.map(({ value, label }) => (
+          <div key={label} className="text-center">
+            <p className="text-2xl font-extrabold tabular-nums text-gradient-accent">{value}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">{label}</p>
           </div>
-          <h1 className="text-4xl font-bold text-[var(--text)] mb-3">
-            Unlock the full EdgeScan edge
-          </h1>
-          <p className="text-[var(--text-muted)] text-lg max-w-xl mx-auto">
-            AI-generated trade theses, technical signals, and score trends — everything you need to spot opportunities before the crowd.
-          </p>
+        ))}
+      </div>
+
+      {/* Pricing cards */}
+      <div className="grid md:grid-cols-2 gap-5 mb-8">
+
+        {/* Free */}
+        <div
+          className="rounded-[var(--radius-xl)] border border-[var(--border)] p-6 shadow-[var(--shadow-sm)]"
+          style={{ background: 'var(--surface)' }}
+        >
+          <div className="mb-6">
+            <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest mb-2">Free</p>
+            <div className="flex items-end gap-1">
+              <span className="text-4xl font-extrabold text-[var(--text)] tracking-tight">$0</span>
+              <span className="text-[var(--text-muted)] mb-1 text-sm">/month</span>
+            </div>
+          </div>
+          <ul className="space-y-3 mb-6">
+            {FREE_FEATURES.map((f) => (
+              <li key={f} className="flex items-start gap-2.5 text-sm text-[var(--text-muted)]">
+                <Check className="h-4 w-4 text-[var(--text-subtle)] mt-0.5 shrink-0" />
+                {f}
+              </li>
+            ))}
+          </ul>
+          <div
+            className="rounded-[var(--radius)] px-4 py-2.5 text-center text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)]"
+          >
+            {isAlreadyPro ? 'Free tier' : 'Current plan'}
+          </div>
         </div>
 
-        {/* Pricing cards */}
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          {/* Free */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
-            <div className="mb-6">
-              <p className="text-sm font-medium text-[var(--text-muted)] uppercase tracking-wide mb-1">Free</p>
-              <div className="flex items-end gap-1">
-                <span className="text-4xl font-bold text-[var(--text)]">$0</span>
-                <span className="text-[var(--text-muted)] mb-1">/month</span>
-              </div>
-            </div>
-            <ul className="space-y-3 mb-6">
-              {FREE_FEATURES.map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-sm text-[var(--text-muted)]">
-                  <Check className="h-4 w-4 text-[var(--text-muted)] mt-0.5 shrink-0" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <div className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--text-muted)]">
-              {isAlreadyPro ? 'Free tier' : 'Current plan'}
-            </div>
-          </div>
-
-          {/* Pro */}
-          <div className="rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface)] p-6 relative">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-              <span className="rounded-full bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-white">
+        {/* Pro */}
+        <div className="gradient-border rounded-[var(--radius-xl)] p-[1px] shadow-[var(--shadow-md)]">
+          <div
+            className="rounded-[var(--radius-xl)] p-6 h-full relative overflow-hidden"
+            style={{ background: 'var(--surface-elevated)' }}
+          >
+            {/* Most Popular badge */}
+            <div className="absolute -top-px left-1/2 -translate-x-1/2">
+              <span
+                className="pro-button rounded-b-full px-4 py-1 text-xs font-bold text-white shadow-sm"
+                style={{ display: 'inline-block' }}
+              >
                 Most Popular
               </span>
             </div>
-            <div className="mb-6">
-              <p className="text-sm font-medium text-[var(--accent)] uppercase tracking-wide mb-1 flex items-center gap-1.5">
+
+            <div className="mt-4 mb-6">
+              <p className="text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: 'var(--accent)' }}>
                 <Crown className="h-3.5 w-3.5" /> Pro
               </p>
               <div className="flex items-end gap-1">
-                <span className="text-4xl font-bold text-[var(--text)]">$15</span>
-                <span className="text-[var(--text-muted)] mb-1">/month</span>
+                <span className="text-4xl font-extrabold text-[var(--text)] tracking-tight">$15</span>
+                <span className="text-[var(--text-muted)] mb-1 text-sm">/month</span>
               </div>
               <p className="text-xs text-[var(--text-muted)] mt-1">
                 or{' '}
-                <span className="font-semibold text-[var(--text)]">$144/year</span>
-                {' '}— save 20%
+                <span className="font-bold" style={{ color: 'var(--accent)' }}>$144/year</span>
+                {' '}—{' '}
+                <span
+                  className="font-bold rounded-full px-1.5 py-0.5 text-[10px]"
+                  style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}
+                >
+                  SAVE 20%
+                </span>
               </p>
             </div>
+
             <ul className="space-y-3 mb-6">
               {PRO_FEATURES.map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-sm text-[var(--text)]">
-                  <Check className="h-4 w-4 text-[var(--accent)] mt-0.5 shrink-0" />
+                  <Check className="h-4 w-4 mt-0.5 shrink-0" style={{ color: 'var(--accent)' }} />
                   {f}
                 </li>
               ))}
             </ul>
 
             {isAlreadyPro ? (
-              <div
-                className="rounded-lg px-4 py-2.5 text-center text-sm font-semibold text-white"
-                style={{ backgroundColor: 'var(--accent)' }}
-              >
+              <div className="flex items-center justify-center gap-2 rounded-[var(--radius)] px-4 py-2.5 text-sm font-bold text-white shadow-sm" style={{ background: 'var(--pro-gradient)' }}>
+                <Zap className="h-4 w-4 text-yellow-300" />
                 You&apos;re on Pro
               </div>
             ) : (
@@ -126,45 +165,50 @@ export default async function UpgradePage() {
             )}
           </div>
         </div>
+      </div>
 
-        {/* Annual savings callout */}
-        {!isAlreadyPro && (
-          <div className="max-w-2xl mx-auto mb-10 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 px-5 py-3.5 text-center">
-            <p className="text-sm text-[var(--text)]">
-              <span className="font-semibold text-[var(--accent)]">Save $36/year</span>
-              {' '}by paying annually — that&apos;s two months free.
-            </p>
-          </div>
-        )}
-
-        {/* FAQ */}
-        <div className="max-w-2xl mx-auto space-y-4">
-          <h2 className="text-lg font-semibold text-[var(--text)] mb-6 text-center">
-            Frequently asked questions
-          </h2>
-          {FAQ.map(({ q, a }) => (
-            <div key={q} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-              <p className="font-medium text-[var(--text)] mb-1">{q}</p>
-              <p className="text-sm text-[var(--text-muted)]">{a}</p>
-            </div>
-          ))}
+      {/* Annual savings callout */}
+      {!isAlreadyPro && (
+        <div
+          className="max-w-2xl mx-auto mb-10 rounded-[var(--radius-lg)] border px-5 py-3.5 text-center"
+          style={{ background: 'var(--accent-light)', borderColor: 'var(--accent-glow)' }}
+        >
+          <p className="text-sm text-[var(--text)]">
+            <span className="font-bold" style={{ color: 'var(--accent)' }}>Save $36/year</span>
+            {' '}by paying annually — that&apos;s two months free.
+          </p>
         </div>
+      )}
 
-        {/* Disclaimer */}
-        <p className="text-xs text-[var(--text-muted)] text-center mt-8 max-w-xl mx-auto leading-relaxed">
-          Not investment advice. All scores and theses are algorithmic estimates for informational purposes only.
-          Prices shown in USD. Subscription managed via Stripe.
-        </p>
-
-        {/* Back link */}
-        <div className="text-center mt-6">
-          <Link
-            href="/scanner"
-            className="text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+      {/* FAQ */}
+      <div className="max-w-2xl mx-auto space-y-3">
+        <h2 className="text-base font-bold text-[var(--text)] mb-5 text-center tracking-tight">
+          Frequently asked questions
+        </h2>
+        {FAQ.map(({ q, a }) => (
+          <div
+            key={q}
+            className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4 shadow-[var(--shadow-sm)]"
+            style={{ background: 'var(--surface)' }}
           >
-            Back to Scanner
-          </Link>
-        </div>
+            <p className="font-semibold text-[var(--text)] text-sm mb-1">{q}</p>
+            <p className="text-sm text-[var(--text-muted)]">{a}</p>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs text-[var(--text-subtle)] text-center mt-8 max-w-xl mx-auto leading-relaxed">
+        Not investment advice. All scores and theses are algorithmic estimates for informational purposes only.
+        Prices shown in USD. Subscription managed via Stripe.
+      </p>
+
+      <div className="text-center mt-5">
+        <Link
+          href="/scanner"
+          className="text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+        >
+          Back to Scanner
+        </Link>
       </div>
     </div>
   )
