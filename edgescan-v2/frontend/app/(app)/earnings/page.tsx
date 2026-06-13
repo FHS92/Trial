@@ -43,7 +43,10 @@ async function EarningsContent() {
     data = await serverFetch<EarningsResponse>('/earnings', cookieHeader)
   } catch {
     return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
+      <div
+        className="rounded-[var(--radius-xl)] border border-[var(--border)] p-8 text-center shadow-[var(--shadow-sm)]"
+        style={{ background: 'var(--surface)' }}
+      >
         <p className="text-sm text-[var(--text-muted)]">Could not load earnings data.</p>
       </div>
     )
@@ -55,11 +58,14 @@ async function EarningsContent() {
     <div className="space-y-4">
       {/* Free tier notice */}
       {!isPro && (
-        <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4 flex items-center justify-between gap-4">
+        <div
+          className="rounded-[var(--radius-lg)] border p-4 flex items-center justify-between gap-4"
+          style={{ background: 'var(--accent-light)', borderColor: 'var(--accent-glow)' }}
+        >
           <div className="flex items-center gap-3">
-            <Lock className="h-4 w-4 text-[var(--accent)] shrink-0" />
+            <Lock className="h-4 w-4 shrink-0" style={{ color: 'var(--accent)' }} />
             <div>
-              <p className="text-sm font-medium text-[var(--text)]">Showing this week only</p>
+              <p className="text-sm font-semibold text-[var(--text)]">Showing this week only</p>
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
                 Pro subscribers see the full earnings calendar.
               </p>
@@ -67,8 +73,7 @@ async function EarningsContent() {
           </div>
           <Link
             href="/upgrade"
-            className="flex items-center gap-1.5 shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-            style={{ backgroundColor: 'var(--accent)' }}
+            className="pro-button shrink-0 flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm"
           >
             Upgrade
             <ArrowRight className="h-3 w-3" />
@@ -77,9 +82,11 @@ async function EarningsContent() {
       )}
 
       {groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-xl border border-dashed border-[var(--border)]">
+        <div
+          className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-[var(--radius-xl)] border border-dashed border-[var(--border)]"
+        >
           <Calendar className="h-10 w-10 text-[var(--text-muted)] mb-4" />
-          <p className="text-base font-medium text-[var(--text)] mb-1">No upcoming earnings</p>
+          <p className="text-base font-bold text-[var(--text)] mb-1">No upcoming earnings</p>
           <p className="text-sm text-[var(--text-muted)]">
             {isPro
               ? 'No S&P 500 earnings scheduled in the next 30 days.'
@@ -89,9 +96,16 @@ async function EarningsContent() {
       ) : (
         <div className="space-y-4">
           {groups.map(([date, items]) => (
-            <div key={date} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-              <div className="px-4 py-2 bg-[var(--border)]/30 border-b border-[var(--border)]">
-                <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+            <div
+              key={date}
+              className="rounded-[var(--radius-lg)] border border-[var(--border)] overflow-hidden shadow-[var(--shadow-sm)]"
+              style={{ background: 'var(--surface)' }}
+            >
+              <div
+                className="px-4 py-2.5 border-b border-[var(--border)]"
+                style={{ background: 'var(--surface-elevated)' }}
+              >
+                <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">
                   {formatEarningsDate(date)}
                 </p>
               </div>
@@ -104,32 +118,29 @@ async function EarningsContent() {
                     className={cn(
                       'flex items-center gap-3 px-4 py-3',
                       'border-b border-[var(--border)] last:border-b-0',
-                      'hover:bg-[var(--border)]/30 transition-colors group'
+                      'transition-all duration-150 group',
+                      'hover:bg-[var(--surface-hover)] hover:shadow-[inset_3px_0_0_var(--accent)]'
                     )}
                   >
                     <div className="shrink-0">
-                      <ScoreRing score={item.score ?? 0} size={36} />
+                      <ScoreRing score={item.score ?? 0} size={38} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-[var(--text)] group-hover:text-[var(--accent)] transition-colors font-mono">
-                          {item.ticker}
-                        </span>
-                      </div>
+                      <span className="font-bold text-sm text-[var(--text)] group-hover:text-[var(--accent)] transition-colors tracking-tight">
+                        {item.ticker}
+                      </span>
                       <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
                         {item.name ?? item.ticker}
                       </p>
                     </div>
                     <div className="flex flex-col items-end shrink-0 gap-0.5">
-                      <span className="text-sm font-mono font-semibold text-[var(--text)] tabular-nums">
+                      <span className="text-sm font-mono font-bold text-[var(--text)] tabular-nums">
                         {formatPrice(item.current_price)}
                       </span>
                       {item.upside_pct != null && (
                         <span
-                          className={cn(
-                            'text-xs font-mono font-semibold tabular-nums',
-                            upsidePositive ? 'text-[#22c55e]' : 'text-[#ef4444]'
-                          )}
+                          className="text-xs font-mono font-semibold tabular-nums"
+                          style={{ color: upsidePositive ? 'var(--score-strong)' : 'var(--score-weak)' }}
                         >
                           {formatPercent(item.upside_pct)}
                         </span>
@@ -141,36 +152,47 @@ async function EarningsContent() {
             </div>
           ))}
 
-          {/* Free-tier "next 3 weeks" teaser */}
+          {/* Free-tier teaser */}
           {!isPro && (
             <div className="relative">
-              {/* Blurred fake rows previewing next week */}
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden blur-sm pointer-events-none select-none" aria-hidden="true">
-                <div className="px-4 py-2 bg-[var(--border)]/30 border-b border-[var(--border)]">
-                  <div className="h-3 w-20 rounded bg-[var(--border)]" />
+              <div
+                className="rounded-[var(--radius-lg)] border border-[var(--border)] overflow-hidden blur-sm pointer-events-none select-none"
+                style={{ background: 'var(--surface)' }}
+                aria-hidden="true"
+              >
+                <div className="px-4 py-2.5 border-b border-[var(--border)]" style={{ background: 'var(--surface-elevated)' }}>
+                  <div className="h-3 w-20 rounded-full bg-[var(--border)]" />
                 </div>
                 {[1, 2, 3].map((n) => (
                   <div key={n} className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] last:border-b-0">
                     <div className="h-9 w-9 rounded-full bg-[var(--border)]" />
                     <div className="flex-1 space-y-1.5">
-                      <div className="h-3 w-12 rounded bg-[var(--border)]" />
-                      <div className="h-2 w-24 rounded bg-[var(--border)]" />
+                      <div className="h-3 w-12 rounded-full bg-[var(--border)]" />
+                      <div className="h-2 w-24 rounded-full bg-[var(--border)]" />
                     </div>
                     <div className="h-3 w-14 rounded bg-[var(--border)]" />
                   </div>
                 ))}
               </div>
-              {/* Overlay CTA */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[var(--surface)]/80 backdrop-blur-sm rounded-xl">
-                <Lock className="h-5 w-5 text-[var(--accent)]" />
-                <p className="text-sm font-semibold text-[var(--text)]">Unlock next 3 weeks</p>
-                <p className="text-xs text-[var(--text-muted)] text-center max-w-xs">
-                  Pro subscribers see the full earnings calendar — up to 30 days ahead
-                </p>
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3.5 rounded-[var(--radius-lg)] backdrop-blur-sm"
+                style={{ background: 'linear-gradient(135deg, rgba(17,17,24,0.82) 0%, rgba(16,185,129,0.06) 100%)' }}
+              >
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-full border"
+                  style={{ background: 'var(--accent-light)', borderColor: 'var(--accent-glow)' }}
+                >
+                  <Lock className="h-4.5 w-4.5" style={{ color: 'var(--accent)' }} />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-[var(--text)]">Unlock next 3 weeks</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1 max-w-xs">
+                    Pro subscribers see the full earnings calendar — up to 30 days ahead
+                  </p>
+                </div>
                 <Link
                   href="/upgrade"
-                  className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white"
-                  style={{ backgroundColor: 'var(--accent)' }}
+                  className="pro-button inline-flex items-center gap-1.5 rounded-[var(--radius)] px-4 py-2 text-sm font-semibold text-white shadow-md"
                 >
                   Upgrade to Pro
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -188,10 +210,14 @@ function EarningsSkeleton() {
   return (
     <div className="space-y-4">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-          <div className="h-8 bg-[var(--border)]/30 animate-pulse border-b border-[var(--border)]" />
+        <div
+          key={i}
+          className="rounded-[var(--radius-lg)] border border-[var(--border)] overflow-hidden"
+          style={{ background: 'var(--surface)' }}
+        >
+          <div className="h-9 animate-pulse border-b border-[var(--border)]" style={{ background: 'var(--surface-elevated)' }} />
           {Array.from({ length: 3 }).map((_, j) => (
-            <div key={j} className="h-14 border-b border-[var(--border)] last:border-b-0 animate-pulse bg-[var(--surface)]" />
+            <div key={j} className="h-14 border-b border-[var(--border)] last:border-b-0 animate-pulse" />
           ))}
         </div>
       ))}
@@ -202,10 +228,10 @@ function EarningsSkeleton() {
 export default function EarningsPage() {
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-[var(--text)]">Earnings Calendar</h1>
+      <div className="mb-5">
+        <h1 className="text-2xl font-extrabold tracking-tight text-gradient">Earnings Calendar</h1>
         <p className="text-sm text-[var(--text-muted)] mt-0.5">
-          Upcoming earnings dates for S&amp;P 500 stocks, ranked by EdgeScan score
+          Upcoming earnings for S&amp;P 500 stocks, ranked by EdgeScan score
         </p>
       </div>
       <Suspense fallback={<EarningsSkeleton />}>
