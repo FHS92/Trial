@@ -13,13 +13,13 @@ export function ScoreBadge({ score, className }: ScoreBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wide',
         className
       )}
       style={{
-        backgroundColor: `${color}20`,
+        backgroundColor: `${color}18`,
         color,
-        border: `1px solid ${color}40`,
+        border: `1px solid ${color}35`,
       }}
     >
       <span
