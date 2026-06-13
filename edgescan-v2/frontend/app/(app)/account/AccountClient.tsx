@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { signOut } from 'next-auth/react'
-import { User, Crown, LogOut, Trash2, Check, X, CreditCard, Loader2 } from 'lucide-react'
+import { Crown, LogOut, Trash2, Check, X, CreditCard, Loader2, Zap } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import type { Tier } from '@/lib/types'
 
@@ -16,6 +16,15 @@ interface Props {
     tier: Tier
     isAdmin: boolean
   }
+}
+
+function getInitials(name: string | null, email: string): string {
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    return parts[0].slice(0, 2).toUpperCase()
+  }
+  return email.slice(0, 2).toUpperCase()
 }
 
 export default function AccountClient({ user }: Props) {
@@ -32,11 +41,14 @@ export default function AccountClient({ user }: Props) {
   const [billingLoading, setBillingLoading] = useState(false)
   const [billingError, setBillingError] = useState<string | null>(null)
 
+  const isPro = user.tier === 'pro'
+  const initials = getInitials(user.name, user.email)
+
   async function handleBillingClick() {
     setBillingLoading(true)
     setBillingError(null)
     try {
-      if (user.tier === 'pro') {
+      if (isPro) {
         const { url } = await api.billing.portal()
         window.location.href = url
       } else {
@@ -44,7 +56,6 @@ export default function AccountClient({ user }: Props) {
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
-        // No billing record — redirect to upgrade page to start a subscription
         window.location.href = '/upgrade'
       } else {
         setBillingError('Unable to open billing portal. Please try again.')
@@ -54,10 +65,7 @@ export default function AccountClient({ user }: Props) {
   }
 
   async function saveName() {
-    if (!displayName.trim()) {
-      setNameError('Name cannot be empty.')
-      return
-    }
+    if (!displayName.trim()) { setNameError('Name cannot be empty.'); return }
     setSavingName(true)
     setNameError(null)
     try {
@@ -70,8 +78,8 @@ export default function AccountClient({ user }: Props) {
       if (!res.ok) throw new Error('Failed to update name.')
       setSavedName(displayName.trim())
       setEditingName(false)
-    } catch (err: any) {
-      setNameError(err.message ?? 'Something went wrong.')
+    } catch (err: unknown) {
+      setNameError((err as Error).message ?? 'Something went wrong.')
     } finally {
       setSavingName(false)
     }
@@ -87,140 +95,179 @@ export default function AccountClient({ user }: Props) {
       })
       if (!res.ok) throw new Error('Failed to delete account.')
       await signOut({ redirectTo: '/login' })
-    } catch (err: any) {
-      setDeleteError(err.message ?? 'Something went wrong.')
+    } catch (err: unknown) {
+      setDeleteError((err as Error).message ?? 'Something went wrong.')
       setDeletingAccount(false)
     }
   }
 
+  const inputClass = [
+    'flex-1 rounded-[var(--radius-sm)] px-3 py-2 text-sm',
+    'border border-[var(--border)]',
+    'text-[var(--text)] focus:outline-none focus:border-[var(--accent)]',
+    'focus:shadow-[0_0_0_2px_var(--accent-glow)] transition-all duration-200',
+  ].join(' ')
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-bold text-[var(--text)] mb-8">Account settings</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text)] mb-7">Account settings</h1>
 
       {/* Profile card */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 mb-6">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="h-14 w-14 rounded-full bg-[var(--border)] flex items-center justify-center shrink-0">
-            <User className="h-7 w-7 text-[var(--text-muted)]" />
-          </div>
-          <div>
-            <p className="font-semibold text-[var(--text)]">{savedName || 'No name set'}</p>
-            <p className="text-sm text-[var(--text-muted)]">{user.email}</p>
-          </div>
-          <div className="ml-auto">
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
-                user.tier === 'pro'
-                  ? 'bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30'
-                  : 'bg-[var(--border)] text-[var(--text-muted)]'
-              }`}
+      <div
+        className="rounded-[var(--radius-xl)] border border-[var(--border)] mb-4 overflow-hidden shadow-[var(--shadow-sm)]"
+        style={{ background: 'var(--surface)' }}
+      >
+        {/* Cover strip */}
+        <div
+          className="h-14"
+          style={{
+            background: isPro
+              ? 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(5,150,105,0.08) 100%)'
+              : 'var(--surface-elevated)',
+          }}
+        />
+
+        <div className="px-6 pb-6">
+          {/* Avatar + name row */}
+          <div className="flex items-end justify-between -mt-7 mb-4">
+            <div
+              className="flex h-14 w-14 items-center justify-center rounded-full text-base font-extrabold border-2 border-[var(--surface)] shadow-[var(--shadow-sm)]"
+              style={isPro ? {
+                background: 'var(--pro-gradient)',
+                color: '#fff',
+              } : {
+                background: 'var(--surface-elevated)',
+                color: 'var(--text-muted)',
+                borderColor: 'var(--border)',
+              }}
             >
-              {user.tier === 'pro' ? (
-                <><Crown className="h-3 w-3" /> Pro</>
-              ) : (
-                'Free'
-              )}
+              {initials}
+            </div>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold"
+              style={isPro ? {
+                background: 'var(--accent-light)',
+                color: 'var(--accent)',
+                border: '1px solid var(--accent-glow)',
+              } : {
+                background: 'var(--border)',
+                color: 'var(--text-muted)',
+              }}
+            >
+              {isPro ? <><Crown className="h-3 w-3" /> Pro Member</> : 'Free Plan'}
             </span>
           </div>
-        </div>
 
-        {/* Display name edit */}
-        <div className="border-t border-[var(--border)] pt-4">
-          <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-            Display name
-          </label>
-          {editingName ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] focus:border-[var(--accent)] transition-colors"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveName()
-                  if (e.key === 'Escape') setEditingName(false)
-                }}
-              />
-              <button
-                onClick={saveName}
-                disabled={savingName}
-                className="p-2 rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: 'var(--accent)' }}
-                title="Save"
-              >
-                <Check className="h-4 w-4 text-white" />
-              </button>
-              <button
-                onClick={() => { setEditingName(false); setDisplayName(savedName) }}
-                className="p-2 rounded-lg border border-[var(--border)] hover:border-slate-500 transition-colors"
-                title="Cancel"
-              >
-                <X className="h-4 w-4 text-[var(--text-muted)]" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--text)]">{savedName || '—'}</span>
-              <button
-                onClick={() => setEditingName(true)}
-                className="text-xs text-[var(--accent)] hover:opacity-80 font-medium transition-opacity"
-              >
-                Edit
-              </button>
-            </div>
-          )}
-          {nameError && <p className="mt-1.5 text-xs text-red-400">{nameError}</p>}
-        </div>
+          <p className="font-bold text-[var(--text)] text-base">{savedName || 'No name set'}</p>
+          <p className="text-sm text-[var(--text-muted)]">{user.email}</p>
 
-        {/* Email (read-only) */}
-        <div className="border-t border-[var(--border)] pt-4 mt-4">
-          <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-            Email address
-          </label>
-          <span className="text-sm text-[var(--text)]">{user.email}</span>
+          {/* Display name edit */}
+          <div className="border-t border-[var(--border)] pt-4 mt-5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest mb-2">
+              Display name
+            </label>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className={inputClass}
+                  style={{ background: 'var(--bg)' }}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveName()
+                    if (e.key === 'Escape') setEditingName(false)
+                  }}
+                />
+                <button
+                  onClick={saveName}
+                  disabled={savingName}
+                  className="p-2 rounded-[var(--radius-sm)] text-white transition-opacity hover:opacity-90 disabled:opacity-50 shadow-sm"
+                  style={{ background: 'var(--accent)' }}
+                  title="Save"
+                >
+                  <Check className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => { setEditingName(false); setDisplayName(savedName) }}
+                  className="p-2 rounded-[var(--radius-sm)] border border-[var(--border)] hover:border-[var(--text-muted)] transition-colors"
+                  title="Cancel"
+                >
+                  <X className="h-4 w-4 text-[var(--text-muted)]" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--text)]">{savedName || '—'}</span>
+                <button
+                  onClick={() => setEditingName(true)}
+                  className="text-xs font-semibold transition-opacity hover:opacity-70"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+            {nameError && <p className="mt-1.5 text-xs text-red-400">{nameError}</p>}
+          </div>
+
+          {/* Email */}
+          <div className="border-t border-[var(--border)] pt-4 mt-4">
+            <label className="block text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest mb-2">
+              Email address
+            </label>
+            <span className="text-sm text-[var(--text)]">{user.email}</span>
+          </div>
         </div>
       </div>
 
-      {/* Billing card */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 mb-6">
-        <h2 className="font-semibold text-[var(--text)] mb-1">Subscription</h2>
+      {/* Subscription card */}
+      <div
+        className="rounded-[var(--radius-xl)] border border-[var(--border)] p-6 mb-4 shadow-[var(--shadow-sm)]"
+        style={{ background: 'var(--surface)' }}
+      >
+        <h2 className="font-bold text-[var(--text)] tracking-tight mb-0.5">Subscription</h2>
         <p className="text-sm text-[var(--text-muted)] mb-4">
-          {user.tier === 'pro'
-            ? 'You are on the Pro plan.'
+          {isPro
+            ? 'You are on the Pro plan. Manage billing below.'
             : 'You are on the Free plan. Upgrade to unlock all features.'}
         </p>
         <button
           onClick={handleBillingClick}
           disabled={billingLoading}
-          className="inline-flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-opacity hover:opacity-90 disabled:opacity-70"
-          style={{ backgroundColor: 'var(--accent)' }}
+          className="pro-button inline-flex items-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-[var(--radius)] transition-opacity hover:opacity-90 disabled:opacity-70 shadow-sm"
         >
-          {billingLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-          {user.tier === 'pro' ? 'Manage billing' : 'Upgrade to Pro'}
+          {billingLoading
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : isPro
+              ? <CreditCard className="h-4 w-4" />
+              : <Zap className="h-4 w-4 text-yellow-300" />
+          }
+          {isPro ? 'Manage billing' : 'Upgrade to Pro'}
         </button>
-        {billingError && (
-          <p className="mt-2 text-xs text-red-400">{billingError}</p>
-        )}
+        {billingError && <p className="mt-2 text-xs text-red-400">{billingError}</p>}
       </div>
 
-      {/* Actions */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 space-y-3">
-        <h2 className="font-semibold text-[var(--text)] mb-1">Account actions</h2>
+      {/* Danger zone */}
+      <div
+        className="rounded-[var(--radius-xl)] border border-[var(--border)] p-6 space-y-3 shadow-[var(--shadow-sm)]"
+        style={{ background: 'var(--surface)' }}
+      >
+        <h2 className="font-bold text-[var(--text)] tracking-tight">Account actions</h2>
 
-        {/* Sign out */}
         <button
           onClick={() => signOut({ redirectTo: '/login' })}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-[var(--border)] hover:border-slate-500 text-[var(--text)] text-sm font-medium transition-colors"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius)] border border-[var(--border)] hover:border-[var(--text-muted)] text-[var(--text)] text-sm font-medium transition-colors"
         >
           <LogOut className="h-4 w-4 text-[var(--text-muted)]" />
           Sign out
         </button>
 
-        {/* Delete account */}
         <button
           onClick={() => setShowDeleteModal(true)}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-red-700/40 hover:border-red-600 text-red-400 hover:text-red-300 text-sm font-medium transition-colors"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius)] border text-sm font-medium transition-colors"
+          style={{ borderColor: 'rgba(239,68,68,0.35)', color: '#f87171' }}
         >
           <Trash2 className="h-4 w-4" />
           Delete account
@@ -230,27 +277,29 @@ export default function AccountClient({ user }: Props) {
       {/* Delete confirmation modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-xl bg-[#1a1d27] border border-[#2a2d3a] p-6">
-            <h3 className="text-lg font-semibold text-white mb-2">Delete account?</h3>
-            <p className="text-slate-400 text-sm mb-6">
+          <div
+            className="w-full max-w-sm rounded-[var(--radius-xl)] border border-[var(--border)] p-6 shadow-[var(--shadow-lg)]"
+            style={{ background: 'var(--surface-elevated)' }}
+          >
+            <h3 className="text-lg font-bold text-[var(--text)] mb-2">Delete account?</h3>
+            <p className="text-[var(--text-muted)] text-sm mb-6 leading-relaxed">
               This action is permanent and cannot be undone. All your data will be erased.
             </p>
-            {deleteError && (
-              <p className="mb-4 text-sm text-red-400">{deleteError}</p>
-            )}
+            {deleteError && <p className="mb-4 text-sm text-red-400">{deleteError}</p>}
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowDeleteModal(false); setDeleteError(null) }}
-                className="flex-1 py-2.5 rounded-lg border border-[#2a2d3a] hover:border-slate-500 text-white text-sm font-medium transition-colors"
+                className="flex-1 py-2.5 rounded-[var(--radius)] border border-[var(--border)] hover:border-[var(--text-muted)] text-[var(--text)] text-sm font-semibold transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={deleteAccount}
                 disabled={deletingAccount}
-                className="flex-1 py-2.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-[var(--radius)] text-white text-sm font-bold transition-colors disabled:opacity-50"
+                style={{ background: '#dc2626' }}
               >
-                {deletingAccount ? 'Deleting...' : 'Yes, delete'}
+                {deletingAccount ? 'Deleting…' : 'Yes, delete'}
               </button>
             </div>
           </div>
