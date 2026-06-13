@@ -32,7 +32,6 @@ export default function LoginPage() {
       redirect: false,
     })
     if (res?.error) {
-      // Auth.js wraps error codes — check for email-not-verified pattern
       const errMsg = res.error ?? ''
       if (errMsg.includes('EMAIL_NOT_VERIFIED') || errMsg.includes('verify')) {
         setIsVerifyError(true)
@@ -53,20 +52,31 @@ export default function LoginPage() {
     await signIn('google', { redirectTo: callbackUrl })
   }
 
-  const inputClass = [
-    'w-full rounded-lg px-4 py-3 text-sm',
+  const inputBase = [
+    'w-full rounded-[var(--radius)] px-4 py-3 text-sm',
     'bg-[var(--bg)] border border-[var(--border)]',
-    'text-[var(--text)] placeholder:text-[var(--text-muted)]',
-    'focus:outline-none focus:ring-1 focus:ring-[var(--accent)] focus:border-[var(--accent)]',
-    'transition-colors',
+    'text-[var(--text)] placeholder:text-[var(--text-subtle)]',
+    'focus:outline-none focus:border-[var(--accent)]',
+    'focus:shadow-[0_0_0_3px_var(--accent-glow)]',
+    'transition-all duration-200',
   ].join(' ')
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8">
-      <h1 className="text-xl font-semibold text-[var(--text)] mb-6">Sign in to EdgeScan</h1>
+    <div
+      className="rounded-[var(--radius-xl)] border border-[var(--border)] p-8 shadow-[var(--shadow-lg)]"
+      style={{ background: 'var(--surface)' }}
+    >
+      <div className="mb-7">
+        <h1 className="text-2xl font-bold text-[var(--text)] tracking-tight">Welcome back</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">Sign in to your EdgeScan account</p>
+      </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400" role="alert">
+        <div
+          className="mb-5 rounded-[var(--radius)] border px-4 py-3 text-sm"
+          style={{ background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.25)', color: '#f87171' }}
+          role="alert"
+        >
           {error}
           {isVerifyError && (
             <span> Check your inbox (and spam folder) for the verification link.</span>
@@ -79,7 +89,8 @@ export default function LoginPage() {
         type="button"
         onClick={handleGoogle}
         disabled={loading}
-        className="w-full flex items-center justify-center gap-3 border border-[var(--border)] hover:border-[var(--accent)]/50 text-[var(--text)] text-sm font-medium py-3 rounded-lg transition-colors mb-6 disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-3 border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text)] text-sm font-medium py-3 rounded-[var(--radius)] transition-all duration-200 mb-5 disabled:opacity-50 hover:shadow-[0_0_0_3px_var(--accent-glow)]"
+        style={{ background: 'var(--surface-elevated)' }}
       >
         <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
@@ -91,12 +102,12 @@ export default function LoginPage() {
         Continue with Google
       </button>
 
-      <div className="relative mb-6">
+      <div className="relative mb-5">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-[var(--border)]" />
         </div>
-        <div className="relative flex justify-center text-xs text-[var(--text-muted)] uppercase">
-          <span className="bg-[var(--surface)] px-3">or sign in with email</span>
+        <div className="relative flex justify-center text-xs text-[var(--text-subtle)] uppercase tracking-wider">
+          <span className="px-3" style={{ background: 'var(--surface)' }}>or email</span>
         </div>
       </div>
 
@@ -113,7 +124,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className={inputClass}
+            className={inputBase}
           />
         </div>
 
@@ -122,7 +133,11 @@ export default function LoginPage() {
             <label htmlFor="password" className="block text-sm font-medium text-[var(--text-muted)]">
               Password
             </label>
-            <Link href="/forgot" className="text-xs text-[var(--accent)] hover:opacity-80 transition-opacity">
+            <Link
+              href="/forgot"
+              className="text-xs font-medium transition-opacity hover:opacity-70"
+              style={{ color: 'var(--accent)' }}
+            >
               Forgot password?
             </Link>
           </div>
@@ -134,15 +149,14 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className={inputClass}
+            className={inputBase}
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full text-white text-sm font-semibold py-3 rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-          style={{ backgroundColor: 'var(--accent)' }}
+          className="pro-button w-full text-white text-sm font-semibold py-3 rounded-[var(--radius)] mt-1 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
         >
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
@@ -150,8 +164,12 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-[var(--text-muted)]">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-[var(--accent)] hover:opacity-80 font-medium transition-opacity">
-          Sign up
+        <Link
+          href="/signup"
+          className="font-semibold transition-opacity hover:opacity-70"
+          style={{ color: 'var(--accent)' }}
+        >
+          Sign up free
         </Link>
       </p>
     </div>
