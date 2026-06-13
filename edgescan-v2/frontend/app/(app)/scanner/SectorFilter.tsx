@@ -26,7 +26,6 @@ interface SectorFilterProps {
 export function SectorFilter({ onSectorChange, currentSector }: SectorFilterProps) {
   const [active, setActive] = useState(currentSector ?? 'All')
 
-  // Sync with external reset (e.g. "Show all sectors" button)
   useEffect(() => {
     setActive(currentSector ?? 'All')
   }, [currentSector])
@@ -37,21 +36,29 @@ export function SectorFilter({ onSectorChange, currentSector }: SectorFilterProp
   }
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-      {SECTORS.map((sector) => (
-        <button
-          key={sector}
-          onClick={() => handleClick(sector)}
-          className={cn(
-            'shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap',
-            active === sector
-              ? 'bg-[var(--accent)] text-white'
-              : 'bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--border)]'
-          )}
-        >
-          {sector}
-        </button>
-      ))}
+    <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+      {SECTORS.map((sector) => {
+        const isActive = active === sector
+        return (
+          <button
+            key={sector}
+            onClick={() => handleClick(sector)}
+            className={cn(
+              'shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150 whitespace-nowrap',
+              isActive
+                ? 'text-white shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
+            )}
+            style={isActive ? {
+              background: 'var(--pro-gradient)',
+            } : {
+              background: 'var(--surface-elevated)',
+            }}
+          >
+            {sector}
+          </button>
+        )
+      })}
     </div>
   )
 }
