@@ -1,0 +1,27 @@
+name: Create Admin User
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-user:
+    name: Create Pro admin user → Neon
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: edgescan-v2/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install sqlalchemy psycopg2-binary bcrypt
+
+      - name: Create admin user
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python create_admin_user.py
