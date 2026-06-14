@@ -41,6 +41,9 @@ _ADMIN_EMAILS = {
 
 _IS_PRODUCTION = os.environ.get("ENV", "").lower() in ("production", "prod")
 
+# Shared with Next.js server — used to trust X-User-* headers on server-side requests.
+_INTERNAL_SECRET = os.environ.get("INTERNAL_API_SECRET", "")
+
 
 @dataclass
 class CurrentUser:
@@ -94,16 +97,32 @@ async def get_current_user(
     session_token: Optional[str] = Cookie(default=None, alias="authjs.session-token"),
     secure_session_token: Optional[str] = Cookie(default=None, alias="__Secure-authjs.session-token"),
     authorization: Optional[str] = Header(default=None),
+    x_internal_secret: Optional[str] = Header(default=None),
+    x_user_id: Optional[str] = Header(default=None),
+    x_user_tier: Optional[str] = Header(default=None),
+    x_user_is_admin: Optional[str] = Header(default=None),
     db: Session = Depends(get_db),
 ) -> Optional[CurrentUser]:
     """
     Try to resolve the calling user.
 
     Order of precedence:
-    1. Secure session cookie (production HTTPS)
-    2. Regular session cookie (development HTTP)
-    3. Bearer <email> token matching ADMIN_EMAILS (dev bootstrap only)
+    1. Trusted X-Internal-Secret headers (from Next.js server-side requests)
+    2. Secure session cookie (production HTTPS)
+    3. Regular session cookie (development HTTP)
+    4. Bearer <email> token matching ADMIN_EMAILS (dev bootstrap only)
     """
+    # Trusted internal secret: Next.js server passes session data directly
+    if _INTERNAL_SECRET and x_internal_secret == _INTERNAL_SECRET and x_user_id:
+        user = db.query(User).filter(User.id == x_user_id).first()
+        if user and user.is_active:
+            return CurrentUser(
+                id=user.id,
+                email=user.email,
+                tier=user.tier,
+                is_admin=user.is_admin,
+            )
+
     raw_token = secure_session_token or session_token
 
     if raw_token:

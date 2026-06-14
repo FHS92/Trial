@@ -1,11 +1,12 @@
 import type { ScanResult, ScannerResponse, OHLCVBar, WatchlistItem, SubscriptionInfo } from './types'
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
-const V1 = `${BASE}/api/v1`
+// Client-side calls go through the Next.js proxy at /api/v1 (same-origin, auth injected server-side)
+const V1 = '/api/v1'
 
 // For server-side fetches: use internal service URL when available (avoids external round-trip in containers)
 const SERVER_BASE = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 const SERVER_V1 = `${SERVER_BASE}/api/v1`
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET ?? ''
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -30,12 +31,25 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 // Server-side fetch: forwards the incoming request's Cookie header to the backend.
 // Call with: const cookieHeader = (await cookies()).getAll().map(c => `${c.name}=${c.value}`).join('; ')
+// Optionally pass sessionUser to inject X-Internal-Secret trusted auth headers (bypasses JWE decryption).
 // NOTE: do NOT use (await cookies()).toString() — it encodeURIComponent-encodes values, corrupting session tokens.
-export async function serverFetch<T>(path: string, cookieHeader: string, init?: RequestInit): Promise<T> {
+export async function serverFetch<T>(
+  path: string,
+  cookieHeader: string,
+  init?: RequestInit,
+  sessionUser?: { id: string; tier: string; isAdmin: boolean } | null,
+): Promise<T> {
+  const authHeaders: Record<string, string> = {}
+  if (sessionUser?.id && INTERNAL_SECRET) {
+    authHeaders['x-internal-secret'] = INTERNAL_SECRET
+    authHeaders['x-user-id'] = sessionUser.id
+    authHeaders['x-user-tier'] = sessionUser.tier
+    authHeaders['x-user-is-admin'] = String(sessionUser.isAdmin)
+  }
   const res = await fetch(`${SERVER_V1}${path}`, {
     cache: 'no-store',
     ...init,
-    headers: { Cookie: cookieHeader, ...init?.headers },
+    headers: { Cookie: cookieHeader, ...authHeaders, ...init?.headers },
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))

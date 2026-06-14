@@ -40,7 +40,7 @@ async function EarningsContent() {
 
   let data: EarningsResponse
   try {
-    data = await serverFetch<EarningsResponse>('/earnings', cookieHeader)
+    data = await serverFetch<EarningsResponse>('/earnings', cookieHeader, undefined, currentUser)
   } catch {
     return (
       <div

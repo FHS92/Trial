@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { SkeletonRow } from '@/components/ui/SkeletonRow'
 import { ScannerClient } from './ScannerClient'
 import { serverFetch, ApiError } from '@/lib/api'
+import { getCurrentUser } from '@/lib/auth'
 import type { ScannerResponse } from '@/lib/types'
 
 export const metadata: Metadata = {
@@ -12,11 +13,12 @@ export const metadata: Metadata = {
 }
 
 async function ScannerContent() {
+  const currentUser = await getCurrentUser()
   const cookieHeader = (await cookies()).getAll().map(c => `${c.name}=${c.value}`).join('; ')
 
   let data: ScannerResponse
   try {
-    data = await serverFetch<ScannerResponse>('/scanner', cookieHeader)
+    data = await serverFetch<ScannerResponse>('/scanner?limit=500', cookieHeader, undefined, currentUser)
   } catch (err) {
     const isAuthErr = err instanceof ApiError && err.status === 401
     return (
