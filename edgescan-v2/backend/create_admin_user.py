@@ -8,6 +8,7 @@ Creates (or updates if already exists):
   tier:     pro
   is_admin: True
   email_verified: True  (skip email verification flow)
+  is_active: True
 """
 
 from __future__ import annotations

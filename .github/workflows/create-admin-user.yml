@@ -1,6 +1,12 @@
 name: Create Admin User
 
 on:
+  push:
+    branches:
+      - claude/edgescan-v2-spec-79anU
+      - claude/edgescan-initial-setup-uiZgZ
+    paths:
+      - 'edgescan-v2/backend/create_admin_user.py'
   workflow_dispatch:
 
 jobs:
