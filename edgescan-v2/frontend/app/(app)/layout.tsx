@@ -15,8 +15,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </a>
       {/* Desktop: sidebar */}
       <NavSidebar className="hidden md:flex" />
-      {/* Main content */}
-      <main id="main-content" className="flex-1 overflow-y-auto pb-16 md:pb-0 flex flex-col">
+      {/* Main content — bottom padding clears the fixed mobile nav + home-indicator safe area */}
+      <main
+        id="main-content"
+        className="flex-1 overflow-y-auto pb-[calc(4rem_+_env(safe-area-inset-bottom))] md:pb-0 flex flex-col"
+      >
         <div className="flex-1">
           {children}
         </div>

@@ -61,6 +61,9 @@ html {
   font-feature-settings: 'cv01', 'cv03', 'cv04';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Stop iOS/Android from rescaling text in landscape, which breaks our type scale */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -69,6 +72,32 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  /* Belt-and-suspenders: never allow a stray element to introduce horizontal scroll on mobile */
+  overflow-x: hidden;
+  /* Remove the grey flash when tapping links/buttons on touch devices */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS Safari zooms the page when focusing an input whose font-size is < 16px.
+   Force 16px on form controls at phone widths to keep focus from zooming the layout. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Respect users who ask for less motion — this UI is animation-heavy */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ─────────────────────────────────────────────
