@@ -5,10 +5,11 @@ import type {
   WatchlistItem,
   SubscriptionInfo,
   PortfolioResponse,
+  PortfolioHistoryResponse,
   TransactionPayload,
 } from './types'
 
-export type { PortfolioResponse } from './types'
+export type { PortfolioResponse, PortfolioHistoryResponse } from './types'
 
 // Client-side calls go through the Next.js proxy at /api/v1 (same-origin, auth injected server-side)
 const V1 = '/api/v1'
@@ -130,6 +131,7 @@ export const api = {
   },
   portfolio: {
     list: () => apiFetch<PortfolioResponse>('/portfolio'),
+    history: () => apiFetch<PortfolioHistoryResponse>('/portfolio/history'),
     addTransaction: (payload: TransactionPayload) =>
       apiFetch<{ id: number; ticker: string; type: string; status: string }>('/portfolio/transactions', {
         method: 'POST',
@@ -142,6 +144,11 @@ export const api = {
       }),
     deleteTransaction: (id: number) =>
       apiFetch<void>(`/portfolio/transactions/${id}`, { method: 'DELETE' }),
+    importCsv: (csv: string) =>
+      apiFetch<{ imported: number; errors: string[] }>('/portfolio/import', {
+        method: 'POST',
+        body: JSON.stringify({ csv }),
+      }),
   },
   earnings: () => apiFetch<EarningsResponse>('/earnings'),
   search: (q: string) =>

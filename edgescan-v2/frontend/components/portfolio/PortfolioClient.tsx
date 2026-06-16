@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { Briefcase, Plus, ArrowRight, TrendingUp } from 'lucide-react'
+import { Briefcase, Plus, ArrowRight, TrendingUp, Upload, Loader2 } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
-import { formatPrice, formatPercent, cn } from '@/lib/utils'
+import { formatPrice, formatPercent, formatDate, cn } from '@/lib/utils'
 import type { PortfolioResponse } from '@/lib/types'
 import { PortfolioRow } from './PortfolioRow'
 import { TransactionModal } from './TransactionModal'
+import { PortfolioCharts } from './PortfolioCharts'
 
 type ModalState =
   | { open: false }
@@ -23,6 +24,9 @@ export function PortfolioClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>({ open: false })
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     try {
@@ -44,6 +48,28 @@ export function PortfolioClient() {
 
   function openTrade(ticker: string, type: 'buy' | 'sell', maxShares: number) {
     setModal({ open: true, lockedTicker: ticker, type, maxShares })
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-importing the same file
+    if (!file) return
+    setImporting(true)
+    setImportMsg(null)
+    try {
+      const text = await file.text()
+      const res = await api.portfolio.importCsv(text)
+      const errCount = res.errors.length
+      setImportMsg(
+        `Imported ${res.imported} transaction${res.imported === 1 ? '' : 's'}` +
+          (errCount ? ` · ${errCount} row${errCount === 1 ? '' : 's'} skipped` : '')
+      )
+      await load()
+    } catch (err) {
+      setImportMsg(err instanceof ApiError ? err.message : 'Import failed.')
+    } finally {
+      setImporting(false)
+    }
   }
 
   // ----- Loading -----
@@ -102,17 +128,46 @@ export function PortfolioClient() {
   return (
     <Shell
       action={
-        !atLimit ? (
-          <button
-            onClick={() => setModal({ open: true, type: 'buy' })}
-            className="pro-button flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold text-white shrink-0 shadow-sm"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add
-          </button>
-        ) : null
+        <div className="flex items-center gap-2 shrink-0">
+          {isPro && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:text-[var(--text)] transition-colors disabled:opacity-60"
+              title="Import transactions from CSV"
+            >
+              {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+              Import
+            </button>
+          )}
+          {!atLimit && (
+            <button
+              onClick={() => setModal({ open: true, type: 'buy' })}
+              className="pro-button flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add
+            </button>
+          )}
+        </div>
       }
     >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={handleImportFile}
+      />
+      {importMsg && (
+        <div
+          className="mb-4 rounded-[var(--radius)] border px-4 py-2.5 text-xs flex items-center justify-between gap-3"
+          style={{ background: 'var(--accent-light)', borderColor: 'var(--accent-glow)', color: 'var(--text)' }}
+        >
+          <span>{importMsg}</span>
+          <button onClick={() => setImportMsg(null)} className="text-[var(--text-muted)] hover:text-[var(--text)]">✕</button>
+        </div>
+      )}
       {/* Summary cards */}
       {positions.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
@@ -133,6 +188,11 @@ export function PortfolioClient() {
             <SummaryCard label="Cost basis" value={formatPrice(summary.total_cost)} />
           )}
         </div>
+      )}
+
+      {/* Value-over-time + sector allocation (pro) */}
+      {isPro && positions.length > 0 && (
+        <PortfolioCharts allocation={data.allocation} />
       )}
 
       {/* Free-tier banner */}
@@ -194,6 +254,39 @@ export function PortfolioClient() {
           {positions.map(p => (
             <PortfolioRow key={p.ticker} position={p} isPro={isPro} onTrade={openTrade} />
           ))}
+        </div>
+      )}
+
+      {/* Closed positions / realized history (pro) */}
+      {isPro && data.closed_positions && data.closed_positions.length > 0 && (
+        <div className="mt-6">
+          <h2 className="text-xs font-bold text-[var(--text-subtle)] uppercase tracking-widest mb-2 px-1">
+            Closed positions
+          </h2>
+          <div
+            className="rounded-[var(--radius-lg)] border border-[var(--border)] overflow-hidden shadow-[var(--shadow-sm)]"
+            style={{ background: 'var(--surface)' }}
+          >
+            {data.closed_positions.map(c => (
+              <div
+                key={c.ticker}
+                className="flex items-center gap-3 px-4 py-2.5 border-b border-[var(--border)] last:border-b-0"
+              >
+                <div className="flex-1 min-w-0">
+                  <span className="font-bold text-sm text-[var(--text)] tracking-tight">{c.ticker}</span>
+                  <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
+                    {c.shares_sold} sh sold{c.last_sell_date ? ` · ${formatDate(c.last_sell_date)}` : ''}
+                  </p>
+                </div>
+                <span
+                  className="text-sm font-mono font-semibold tabular-nums shrink-0"
+                  style={{ color: plColor(c.realized_pl) }}
+                >
+                  {c.realized_pl >= 0 ? '+' : ''}{formatPrice(c.realized_pl)}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

@@ -138,12 +138,42 @@ export interface PortfolioSummary {
   total_realized_pl: number | null   // pro only
 }
 
+export interface SectorAllocation {
+  sector: string
+  value: number
+  pct: number
+}
+
+export interface ClosedPosition {
+  ticker: string
+  name: string | null
+  sector: string | null
+  shares_sold: number
+  realized_pl: number
+  last_sell_date: string | null
+}
+
 export interface PortfolioResponse {
   tier: Tier
   positions: PortfolioPosition[]
   count: number
   limit: number | null
+  allocation: SectorAllocation[] | null      // pro only
+  closed_positions: ClosedPosition[] | null  // pro only
   summary: PortfolioSummary
+}
+
+export interface PortfolioHistoryPoint {
+  date: string
+  total_value: number
+  total_cost: number
+  unrealized_pl: number
+  realized_pl_cumulative: number
+}
+
+export interface PortfolioHistoryResponse {
+  history: PortfolioHistoryPoint[]
+  count: number
 }
 
 export interface PortfolioTransaction {

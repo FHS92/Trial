@@ -278,6 +278,12 @@ def run_scan_job(triggered_by: str = "scheduler") -> dict:
                 db2.commit()
 
             print(f"[scan] Job {run_id} complete — {succeeded} succeeded, {failed} failed.")
+
+            # Fresh prices are now stored — write daily portfolio snapshots.
+            try:
+                snapshot_all_portfolios()
+            except Exception as snap_err:  # noqa: BLE001
+                print(f"[scan] Portfolio snapshot step failed: {snap_err}")
         except Exception as e:
             db3 = SessionLocal()
             try:
@@ -1154,6 +1160,7 @@ def get_portfolio(
     scan_map = _latest_scan_map(db, list(by_ticker.keys()))
 
     positions = []
+    closed_positions = []
     total_value = total_cost = total_unrealized = total_realized = 0.0
 
     for ticker, t_list in by_ticker.items():
@@ -1177,8 +1184,19 @@ def get_portfolio(
 
         total_realized += pos["realized_pl"]
 
-        # Closed positions (zero open shares) only matter for realized P&L totals.
+        # Fully-exited positions: surface as realized history (pro), not live holdings.
         if open_shares <= 1e-9:
+            if is_pro and abs(pos["realized_pl"]) > 1e-9:
+                sells = [t for t in t_list if t.type == "sell"]
+                last_sell = sells[-1].trade_date if sells else None
+                closed_positions.append({
+                    "ticker": ticker,
+                    "name": scan.name if scan else None,
+                    "sector": scan.sector if scan else None,
+                    "shares_sold": round(sum(t.shares for t in sells), 6),
+                    "realized_pl": round(pos["realized_pl"], 2),
+                    "last_sell_date": last_sell.isoformat() if last_sell else None,
+                })
             continue
 
         total_cost += cost_basis
@@ -1210,11 +1228,33 @@ def get_portfolio(
 
     total_unrealized_pct = (total_unrealized / total_cost * 100.0) if total_cost > 1e-9 else None
 
+    # Sector allocation (pro): share of total value per sector.
+    allocation = None
+    if is_pro and total_value > 1e-9:
+        sector_value: dict[str, float] = {}
+        for p in positions:
+            if p["current_value"] is None:
+                continue
+            sec = p["sector"] or "Other"
+            sector_value[sec] = sector_value.get(sec, 0.0) + p["current_value"]
+        allocation = sorted(
+            [
+                {"sector": sec, "value": round(val, 2), "pct": round(val / total_value * 100.0, 1)}
+                for sec, val in sector_value.items()
+            ],
+            key=lambda x: x["value"],
+            reverse=True,
+        )
+
+    closed_positions.sort(key=lambda c: c["last_sell_date"] or "", reverse=True)
+
     return {
         "tier": user.tier,
         "positions": positions,
         "count": len(positions),
         "limit": None if is_pro else FREE_PORTFOLIO_LIMIT,
+        "allocation": allocation,
+        "closed_positions": closed_positions if is_pro else None,
         "summary": {
             "total_value": round(total_value, 2),
             "total_cost": round(total_cost, 2),
@@ -1378,6 +1418,172 @@ def list_transactions(
         ],
         "count": len(rows),
     }
+
+
+@app.get("/api/v1/portfolio/history")
+def get_portfolio_history(
+    user: CurrentUser = Depends(require_pro),
+    db: Session = Depends(get_db),
+):
+    """Daily portfolio-value time-series (Pro). Populated by the EOD snapshot job."""
+    rows = (
+        db.query(PortfolioSnapshot)
+        .filter(PortfolioSnapshot.user_id == user.id)
+        .order_by(PortfolioSnapshot.snapshot_date.asc())
+        .all()
+    )
+    return {
+        "history": [
+            {
+                "date": r.snapshot_date.isoformat(),
+                "total_value": r.total_value,
+                "total_cost": r.total_cost,
+                "unrealized_pl": r.unrealized_pl,
+                "realized_pl_cumulative": r.realized_pl_cumulative,
+            }
+            for r in rows
+        ],
+        "count": len(rows),
+    }
+
+
+class ImportRequest(BaseModel):
+    csv: str
+
+
+@app.post("/api/v1/portfolio/import")
+def import_transactions(
+    body: ImportRequest,
+    user: CurrentUser = Depends(require_pro),
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk-import transactions from CSV (Pro). Expected header columns:
+        ticker, type, shares, price, trade_date, notes
+    `type` defaults to "buy"; `trade_date` (YYYY-MM-DD) and `notes` are optional.
+    Returns a per-row error report; valid rows are committed even if others fail.
+    """
+    import csv as _csv  # noqa: PLC0415
+    import io  # noqa: PLC0415
+
+    reader = _csv.DictReader(io.StringIO(body.csv))
+    if not reader.fieldnames or "ticker" not in [f.strip().lower() for f in reader.fieldnames]:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "BAD_CSV", "message": "CSV must include a 'ticker' column header."},
+        )
+
+    imported = 0
+    errors: list[str] = []
+    to_add: list[PortfolioTransaction] = []
+
+    for i, raw in enumerate(reader, start=2):  # row 1 is the header
+        row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw.items()}
+        ticker = (row.get("ticker") or "").upper()
+        if not ticker:
+            continue  # skip blank lines silently
+        ttype = (row.get("type") or "buy").lower()
+        if ttype not in ("buy", "sell"):
+            errors.append(f"Row {i}: type must be 'buy' or 'sell' (got '{ttype}')")
+            continue
+        try:
+            shares = float(row.get("shares") or 0)
+            price = float(row.get("price") or 0)
+        except ValueError:
+            errors.append(f"Row {i}: shares and price must be numbers")
+            continue
+        if shares <= 0 or price <= 0:
+            errors.append(f"Row {i}: shares and price must be greater than zero")
+            continue
+
+        trade_date = date.today()
+        if row.get("trade_date"):
+            try:
+                trade_date = date.fromisoformat(row["trade_date"])
+            except ValueError:
+                errors.append(f"Row {i}: trade_date must be YYYY-MM-DD")
+                continue
+
+        scan = _latest_scan_map(db, [ticker]).get(ticker)
+        to_add.append(PortfolioTransaction(
+            user_id=user.id,
+            ticker=ticker,
+            type=ttype,
+            shares=shares,
+            price=price,
+            trade_date=trade_date,
+            score_at_txn=scan.score if scan else None,
+            notes=row.get("notes") or None,
+        ))
+        imported += 1
+
+    for txn in to_add:
+        db.add(txn)
+    db.commit()
+
+    return {"imported": imported, "errors": errors}
+
+
+def snapshot_all_portfolios() -> int:
+    """
+    Write a daily PortfolioSnapshot for every user holding positions, using the
+    latest scan prices. Idempotent per (user, date) — re-runs overwrite today's
+    row. Called at the end of the EOD scan once fresh prices are stored.
+    """
+    db = SessionLocal()
+    try:
+        user_ids = [r[0] for r in db.query(PortfolioTransaction.user_id).distinct().all()]
+        today = date.today()
+        written = 0
+
+        for uid in user_ids:
+            txns = (
+                db.query(PortfolioTransaction)
+                .filter(PortfolioTransaction.user_id == uid)
+                .order_by(PortfolioTransaction.trade_date.asc(), PortfolioTransaction.id.asc())
+                .all()
+            )
+            by_ticker: dict[str, list[PortfolioTransaction]] = {}
+            for t in txns:
+                by_ticker.setdefault(t.ticker, []).append(t)
+
+            scan_map = _latest_scan_map(db, list(by_ticker.keys()))
+            total_value = total_cost = total_unrealized = total_realized = 0.0
+
+            for ticker, t_list in by_ticker.items():
+                pos = _derive_position(ticker, t_list)
+                total_realized += pos["realized_pl"]
+                if pos["open_shares"] <= 1e-9:
+                    continue
+                total_cost += pos["cost_basis"]
+                scan = scan_map.get(ticker)
+                if scan and scan.current_price is not None:
+                    cv = scan.current_price * pos["open_shares"]
+                    total_value += cv
+                    total_unrealized += cv - pos["cost_basis"]
+
+            snap = (
+                db.query(PortfolioSnapshot)
+                .filter(PortfolioSnapshot.user_id == uid, PortfolioSnapshot.snapshot_date == today)
+                .first()
+            )
+            if snap is None:
+                snap = PortfolioSnapshot(user_id=uid, snapshot_date=today)
+                db.add(snap)
+            snap.total_value = round(total_value, 2)
+            snap.total_cost = round(total_cost, 2)
+            snap.unrealized_pl = round(total_unrealized, 2)
+            snap.realized_pl_cumulative = round(total_realized, 2)
+            written += 1
+
+        db.commit()
+        print(f"[snapshot] Wrote {written} portfolio snapshots for {today.isoformat()}")
+        return written
+    except Exception as e:  # noqa: BLE001
+        print(f"[snapshot] Portfolio snapshot job failed: {e}")
+        return 0
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
