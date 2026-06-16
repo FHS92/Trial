@@ -42,6 +42,8 @@ from models import (
     User,
     WatchlistItem,
     PortfolioHolding,
+    PortfolioTransaction,
+    PortfolioSnapshot,
 )
 
 logger = logging.getLogger(__name__)
@@ -378,6 +380,8 @@ def delete_account(
 
     db.query(WatchlistItem).filter(WatchlistItem.user_id == uid).delete()
     db.query(PortfolioHolding).filter(PortfolioHolding.user_id == uid).delete()
+    db.query(PortfolioTransaction).filter(PortfolioTransaction.user_id == uid).delete()
+    db.query(PortfolioSnapshot).filter(PortfolioSnapshot.user_id == uid).delete()
     db.query(EmailVerificationToken).filter(EmailVerificationToken.user_id == uid).delete()
     db.query(PasswordResetToken).filter(PasswordResetToken.user_id == uid).delete()
 

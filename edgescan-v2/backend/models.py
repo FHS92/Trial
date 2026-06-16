@@ -185,6 +185,48 @@ class PortfolioHolding(Base):
     __table_args__ = (UniqueConstraint("user_id", "ticker"),)
 
 
+class PortfolioTransaction(Base):
+    """
+    Append-only ledger of buy/sell events. Positions, cost basis, and realized
+    P&L are derived from these rows (FIFO matching of sells against buy lots) —
+    there is no stored "current holding" row. Supports multiple buy lots per
+    ticker. Supersedes PortfolioHolding (kept only for cascade cleanup).
+    """
+
+    __tablename__ = "portfolio_transactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    ticker: Mapped[str] = mapped_column(String(10), index=True)
+    type: Mapped[str] = mapped_column(String(4))  # "buy" | "sell"
+    shares: Mapped[float]
+    price: Mapped[float]
+    trade_date: Mapped[date_type] = mapped_column(default=date_type.today)
+    score_at_txn: Mapped[Optional[float]] = mapped_column(nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+
+class PortfolioSnapshot(Base):
+    """
+    Daily point-in-time snapshot of a user's whole-portfolio value, written by
+    the scheduler. Powers the value-over-time chart (Phase 3).
+    """
+
+    __tablename__ = "portfolio_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    snapshot_date: Mapped[date_type] = mapped_column(default=date_type.today)
+    total_value: Mapped[float] = mapped_column(default=0.0)
+    total_cost: Mapped[float] = mapped_column(default=0.0)
+    unrealized_pl: Mapped[float] = mapped_column(default=0.0)
+    realized_pl_cumulative: Mapped[float] = mapped_column(default=0.0)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("user_id", "snapshot_date"),)
+
+
 class ScanRun(Base):
     __tablename__ = "scan_runs"
 

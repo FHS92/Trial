@@ -105,6 +105,67 @@ export interface WatchlistItem {
   added_at: string
 }
 
+export interface PortfolioLot {
+  shares: number
+  buy_price: number
+  buy_date: string | null
+  score_at_buy: number | null
+}
+
+export interface PortfolioPosition {
+  ticker: string
+  name: string | null
+  sector: string | null
+  shares: number
+  avg_cost: number | null
+  cost_basis: number
+  current_price: number | null
+  current_value: number | null
+  current_score: number | null
+  avg_score_at_buy: number | null
+  score_drift: number | null
+  unrealized_pl: number | null
+  unrealized_pl_pct: number | null
+  realized_pl: number | null   // pro only
+  lots: PortfolioLot[] | null   // pro only
+}
+
+export interface PortfolioSummary {
+  total_value: number
+  total_cost: number
+  total_unrealized_pl: number
+  total_unrealized_pl_pct: number | null
+  total_realized_pl: number | null   // pro only
+}
+
+export interface PortfolioResponse {
+  tier: Tier
+  positions: PortfolioPosition[]
+  count: number
+  limit: number | null
+  summary: PortfolioSummary
+}
+
+export interface PortfolioTransaction {
+  id: number
+  ticker: string
+  type: 'buy' | 'sell'
+  shares: number
+  price: number
+  trade_date: string | null
+  score_at_txn: number | null
+  notes: string | null
+}
+
+export interface TransactionPayload {
+  ticker: string
+  type: 'buy' | 'sell'
+  shares: number
+  price: number
+  trade_date?: string
+  notes?: string
+}
+
 export interface SubscriptionInfo {
   status: 'active' | 'trialing' | 'past_due' | 'canceled'
   plan: 'monthly' | 'annual'

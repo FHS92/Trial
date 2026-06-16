@@ -1,4 +1,14 @@
-import type { ScanResult, ScannerResponse, OHLCVBar, WatchlistItem, SubscriptionInfo } from './types'
+import type {
+  ScanResult,
+  ScannerResponse,
+  OHLCVBar,
+  WatchlistItem,
+  SubscriptionInfo,
+  PortfolioResponse,
+  TransactionPayload,
+} from './types'
+
+export type { PortfolioResponse } from './types'
 
 // Client-side calls go through the Next.js proxy at /api/v1 (same-origin, auth injected server-side)
 const V1 = '/api/v1'
@@ -117,6 +127,21 @@ export const api = {
       apiFetch<void>(`/watchlist/${ticker}`, { method: 'POST' }),
     remove: (ticker: string) =>
       apiFetch<void>(`/watchlist/${ticker}`, { method: 'DELETE' }),
+  },
+  portfolio: {
+    list: () => apiFetch<PortfolioResponse>('/portfolio'),
+    addTransaction: (payload: TransactionPayload) =>
+      apiFetch<{ id: number; ticker: string; type: string; status: string }>('/portfolio/transactions', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    updateTransaction: (id: number, payload: Partial<Omit<TransactionPayload, 'ticker' | 'type'>>) =>
+      apiFetch<{ id: number; status: string }>(`/portfolio/transactions/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }),
+    deleteTransaction: (id: number) =>
+      apiFetch<void>(`/portfolio/transactions/${id}`, { method: 'DELETE' }),
   },
   earnings: () => apiFetch<EarningsResponse>('/earnings'),
   search: (q: string) =>
