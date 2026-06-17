@@ -5,16 +5,21 @@ Mounted at /api/v1/admin/ in main.py.
 All endpoints require is_admin=True.
 
 Endpoints:
-  GET /admin/stats   — high-level counts
-  GET /admin/users   — paginated user list
+  GET  /admin/stats              — high-level counts + conversion metrics
+  GET  /admin/users              — paginated/searchable user list
+  PATCH /admin/users/{user_id}   — change user tier
+  GET  /admin/scan/history       — recent scan run history
+  POST /admin/scan/trigger       — trigger an on-demand scan (admin, no rate limit)
 """
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -26,12 +31,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+class UserUpdateRequest(BaseModel):
+    tier: Optional[str] = None
+
+
 @router.get("/stats")
 def get_admin_stats(
     _: CurrentUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Overview counts for the admin dashboard."""
+    """Overview counts and conversion metrics for the admin dashboard."""
     total_users = db.query(func.count(User.id)).scalar() or 0
     pro_users = db.query(func.count(User.id)).filter(User.tier == "pro").scalar() or 0
     free_users = total_users - pro_users
@@ -43,7 +52,6 @@ def get_admin_stats(
         or 0
     )
 
-    # Signups in last 7 days
     week_ago = datetime.utcnow() - timedelta(days=7)
     new_users_7d = (
         db.query(func.count(User.id))
@@ -52,10 +60,18 @@ def get_admin_stats(
         or 0
     )
 
-    # Total scan results rows
+    month_ago = datetime.utcnow() - timedelta(days=30)
+    new_users_30d = (
+        db.query(func.count(User.id))
+        .filter(User.created_at >= month_ago)
+        .scalar()
+        or 0
+    )
+
+    conversion_rate = round(pro_users / total_users * 100, 1) if total_users > 0 else 0.0
+
     total_scans = db.query(func.count(ScanResult.id)).scalar() or 0
 
-    # Latest scan run
     latest_run = db.query(ScanRun).order_by(ScanRun.started_at.desc()).first()
 
     return {
@@ -64,6 +80,8 @@ def get_admin_stats(
         "free_users": free_users,
         "active_subscriptions": active_subs,
         "new_users_7d": new_users_7d,
+        "new_users_30d": new_users_30d,
+        "conversion_rate": conversion_rate,
         "total_scan_rows": total_scans,
         "latest_scan": {
             "started_at": latest_run.started_at.isoformat() if latest_run else None,
@@ -78,19 +96,21 @@ def get_admin_users(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=25, ge=1, le=100),
     tier: str | None = Query(default=None),
+    search: str | None = Query(default=None),
     _: CurrentUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Paginated user list with subscription info."""
+    """Paginated, searchable user list with subscription info."""
     q = db.query(User)
     if tier in ("pro", "free"):
         q = q.filter(User.tier == tier)
+    if search:
+        q = q.filter(User.email.ilike(f"%{search}%"))
     q = q.order_by(User.created_at.desc())
 
     total = q.count()
     users = q.offset((page - 1) * per_page).limit(per_page).all()
 
-    # Pull subscription data in one batch
     user_ids = [u.id for u in users]
     subs = {
         s.user_id: s
@@ -122,3 +142,69 @@ def get_admin_users(
         "per_page": per_page,
         "pages": (total + per_page - 1) // per_page,
     }
+
+
+@router.patch("/users/{user_id}")
+def update_user(
+    user_id: str,
+    payload: UserUpdateRequest,
+    admin: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Change a user's tier. Does not affect their Stripe subscription."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, detail={"message": "User not found"})
+    if user.id == admin.id:
+        raise HTTPException(400, detail={"message": "Cannot change your own tier"})
+    if payload.tier is not None:
+        if payload.tier not in ("free", "pro"):
+            raise HTTPException(400, detail={"message": "tier must be 'free' or 'pro'"})
+        user.tier = payload.tier
+    db.commit()
+    return {"id": user.id, "email": user.email, "tier": user.tier}
+
+
+@router.get("/scan/history")
+def get_scan_history(
+    limit: int = Query(default=10, ge=1, le=50),
+    _: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Recent scan run history, newest first."""
+    runs = db.query(ScanRun).order_by(ScanRun.started_at.desc()).limit(limit).all()
+    result = []
+    for r in runs:
+        duration_s = None
+        if r.completed_at and r.started_at:
+            duration_s = int((r.completed_at - r.started_at).total_seconds())
+        result.append({
+            "id": r.id,
+            "started_at": r.started_at.isoformat(),
+            "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+            "triggered_by": r.triggered_by,
+            "tickers_attempted": r.tickers_attempted,
+            "tickers_succeeded": r.tickers_succeeded,
+            "tickers_failed": r.tickers_failed,
+            "duration_s": duration_s,
+            "error": r.error,
+            "data_source": r.data_source,
+        })
+    return {"runs": result}
+
+
+@router.post("/scan/trigger")
+def trigger_admin_scan(
+    admin: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Trigger an on-demand full scan. Admin only, no rate limit."""
+    running = db.query(ScanRun).filter(ScanRun.completed_at.is_(None)).first()
+    if running:
+        raise HTTPException(
+            409,
+            detail={"message": "A scan is already in progress. Check scan history for status."},
+        )
+    from main import run_scan_job  # noqa: PLC0415 - runtime import avoids circular
+    result = run_scan_job(triggered_by=f"admin:{admin.email}")
+    return {"status": "started", "run_id": result["run_id"]}

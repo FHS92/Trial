@@ -75,17 +75,45 @@ export type AdminStatsResponse = {
   free_users: number
   active_subscriptions: number
   new_users_7d: number
+  new_users_30d: number
+  conversion_rate: number
   total_scan_rows: number
   latest_scan: { started_at: string | null; completed_at: string | null; tickers_scanned: number }
 }
 
+export type AdminUserRow = {
+  id: string
+  email: string
+  name: string | null
+  tier: string
+  is_admin: boolean
+  created_at: string
+  subscription: { status: string; plan: string; current_period_end: string | null; cancel_at_period_end: boolean } | null
+}
+
 export type AdminUsersResponse = {
-  users: {
-    id: string; email: string; name: string | null; tier: string
-    is_admin: boolean; created_at: string
-    subscription: { status: string; plan: string; current_period_end: string | null; cancel_at_period_end: boolean } | null
-  }[]
-  total: number; page: number; per_page: number; pages: number
+  users: AdminUserRow[]
+  total: number
+  page: number
+  per_page: number
+  pages: number
+}
+
+export type AdminScanRun = {
+  id: number
+  started_at: string
+  completed_at: string | null
+  triggered_by: string
+  tickers_attempted: number
+  tickers_succeeded: number
+  tickers_failed: number
+  duration_s: number | null
+  error: string | null
+  data_source: string
+}
+
+export type AdminScanHistoryResponse = {
+  runs: AdminScanRun[]
 }
 
 export type EarningsResponse = {
@@ -157,13 +185,23 @@ export const api = {
     ),
   admin: {
     stats: () => apiFetch<AdminStatsResponse>('/admin/stats'),
-    users: (params?: { page?: number; per_page?: number; tier?: 'pro' | 'free' }) => {
+    users: (params?: { page?: number; per_page?: number; tier?: 'pro' | 'free'; search?: string }) => {
       const q = new URLSearchParams()
       if (params?.page) q.set('page', String(params.page))
       if (params?.per_page) q.set('per_page', String(params.per_page))
       if (params?.tier) q.set('tier', params.tier)
+      if (params?.search) q.set('search', params.search)
       return apiFetch<AdminUsersResponse>(`/admin/users${q.toString() ? '?' + q.toString() : ''}`)
     },
+    updateUser: (id: string, payload: { tier: 'free' | 'pro' }) =>
+      apiFetch<{ id: string; email: string; tier: string }>(`/admin/users/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }),
+    triggerScan: () =>
+      apiFetch<{ status: string; run_id: number }>('/admin/scan/trigger', { method: 'POST' }),
+    scanHistory: (limit?: number) =>
+      apiFetch<AdminScanHistoryResponse>(`/admin/scan/history${limit ? `?limit=${limit}` : ''}`),
   },
   health: () =>
     apiFetch<{ status: string; last_scan: string; data_source: string }>('/health'),
