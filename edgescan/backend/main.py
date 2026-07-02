@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 from database import get_db, init_db, SessionLocal
 from data_fetcher import SP500_TICKERS, fetch_fundamentals, fetch_price_history
 from models import BacktestRun, PriceHistory, PortfolioHolding, Profile, ProfileSession, ScanResult, ScanJob, ThesisCache, WatchlistItem
-from scanner import scan_tickers, score_stock
+from scanner import scan_tickers, scan_tickers_with_errors, score_stock
 from thesis_generator import generate_thesis
 from analytics import get_sector_heatmap, get_rebalance_suggestions
 from chat import answer_question
@@ -949,15 +949,19 @@ def _background_scan(job_id: int, triggered_by: str) -> None:
     """Background scan — persists state to DB so all Cloud Run instances agree."""
     db = SessionLocal()
     try:
-        results = scan_tickers(SP500_TICKERS)
+        results, errors = scan_tickers_with_errors(SP500_TICKERS)
         for r in results:
             _store_scan_result(r, db)
         job = db.query(ScanJob).filter(ScanJob.id == job_id).first()
         if job:
             job.completed_at = datetime.utcnow()
             job.tickers_done = len(results)
+            if errors:
+                # Store sample of errors so /api/scan/status can surface them
+                sample = list(errors.items())[:5]
+                job.error = f"{len(errors)} tickers failed. Sample: " + "; ".join(f"{t}: {e}" for t, e in sample)
             db.commit()
-        print(f"[scan] Job {job_id} complete — {len(results)} tickers scanned.")
+        print(f"[scan] Job {job_id} complete — {len(results)} ok, {len(errors)} failed.")
     except Exception as e:
         db2 = SessionLocal()
         try:
@@ -993,11 +997,35 @@ def get_scan_status(db: Session = Depends(get_db)):
     elif latest_result:
         last_scanned_at = latest_result.scanned_at.isoformat()
 
+    tickers_done = latest_job.tickers_done if latest_job else None
+    last_error = latest_job.error if latest_job and latest_job.completed_at else None
+
     return {
         "in_progress": in_progress,
         "last_scanned_at": last_scanned_at,
         "total_scanned": db.query(func.count(ScanResult.ticker.distinct())).scalar(),
+        "tickers_done": tickers_done,
+        "last_error": last_error,
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/scan/test  — single-ticker data fetch diagnostic
+# ---------------------------------------------------------------------------
+
+@app.get("/api/scan/test")
+def test_scan(ticker: str = "AAPL", db: Session = Depends(get_db)):
+    """
+    Fetch and score a single ticker to verify the data layer is working.
+    Returns the score result on success or the error detail on failure.
+    Does not write to the database.
+    """
+    from scanner import score_stock
+    try:
+        result = score_stock(ticker.upper())
+        return {"ok": True, "ticker": ticker.upper(), "score": result.get("score"), "current_price": result.get("current_price")}
+    except Exception as e:
+        return {"ok": False, "ticker": ticker.upper(), "error": str(e)}
 
 
 # ---------------------------------------------------------------------------

@@ -390,12 +390,21 @@ def score_stock(ticker: str) -> dict:
 
 def scan_tickers(tickers: list[str]) -> list[dict]:
     """Score a list of tickers and return results sorted by composite score."""
+    results, _ = scan_tickers_with_errors(tickers)
+    return results
+
+
+def scan_tickers_with_errors(tickers: list[str]) -> tuple[list[dict], dict[str, str]]:
+    """Score a list of tickers; return (results, {ticker: error_str}) for diagnostics."""
     results = []
+    errors = {}
     for ticker in tickers:
         try:
             result = score_stock(ticker)
             results.append(result)
         except Exception as e:
-            print(f"  [scanner] Failed on {ticker}: {e}")
+            err = str(e)[:200]
+            errors[ticker] = err
+            print(f"  [scanner] Failed on {ticker}: {err}")
     results.sort(key=lambda r: r["score"], reverse=True)
-    return results
+    return results, errors
