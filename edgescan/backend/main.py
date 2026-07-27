@@ -945,11 +945,26 @@ def _fetch_market_pulse() -> dict:
 # Scan state (in-memory, per-instance)
 # ---------------------------------------------------------------------------
 
+def _report_scan_progress(job_id: int, done: int, total: int) -> None:
+    """Short-lived session so progress commits don't hold the main scan's connection open."""
+    db_p = SessionLocal()
+    try:
+        job = db_p.query(ScanJob).filter(ScanJob.id == job_id).first()
+        if job:
+            job.tickers_done = done
+            db_p.commit()
+    finally:
+        db_p.close()
+
+
 def _background_scan(job_id: int, triggered_by: str) -> None:
     """Background scan — persists state to DB so all Cloud Run instances agree."""
     db = SessionLocal()
     try:
-        results, errors = scan_tickers_with_errors(SP500_TICKERS)
+        results, errors = scan_tickers_with_errors(
+            SP500_TICKERS,
+            on_progress=lambda done, total: _report_scan_progress(job_id, done, total),
+        )
         for r in results:
             _store_scan_result(r, db)
         job = db.query(ScanJob).filter(ScanJob.id == job_id).first()
@@ -1005,6 +1020,7 @@ def get_scan_status(db: Session = Depends(get_db)):
         "last_scanned_at": last_scanned_at,
         "total_scanned": db.query(func.count(ScanResult.ticker.distinct())).scalar(),
         "tickers_done": tickers_done,
+        "total_tickers": len(SP500_TICKERS),
         "last_error": last_error,
     }
 

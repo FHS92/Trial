@@ -394,11 +394,16 @@ def scan_tickers(tickers: list[str]) -> list[dict]:
     return results
 
 
-def scan_tickers_with_errors(tickers: list[str]) -> tuple[list[dict], dict[str, str]]:
-    """Score a list of tickers; return (results, {ticker: error_str}) for diagnostics."""
+def scan_tickers_with_errors(tickers: list[str], on_progress=None) -> tuple[list[dict], dict[str, str]]:
+    """
+    Score a list of tickers; return (results, {ticker: error_str}) for diagnostics.
+    If on_progress is given, it's called as on_progress(done_count, total_count)
+    after each ticker so callers can report live progress.
+    """
     results = []
     errors = {}
-    for ticker in tickers:
+    total = len(tickers)
+    for i, ticker in enumerate(tickers, start=1):
         try:
             result = score_stock(ticker)
             results.append(result)
@@ -406,5 +411,10 @@ def scan_tickers_with_errors(tickers: list[str]) -> tuple[list[dict], dict[str, 
             err = str(e)[:200]
             errors[ticker] = err
             print(f"  [scanner] Failed on {ticker}: {err}")
+        if on_progress:
+            try:
+                on_progress(i, total)
+            except Exception:
+                pass
     results.sort(key=lambda r: r["score"], reverse=True)
     return results, errors
