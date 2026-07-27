@@ -12,23 +12,65 @@ export default function ScanButton() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const scanStartedAt = useRef<string | null>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const missedPolls = useRef(0)
+  const cancelled = useRef(false)
 
-  function stopPolling() {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+  useEffect(() => () => { cancelled.current = true }, [])
+
+  async function driveBatches(jobId: number, token: string) {
+    let consecutiveFailures = 0
+
+    while (!cancelled.current) {
+      let data: { status?: string; tickers_done?: number; total_tickers?: number; detail?: string } | null = null
+      try {
+        const r = await fetch(`${BASE}/api/scan/continue?job_id=${jobId}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        })
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}))
+          throw new Error(body.detail ?? `server error ${r.status}`)
+        }
+        data = await r.json()
+        consecutiveFailures = 0
+      } catch (e) {
+        consecutiveFailures += 1
+        if (consecutiveFailures >= 3) {
+          setErrorMsg(e instanceof Error ? e.message : 'Lost connection during scan.')
+          setPhase('error')
+          return
+        }
+        // brief pause before retrying the same batch
+        await new Promise(res => setTimeout(res, 1500))
+        continue
+      }
+
+      if (cancelled.current || !data) return
+
+      if (typeof data.tickers_done === 'number' && typeof data.total_tickers === 'number') {
+        setProgress({ done: data.tickers_done, total: data.total_tickers })
+      }
+
+      if (data.status === 'done') {
+        setPhase('done')
+        router.refresh()
+        setTimeout(() => { setPhase('idle'); setProgress(null) }, 3000)
+        return
+      }
+      // else keep looping — each call already did real work, no artificial delay needed
+    }
   }
-
-  useEffect(() => () => stopPolling(), [])
 
   async function startScan() {
     const token = sessionStorage.getItem('edgescan_profile_token')
     if (!token) return
 
+    cancelled.current = false
     setPhase('starting')
     setErrorMsg(null)
     setProgress(null)
+
+    let jobId: number | null = null
     try {
       const r = await fetch(`${BASE}/api/scan/request`, {
         method: 'POST',
@@ -41,52 +83,31 @@ export default function ScanButton() {
         setPhase('error')
         return
       }
-      await r.json()
+      const data = await r.json()
+      jobId = data.job_id
+      if (typeof data.tickers_done === 'number' && typeof data.total_tickers === 'number') {
+        setProgress({ done: data.tickers_done, total: data.total_tickers })
+      }
+      if (data.status === 'done') {
+        setPhase('done')
+        router.refresh()
+        setTimeout(() => { setPhase('idle'); setProgress(null) }, 3000)
+        return
+      }
     } catch {
       setErrorMsg('Network error — could not reach the server.')
       setPhase('error')
       return
     }
 
-    // Record timestamp so we know when the scan is "new"
-    scanStartedAt.current = new Date().toISOString()
+    if (jobId == null) {
+      setErrorMsg('Scan started but no job id was returned.')
+      setPhase('error')
+      return
+    }
+
     setPhase('scanning')
-    missedPolls.current = 0
-
-    // Poll /api/scan/status every 3 s for live progress
-    pollRef.current = setInterval(async () => {
-      try {
-        const r = await fetch(`${BASE}/api/scan/status`, { cache: 'no-store' })
-        if (!r.ok) throw new Error(String(r.status))
-        const data = await r.json()
-        missedPolls.current = 0
-
-        if (typeof data.tickers_done === 'number' && typeof data.total_tickers === 'number') {
-          setProgress({ done: data.tickers_done, total: data.total_tickers })
-        }
-
-        // Scan finished when in_progress=false AND last_scanned_at is after we started
-        if (
-          !data.in_progress &&
-          data.last_scanned_at &&
-          scanStartedAt.current &&
-          data.last_scanned_at > scanStartedAt.current
-        ) {
-          stopPolling()
-          setPhase('done')
-          router.refresh()
-          setTimeout(() => { setPhase('idle'); setProgress(null) }, 3000)
-        }
-      } catch {
-        // network hiccup — keep polling a few times before giving up
-        missedPolls.current += 1
-        if (missedPolls.current >= 10) {
-          stopPolling()
-          setErrorMsg('Lost connection while checking scan progress.')
-          setPhase('error')
-        }
-      }
-    }, 3000)
+    driveBatches(jobId, token)
   }
 
   if (phase === 'idle') {

@@ -942,54 +942,70 @@ def _fetch_market_pulse() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Scan state (in-memory, per-instance)
+# Scan state — chunked, request-driven (not a background thread)
 # ---------------------------------------------------------------------------
+# Cloud Run only guarantees CPU while a request is being handled. A detached
+# background thread started from a request handler can get starved of CPU
+# once the response is sent (unless "CPU is always allocated" is set on the
+# service, which isn't available in every console/region). To avoid depending
+# on that setting, the scan is processed in small batches, one batch per
+# HTTP call — each call is fully synchronous, so it always has real CPU.
+# The frontend calls /api/scan/request once to start, then repeatedly calls
+# /api/scan/continue until the job reports "done".
 
-def _report_scan_progress(job_id: int, done: int, total: int) -> None:
-    """Short-lived session so progress commits don't hold the main scan's connection open."""
-    db_p = SessionLocal()
+SCAN_BATCH_SIZE = 10
+
+
+def _process_scan_batch(job_id: int, db: Session) -> dict:
+    """Score the next batch of not-yet-scanned tickers for this job and return its status."""
+    job = db.query(ScanJob).filter(ScanJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Scan job not found")
+
+    total = len(SP500_TICKERS)
+    start = job.tickers_done or 0
+
+    if job.completed_at is not None or start >= total:
+        if job.completed_at is None:
+            job.completed_at = datetime.utcnow()
+            db.commit()
+        return {
+            "status": "done",
+            "job_id": job.id,
+            "tickers_done": job.tickers_done or total,
+            "total_tickers": total,
+        }
+
+    batch = SP500_TICKERS[start:start + SCAN_BATCH_SIZE]
     try:
-        job = db_p.query(ScanJob).filter(ScanJob.id == job_id).first()
-        if job:
-            job.tickers_done = done
-            db_p.commit()
-    finally:
-        db_p.close()
-
-
-def _background_scan(job_id: int, triggered_by: str) -> None:
-    """Background scan — persists state to DB so all Cloud Run instances agree."""
-    db = SessionLocal()
-    try:
-        results, errors = scan_tickers_with_errors(
-            SP500_TICKERS,
-            on_progress=lambda done, total: _report_scan_progress(job_id, done, total),
-        )
+        results, errors = scan_tickers_with_errors(batch)
         for r in results:
             _store_scan_result(r, db)
-        job = db.query(ScanJob).filter(ScanJob.id == job_id).first()
-        if job:
-            job.completed_at = datetime.utcnow()
-            job.tickers_done = len(results)
-            if errors:
-                # Store sample of errors so /api/scan/status can surface them
-                sample = list(errors.items())[:5]
-                job.error = f"{len(errors)} tickers failed. Sample: " + "; ".join(f"{t}: {e}" for t, e in sample)
-            db.commit()
-        print(f"[scan] Job {job_id} complete — {len(results)} ok, {len(errors)} failed.")
+
+        job.tickers_done = start + len(batch)
+        if errors:
+            sample = list(errors.items())[:5]
+            note = f"{len(errors)} failed so far. Sample: " + "; ".join(f"{t}: {e}" for t, e in sample)
+            job.error = note
+        db.commit()
     except Exception as e:
-        db2 = SessionLocal()
-        try:
-            job = db2.query(ScanJob).filter(ScanJob.id == job_id).first()
-            if job:
-                job.completed_at = datetime.utcnow()
-                job.error = str(e)[:500]
-                db2.commit()
-        finally:
-            db2.close()
-        print(f"[scan] Job {job_id} failed: {e}")
-    finally:
-        db.close()
+        job.completed_at = datetime.utcnow()
+        job.error = str(e)[:500]
+        db.commit()
+        raise
+
+    done = job.tickers_done >= total
+    if done:
+        job.completed_at = datetime.utcnow()
+        db.commit()
+        print(f"[scan] Job {job.id} complete — {job.tickers_done}/{total} tickers.")
+
+    return {
+        "status": "done" if done else "in_progress",
+        "job_id": job.id,
+        "tickers_done": job.tickers_done,
+        "total_tickers": total,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1051,34 +1067,45 @@ def test_scan(ticker: str = "AAPL", db: Session = Depends(get_db)):
 @app.post("/api/scan/request")
 def request_scan(authorization: str = Header(default=""), db: Session = Depends(get_db)):
     """
-    Any authenticated profile can trigger a background scan.
-    Returns immediately — poll GET /api/scan/status for completion.
-    Scan state persisted to DB so any Cloud Run instance can report status.
+    Starts (or resumes) a chunked scan job. This call processes the first
+    batch of tickers synchronously and returns. Call POST /api/scan/continue
+    repeatedly (with the returned job_id) until status is "done".
     """
     profile_id = _get_profile_id_from_token(authorization)
     if not profile_id:
         raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
 
-    # Check if a scan is already running (DB-backed, instance-agnostic)
+    # If a job is already in flight and recent, resume it instead of erroring —
+    # the client (e.g. after a page reload) just keeps calling /continue on it.
     latest_job = db.query(ScanJob).order_by(ScanJob.started_at.desc()).first()
     if latest_job and latest_job.completed_at is None:
-        # Guard: if started >15 min ago with no completion, assume it died
         age_minutes = (datetime.utcnow() - latest_job.started_at).total_seconds() / 60
         if age_minutes < 15:
-            return {"status": "already_running", "message": "A scan is already in progress"}
-        # Mark stale job as failed so we can start a fresh one
+            return _process_scan_batch(latest_job.id, db)
+        # Stale — mark failed and start a fresh one
         latest_job.completed_at = datetime.utcnow()
         latest_job.error = "timed out"
         db.commit()
 
-    job = ScanJob(triggered_by=profile_id)
+    job = ScanJob(triggered_by=profile_id, tickers_done=0)
     db.add(job)
     db.commit()
     db.refresh(job)
 
-    t = threading.Thread(target=_background_scan, args=(job.id, profile_id), daemon=True)
-    t.start()
-    return {"status": "started", "message": f"Scanning {len(SP500_TICKERS)} stocks in background", "job_id": job.id}
+    return _process_scan_batch(job.id, db)
+
+
+# ---------------------------------------------------------------------------
+# POST /api/scan/continue  — process the next batch of an in-progress scan
+# ---------------------------------------------------------------------------
+
+@app.post("/api/scan/continue")
+def continue_scan(job_id: int, authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    profile_id = _get_profile_id_from_token(authorization)
+    if not profile_id:
+        raise HTTPException(status_code=401, detail="Unauthorized — select a profile first")
+
+    return _process_scan_batch(job_id, db)
 
 
 # ---------------------------------------------------------------------------
