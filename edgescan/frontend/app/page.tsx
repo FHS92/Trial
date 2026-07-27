@@ -35,16 +35,20 @@ export default function ProfilePickerPage() {
   const [showNew, setShowNew] = useState(false)
   const [unlockingId, setUnlockingId] = useState<string | null>(null)
   const [unlockError, setUnlockError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   async function fetchProfiles() {
+    setLoadError(null)
     try {
       const res = await fetch(`${BASE}/api/profiles`, { cache: 'no-store' })
       if (res.ok) {
         const data: Profile[] = await res.json()
         setProfiles(data)
+      } else {
+        setLoadError(`Couldn't load profiles (server error ${res.status}).`)
       }
     } catch {
-      // backend may not be running locally
+      setLoadError('Network error — could not reach the server. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -138,6 +142,17 @@ export default function ProfilePickerPage() {
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
           </svg>
           <span className="text-sm">Loading profiles…</span>
+        </div>
+      ) : loadError ? (
+        <div className="flex flex-col items-center gap-3 text-center max-w-sm">
+          <p className="text-sm" style={{ color: '#f75f5f' }}>{loadError}</p>
+          <button
+            onClick={() => { setLoading(true); fetchProfiles() }}
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
+            style={{ background: 'var(--color-card)', border: '1px solid var(--color-border-2)', color: 'var(--color-text)' }}
+          >
+            Retry
+          </button>
         </div>
       ) : (
         <div className="flex flex-wrap justify-center gap-4 max-w-2xl w-full">
